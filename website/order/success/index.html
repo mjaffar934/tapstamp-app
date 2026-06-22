@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#FAF8F5">
+  <title>Order confirmed — TapStamp</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+  <div class="narrow">
+    <div id="loading" class="loading-block">
+      <div class="spinner"></div>
+      <p class="eyebrow">Confirming payment…</p>
+      <p class="lead" style="margin-bottom:0">One moment.</p>
+    </div>
+
+    <div id="error-content" class="hidden">
+      <p class="eyebrow">Something went wrong</p>
+      <h1>Could not confirm order</h1>
+      <p class="alert" id="error-msg"></p>
+      <p class="lead">If you were charged, sign in to the TapStamp owner app with your order email and password.</p>
+      <a href="/order?plan=starter" class="btn btn-block" style="margin-top:1rem">Back to order</a>
+    </div>
+
+    <div id="success-content" class="hidden">
+      <div class="success-icon">✓</div>
+      <p class="eyebrow">Order placed</p>
+      <h1>You're all set</h1>
+      <p class="lead">Payment received. We've created your owner account for <strong id="success-email"></strong>. Your <span id="success-plan"></span> loyalty stamp is on its way.</p>
+      <div class="card">
+        <p><strong>Save your login</strong></p>
+        <p class="note" style="margin-top:0.5rem">Email: <strong id="success-email-2"></strong><br>Password: the one you just created</p>
+        <p style="margin-top:1.25rem"><strong>What happens next</strong></p>
+        <ol class="steps-list">
+          <li>Your handcrafted stamp ships within 48 hours</li>
+          <li>We'll email you when the owner app is ready to download</li>
+          <li>Sign in with the email and password above</li>
+          <li>When your stamp arrives, customise your card and tap it on the counter to go live</li>
+          <li>Your 14-day free trial starts at go-live — <span id="after-trial"></span></li>
+        </ol>
+        <p style="margin-top:1.25rem"><a id="open-app-link" class="btn btn-block" href="#">Open owner app</a></p>
+        <p class="note" style="margin-top:0.75rem">While your stamp is in the post, the app shows delivery tracking and tips to get ready.</p>
+        <p class="note" style="margin-top:1.25rem">Questions? <a href="mailto:hello@tapstamp.co">hello@tapstamp.co</a></p>
+      </div>
+      <p class="note" style="margin-top:1.5rem"><a href="/">Return to tapstamp.co</a></p>
+    </div>
+  </div>
+  <script src="/assets/config.js"></script>
+  <script src="/assets/success.js"></script>
+</body>
+</html>

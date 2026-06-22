@@ -1,0 +1,5 @@
+# Cloudflare Pages — static site, no build step
+# https://developers.cloudflare.com/pages/configuration/redirects/
+
+/order/success  /order/success/index.html  200
+/order          /order/index.html          200

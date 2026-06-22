@@ -1,0 +1,18 @@
+{
+  "name": "tapstamp-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Thin Node proxy: HTML content-type fix + APNs push. Logic stays on Supabase.",
+  "main": "server.js",
+  "scripts": {
+    "prestart": "node scripts/bundle-website.js",
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@parse/node-apn": "^6.5.0",
+    "express": "^4.21.0"
+  }
+}

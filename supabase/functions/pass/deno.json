@@ -1,0 +1,8 @@
+{
+  "imports": {
+    "@supabase/functions-js": "jsr:@supabase/functions-js@^2",
+    "zipjs": "https://deno.land/x/zipjs@v2.7.52/index.js",
+    "imagescript": "https://deno.land/x/imagescript@1.3.0/mod.ts",
+    "forge": "https://esm.sh/node-forge@1.3.1"
+  }
+}
