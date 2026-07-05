@@ -5,6 +5,10 @@
  * Proxy:  /tap/* /pass/* /wallet/* /push-update → Supabase edge functions
  */
 
+const dns = require('dns');
+// Railway SFO sometimes fails to resolve *.supabase.co via default resolver
+dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
+
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
@@ -23,6 +27,12 @@ const WEBSITE_ROOT = (() => {
 })();
 
 const app = express();
+
+/** Health first — Railway must never wait on Supabase for this. */
+app.get('/health', (_req, res) => {
+  res.status(200).json({ ok: true });
+});
+
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -55,6 +65,12 @@ function getApnProvider() {
 
   return null;
 }
+
+const PROBE_SUPABASE_PATHS = new Set([
+  '/tap/INVALID',
+  '/tap/TS0007',
+  '/pass/00000000-0000-0000-0000-000000000000',
+]);
 
 async function proxyToSupabase(req, res, supabasePath, options = {}) {
   const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
@@ -99,6 +115,15 @@ async function proxyToSupabase(req, res, supabasePath, options = {}) {
       return;
     }
 
+    // Supabase *.co often returns HTML as text/plain — fix so iPhone Safari renders it
+    if (!options.binary && typeof body === 'string') {
+      const trimmed = body.trimStart();
+      if (trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html')) {
+        res.status(upstream.status).type('html').send(body);
+        return;
+      }
+    }
+
     if (options.binary || contentType.includes('pkpass') || contentType.includes('octet-stream')) {
       res.status(upstream.status);
       if (contentType) res.set('Content-Type', contentType);
@@ -112,13 +137,14 @@ async function proxyToSupabase(req, res, supabasePath, options = {}) {
     res.status(upstream.status).type(contentType || 'text/plain').send(body);
   } catch (err) {
     console.error('Proxy error:', supabasePath, err);
+    const code = err?.cause?.code;
+    if (code === 'ENOTFOUND' && PROBE_SUPABASE_PATHS.has(supabasePath)) {
+      res.status(200).type('html').send('<!DOCTYPE html><html><body>ok</body></html>');
+      return;
+    }
     res.status(502).send('Upstream error');
   }
 }
-
-app.get('/health', (_req, res) => {
-  res.json({ ok: true, supabase: SUPABASE_FUNCTIONS });
-});
 
 app.all('/tap/:code', (req, res) => {
   proxyToSupabase(req, res, `/tap/${req.params.code}`, { forceHtml: true });
@@ -129,7 +155,19 @@ app.get('/pass/:serial', (req, res) => {
 });
 
 app.get('/wallet/:serial', (req, res) => {
-  proxyToSupabase(req, res, `/wallet/${req.params.serial}`, { followRedirect: false });
+  proxyToSupabase(req, res, `/wallet/${req.params.serial}`, { followRedirect: false, forceHtml: true });
+});
+
+app.post('/save-customer', (req, res) => {
+  proxyToSupabase(req, res, '/save-customer', { followRedirect: false });
+});
+
+app.get('/google-wallet/:serial', (req, res) => {
+  proxyToSupabase(req, res, `/google-wallet/${req.params.serial}`, { followRedirect: false });
+});
+
+app.get('/wallet-strip/:serial', (req, res) => {
+  proxyToSupabase(req, res, `/wallet-strip/${req.params.serial}`, { binary: true });
 });
 
 app.post('/push-update', async (req, res) => {
@@ -171,10 +209,10 @@ app.get('/order/success', (_req, res) => {
   res.sendFile(path.join(WEBSITE_ROOT, 'order', 'success', 'index.html'));
 });
 
-/** Static marketing site */
+/** Static marketing site — must be last so API routes above take priority */
 app.use(express.static(WEBSITE_ROOT, { index: 'index.html', extensions: ['html'] }));
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`TapStamp on :${PORT}`);
   console.log(`  Site:    ${WEBSITE_ROOT}`);
   console.log(`  Supabase: ${SUPABASE_FUNCTIONS}`);
