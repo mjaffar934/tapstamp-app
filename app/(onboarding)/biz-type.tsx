@@ -57,7 +57,7 @@ export default function BizTypeScreen() {
         title="Continue"
         onPress={async () => {
           await saveOnboardingDraft({ bizType: selected });
-          router.push('/(onboarding)/colour-picker');
+          router.push('/(onboarding)/logo-upload');
         }}
         style={styles.cta}
       />

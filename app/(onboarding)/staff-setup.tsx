@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -9,83 +9,136 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { BackHeader } from '@/components/ui/BackHeader';
 import { OnboardingStepHeader } from '@/components/onboarding/OnboardingStepHeader';
+import { useAuth } from '@/contexts/AuthContext';
 import { useOwnerCafe } from '@/hooks/useOwnerCafe';
+import { clearOnboardingDraft } from '@/lib/onboardingDraft';
+import { completeOnboarding, provisionDraftForStaff } from '@/lib/onboardingProvision';
 import { colors, spacing } from '@/constants/theme';
 
 export default function StaffSetupScreen() {
-  const { cafe } = useOwnerCafe();
+  const { business, refreshBusiness } = useAuth();
+  const { cafe, refetch } = useOwnerCafe();
   const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [finishing, setFinishing] = useState(false);
+  const [staffCode, setStaffCode] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      setLoading(true);
+      setError(null);
+
+      const result = await provisionDraftForStaff(business?.name);
+      if (cancelled) return;
+
+      if (result.error) {
+        setError(result.error);
+        setLoading(false);
+        return;
+      }
+
+      if (result.staffCode) {
+        setStaffCode(result.staffCode);
+      }
+
+      await refetch();
+      setLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [business?.name, refetch]);
+
+  const displayCode = staffCode ?? cafe?.staff_code ?? null;
 
   const copyCode = async () => {
-    if (!cafe?.staff_code) return;
-    await Clipboard.setStringAsync(cafe.staff_code);
+    if (!displayCode) return;
+    await Clipboard.setStringAsync(displayCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const continueNext = () => {
-    if (!cafe?.staff_code) {
-      Alert.alert(
-        'Staff code loading',
-        'Your staff code will appear in Settings once your cafe is linked.',
-      );
+  const continueNext = async () => {
+    setFinishing(true);
+    const result = await completeOnboarding({ businessName: business?.name });
+    if (result.error) {
+      setFinishing(false);
+      Alert.alert('Could not finish setup', result.error);
+      return;
     }
-    router.push('/(onboarding)/chip-link');
+    await clearOnboardingDraft();
+    await refreshBusiness();
+    setFinishing(false);
+    router.replace({
+      pathname: '/(onboarding)/done',
+      params: { trial: cafe?.trial_ends_at ? '1' : '0' },
+    });
   };
 
   return (
     <Screen>
       <BackHeader />
       <OnboardingStepHeader
-        step={6}
+        step={5}
         title="Barista & staff mode"
-        subtitle="Give your team a quick way to stamp and redeem at the counter — no owner login needed."
+        subtitle="Share this code with your team so they can stamp and redeem without your owner login."
       />
 
       <Card style={styles.codeCard}>
-        <Ionicons name="key-outline" size={28} color={colors.accent} />
-        <Text variant="caption" muted>STAFF CODE</Text>
-        <Text variant="hero" style={styles.code}>
-          {cafe?.staff_code ?? '······'}
-        </Text>
-        <Text variant="bodySmall" muted style={styles.codeHint}>
-          Baristas enter this code on the Staff screen to open barista mode on a shared iPad or phone.
-        </Text>
-        {cafe?.staff_code ? (
-          <Button
-            title={copied ? 'Copied!' : 'Copy staff code'}
-            variant="outline"
-            onPress={copyCode}
-          />
-        ) : null}
+        {loading ? (
+          <ActivityIndicator color={colors.accent} />
+        ) : (
+          <>
+            <Text variant="caption" muted>STAFF CODE</Text>
+            <Text variant="hero" style={styles.code}>
+              {displayCode ?? '— — — — — —'}
+            </Text>
+            {error ? (
+              <Text variant="caption" color={colors.error}>{error}</Text>
+            ) : (
+              <Text variant="bodySmall" muted style={styles.codeHint}>
+                Baristas enter this on the Staff screen to open barista mode on a shared device.
+              </Text>
+            )}
+            {displayCode ? (
+              <Button
+                title={copied ? 'Copied' : 'Copy code'}
+                variant="outline"
+                onPress={copyCode}
+              />
+            ) : null}
+          </>
+        )}
       </Card>
 
       <Card style={styles.feature}>
         <View style={styles.featureRow}>
-          <Ionicons name="scan-outline" size={22} color={colors.accentDark} />
+          <Ionicons name="scan-outline" size={22} color={colors.textSecondary} />
           <View style={styles.featureText}>
             <Text variant="bodySmall" style={styles.featureTitle}>Scan wallet QR</Text>
-            <Text variant="caption" muted>Customers show their pass — staff scan and stamp in seconds.</Text>
+            <Text variant="caption" muted>Customers show their pass — staff stamp in seconds.</Text>
           </View>
         </View>
         <View style={styles.featureRow}>
-          <Ionicons name="people-outline" size={22} color={colors.accentDark} />
+          <Ionicons name="people-outline" size={22} color={colors.textSecondary} />
           <View style={styles.featureText}>
             <Text variant="bodySmall" style={styles.featureTitle}>Pick from recent passes</Text>
-            <Text variant="caption" muted>Search by name if the customer forgot their wallet.</Text>
-          </View>
-        </View>
-        <View style={styles.featureRow}>
-          <Ionicons name="shield-checkmark-outline" size={22} color={colors.accentDark} />
-          <View style={styles.featureText}>
-            <Text variant="bodySmall" style={styles.featureTitle}>Minimum spend verified</Text>
-            <Text variant="caption" muted>Staff confirm spend at the till before stamping.</Text>
+            <Text variant="caption" muted>Search by name if a customer forgot their wallet.</Text>
           </View>
         </View>
       </Card>
 
-      <Button title="Continue to link stamp" onPress={continueNext} style={styles.cta} />
-      <Button title="Set up staff later" variant="ghost" onPress={continueNext} />
+      <Button
+        title="Finish setup"
+        onPress={() => void continueNext()}
+        disabled={loading}
+        loading={finishing}
+        style={styles.cta}
+      />
     </Screen>
   );
 }
@@ -94,12 +147,12 @@ const styles = StyleSheet.create({
   codeCard: {
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.accentMuted,
     marginBottom: spacing.md,
+    paddingVertical: spacing.xl,
   },
   code: {
-    letterSpacing: 6,
-    color: colors.accentDark,
+    letterSpacing: 8,
+    fontVariant: ['tabular-nums'],
   },
   codeHint: {
     textAlign: 'center',

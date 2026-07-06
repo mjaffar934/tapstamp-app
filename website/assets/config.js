@@ -1,7 +1,9 @@
-/** Edit SUPABASE_PROJECT if you change projects. Used by order + success pages only. */
+/** Public config only — no API keys or secrets. */
 window.TAPSTAMP = {
   CHECKOUT_API: 'https://biootanbxmqfserzgnxe.supabase.co/functions/v1/order-checkout',
   SITE_URL: 'https://tapstamp.co',
+  /** iOS owner app — TestFlight or App Store. Update when published. */
+  APP_STORE_IOS: '',
   HARDWARE_GBP: 35,
   PLANS: {
     starter: { name: 'Starter', monthly: null, tagline: 'Free after trial — up to 50 customers per month' },

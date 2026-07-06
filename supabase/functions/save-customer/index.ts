@@ -9,6 +9,7 @@ Deno.serve(async (req) => {
     const contentType = req.headers.get('content-type') || '';
     let serial = '';
     let cafeId = '';
+    let chipCode = '';
     let customerName: string | null = null;
     let customerEmail: string | null = null;
     let birthday: string | null = null;
@@ -18,6 +19,7 @@ Deno.serve(async (req) => {
       const body = await req.json();
       serial = body.serial ?? '';
       cafeId = body.cafe_id ?? '';
+      chipCode = body.chip_code ?? '';
       customerName = body.customer_name ?? null;
       customerEmail = body.customer_email ?? null;
       birthday = body.birthday ?? null;
@@ -26,6 +28,7 @@ Deno.serve(async (req) => {
       const form = await req.formData();
       serial = String(form.get('serial') ?? '');
       cafeId = String(form.get('cafe_id') ?? '');
+      chipCode = String(form.get('chip_code') ?? '');
       customerName = form.get('customer_name') ? String(form.get('customer_name')) : null;
       customerEmail = form.get('customer_email') ? String(form.get('customer_email')) : null;
       birthday = form.get('birthday') ? String(form.get('birthday')) : null;
@@ -47,9 +50,23 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (!chipCode && cafeId) {
+      const { data: chip } = await supabase
+        .from('chips')
+        .select('code')
+        .eq('cafe_id', cafeId)
+        .limit(1)
+        .maybeSingle();
+      chipCode = chip?.code ?? '';
+    }
+
+    const destination = chipCode
+      ? functionsUrl(`/tap/${chipCode}?welcome=1`)
+      : functionsUrl(`/wallet/${serial}`);
+
     return new Response(null, {
       status: 302,
-      headers: { Location: functionsUrl(`/wallet/${serial}`) },
+      headers: { Location: destination },
     });
   } catch (err) {
     console.error('Save customer error:', err);

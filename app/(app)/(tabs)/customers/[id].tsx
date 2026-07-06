@@ -18,7 +18,7 @@ function displayName(name: string | null, email: string | null): string {
 
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { pass, stampGoal, reward, isLoading, error, refetch } = usePass(id);
+  const { pass, stamps, redemptions, stampGoal, reward, isLoading, error, refetch } = usePass(id);
   const [acting, setActing] = useState(false);
 
   const handleAction = async (action: 'stamp' | 'redeem') => {
@@ -116,6 +116,34 @@ export default function CustomerDetailScreen() {
         </Text>
       </Card>
 
+      {(stamps.length > 0 || redemptions.length > 0) ? (
+        <Card style={styles.card}>
+          <Text variant="h3">Activity</Text>
+          {stamps.slice(0, 8).map((stamp) => (
+            <View key={stamp.id} style={styles.activityRow}>
+              <View style={styles.activityDot} />
+              <View style={styles.activityText}>
+                <Text variant="bodySmall">Stamp collected</Text>
+                <Text variant="caption" muted>
+                  {new Date(stamp.created_at).toLocaleString()}
+                </Text>
+              </View>
+            </View>
+          ))}
+          {redemptions.slice(0, 5).map((r) => (
+            <View key={r.id} style={styles.activityRow}>
+              <View style={[styles.activityDot, styles.activityDotRedeem]} />
+              <View style={styles.activityText}>
+                <Text variant="bodySmall">Reward redeemed</Text>
+                <Text variant="caption" muted>
+                  {new Date(r.created_at).toLocaleString()}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </Card>
+      ) : null}
+
       <View style={styles.actions}>
         <Button
           title="Add stamp"
@@ -185,6 +213,27 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     borderColor: colors.accent,
     borderStyle: 'solid',
+  },
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderLight,
+  },
+  activityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.accent,
+  },
+  activityDotRedeem: {
+    backgroundColor: colors.success,
+  },
+  activityText: {
+    flex: 1,
+    gap: 2,
   },
   actions: {
     gap: spacing.sm,

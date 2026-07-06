@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 /** Owner app + webhooks — always Supabase (JSON APIs) */
 const supabaseApiBase = process.env.EXPO_PUBLIC_SUPABASE_URL?.replace(/\/$/, '');
 
-/** Customer-facing tap/pass URLs — Railway proxy or Supabase */
+/** Customer-facing tap/pass URLs — Supabase project URL or custom domain */
 const publicTapBase = (
   process.env.EXPO_PUBLIC_FUNCTIONS_URL ??
   process.env.EXPO_PUBLIC_SUPABASE_URL
@@ -14,21 +14,31 @@ function supabaseFn(path: string): string {
   return `${supabaseApiBase}/functions/v1${path}`;
 }
 
-/** Railway uses /tap at root; Supabase uses /functions/v1/tap */
 function publicPath(segment: string): string {
   if (!publicTapBase) return '';
-  if (publicTapBase.includes('.supabase.co')) {
-    return `${publicTapBase}/functions/v1${segment}`;
-  }
-  return `${publicTapBase}${segment}`;
+  return `${publicTapBase}/functions/v1${segment}`;
 }
 
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
+
 export async function authHeaders(contentType = 'application/json'): Promise<Record<string, string>> {
-  const { data: { session } } = await supabase.auth.getSession();
   const headers: Record<string, string> = { 'Content-Type': contentType };
+  if (supabaseAnonKey) headers.apikey = supabaseAnonKey;
+
+  let { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    session = refreshed.session;
+  }
   if (session?.access_token) {
     headers.Authorization = `Bearer ${session.access_token}`;
   }
+  return headers;
+}
+
+export function publicEdgeHeaders(contentType = 'application/json'): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': contentType };
+  if (supabaseAnonKey) headers.apikey = supabaseAnonKey;
   return headers;
 }
 
@@ -44,7 +54,7 @@ export async function callBaristaAction(
 
   if (staffCode) {
     body.staff_code = staffCode;
-    headers = { 'Content-Type': 'application/json' };
+    headers = publicEdgeHeaders();
   } else {
     headers = await authHeaders();
   }
@@ -67,7 +77,7 @@ export async function authenticateStaff(
 
   const res = await fetch(supabaseFn('/staff-auth'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: publicEdgeHeaders(),
     body: JSON.stringify({ code }),
   });
 
@@ -100,6 +110,7 @@ export async function lookupBaristaPass(
 
   const res = await fetch(
     `${supabaseFn(`/barista/${cafeId}`)}?serial=${encodeURIComponent(normalized)}`,
+    { headers: publicEdgeHeaders() },
   );
   const data = await res.json();
   if (!res.ok) return { error: data.error ?? 'Lookup failed' };
@@ -135,11 +146,12 @@ export interface ProvisionCafePayload {
   stamp_goal?: number;
   minimum_spend?: number | null;
   chip_code?: string;
+  go_live?: boolean;
 }
 
 export async function provisionCafe(
   payload: ProvisionCafePayload,
-): Promise<{ error?: string; cafeId?: string }> {
+): Promise<{ error?: string; cafeId?: string; staffCode?: string; trialStarted?: boolean }> {
   if (!supabaseApiBase) return { error: 'Supabase not configured' };
 
   const res = await fetch(supabaseFn('/provision-cafe'), {
@@ -149,13 +161,128 @@ export async function provisionCafe(
   });
 
   const data = await res.json();
-  if (!res.ok) return { error: data.error ?? 'Provisioning failed' };
+  if (!res.ok) {
+    if (res.status === 401) {
+      return { error: 'Session expired — sign out and sign in again, then retry.' };
+    }
+    return { error: data.error ?? 'Provisioning failed' };
+  }
   return data;
 }
 
-export async function linkChip(chipCode: string): Promise<{ error?: string }> {
+export async function linkChip(chipCode: string): Promise<{ error?: string; trialStarted?: boolean }> {
   const result = await provisionCafe({ chip_code: chipCode });
-  return result.error ? { error: result.error } : {};
+  if (result.error) return { error: result.error };
+  return { trialStarted: result.trialStarted };
+}
+
+export async function ownerSignup(payload: {
+  email: string;
+  password: string;
+  business_name: string;
+}): Promise<{ error?: string }> {
+  if (!supabaseApiBase) return { error: 'Supabase not configured' };
+
+  const res = await fetch(supabaseFn('/owner-signup'), {
+    method: 'POST',
+    headers: publicEdgeHeaders(),
+    body: JSON.stringify({
+      email: payload.email.trim().toLowerCase(),
+      password: payload.password,
+      business_name: payload.business_name.trim(),
+    }),
+  });
+
+  let data: { error?: string } = {};
+  try {
+    const text = await res.text();
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    return {
+      error: res.ok
+        ? 'Invalid server response'
+        : `Sign up failed (${res.status}). Check your connection and try again.`,
+    };
+  }
+
+  if (!res.ok) {
+    if (res.status === 404) {
+      return { error: 'Sign up service unavailable. Please try again shortly.' };
+    }
+    return { error: data.error ?? `Sign up failed (${res.status})` };
+  }
+  return {};
+}
+
+export async function activateStamp(
+  chipCode: string,
+): Promise<{ error?: string; trialStarted?: boolean; chipCode?: string }> {
+  if (!supabaseApiBase) return { error: 'Supabase not configured' };
+
+  const res = await fetch(supabaseFn('/activate-stamp'), {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: JSON.stringify({ chip_code: chipCode.trim().toUpperCase() }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    if (res.status === 401) {
+      return { error: 'Session expired — sign out and sign in again, then retry.' };
+    }
+    return { error: data.error ?? 'Activation failed' };
+  }
+  return { trialStarted: data.trialStarted, chipCode: data.chipCode };
+}
+
+export interface GeneratedStamp {
+  code: string;
+  tapUrl: string;
+  nfcUrl: string;
+}
+
+export async function adminGenerateChips(
+  count: number,
+): Promise<{ error?: string; stamps?: GeneratedStamp[] }> {
+  if (!supabaseApiBase) return { error: 'Supabase not configured' };
+
+  const secret = process.env.EXPO_PUBLIC_ADMIN_SECRET ?? process.env.EXPO_PUBLIC_DEV_BOOTSTRAP_SECRET ?? '';
+  if (!secret) return { error: 'Admin secret not configured' };
+
+  const res = await fetch(supabaseFn('/admin-generate-chips'), {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: JSON.stringify({ secret, count }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) return { error: data.error ?? 'Could not generate codes' };
+  return { stamps: data.stamps };
+}
+
+export interface AdminCreateClientPayload {
+  email: string;
+  password: string;
+  business_name: string;
+  owner_name?: string;
+  plan: string;
+  secret: string;
+}
+
+export async function adminCreateClient(
+  payload: AdminCreateClientPayload,
+): Promise<{ error?: string; userId?: string; businessId?: string; updated?: boolean }> {
+  if (!supabaseApiBase) return { error: 'Supabase not configured' };
+
+  const res = await fetch(supabaseFn('/admin-create-client'), {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  const data = await res.json();
+  if (!res.ok) return { error: data.error ?? 'Could not create client' };
+  return data;
 }
 
 export async function uploadCafeLogo(cafeId: string, logoUri: string): Promise<{ error?: string; url?: string }> {
@@ -242,7 +369,7 @@ export function chipLinkUrl(chipCode: string): string {
 }
 
 export async function finalizeOnboarding(
-  payload: ProvisionCafePayload & { chip_code: string },
-): Promise<{ error?: string; cafeId?: string }> {
+  payload: ProvisionCafePayload,
+): Promise<{ error?: string; cafeId?: string; staffCode?: string }> {
   return provisionCafe(payload);
 }

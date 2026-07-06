@@ -1,5 +1,5 @@
 import { Redirect } from 'expo-router';
 
 export default function CreateAccountScreen() {
-  return <Redirect href="/(landing)/order" />;
+  return <Redirect href="/(auth)/gate" />;
 }

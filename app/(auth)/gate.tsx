@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -9,15 +8,17 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Link, router, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import * as ExpoLinking from 'expo-linking';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { BrandLogo } from '@/components/BrandLogo';
+import { OwnerFlowSteps } from '@/components/auth/OwnerFlowSteps';
 import { useAuth } from '@/contexts/AuthContext';
-import { orderSignupUrl } from '@/constants/config';
+import { SUPPORT_EMAIL } from '@/constants/config';
+import { TAPSTAMP_BRAND } from '@/constants/tapstampBrand';
 import {
   DEV_BOOTSTRAP_SECRET,
   DEV_EMAIL,
@@ -26,7 +27,7 @@ import {
   hasDevBootstrap,
   hasDevCredentials,
 } from '@/constants/devAuth';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, radius, spacing, shadows } from '@/constants/theme';
 
 function parseEmailFromUrl(url: string): string | null {
   try {
@@ -42,12 +43,16 @@ function parseEmailFromUrl(url: string): string | null {
 }
 
 export default function GateScreen() {
-  const { signIn, signInDev } = useAuth();
-  const params = useLocalSearchParams<{ email?: string }>();
+  const { signIn, signUp, signInDev } = useAuth();
+  const params = useLocalSearchParams<{ email?: string; reason?: string; mode?: string }>();
+  const [mode, setMode] = useState<'signin' | 'signup'>(params.mode === 'signup' ? 'signup' : 'signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [businessName, setBusinessName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const noAccount = params.reason === 'no_account';
 
   useEffect(() => {
     if (typeof params.email === 'string' && params.email.includes('@')) {
@@ -61,23 +66,41 @@ export default function GateScreen() {
     });
   }, [params.email]);
 
-  const handleSignIn = async () => {
+  useEffect(() => {
+    if (noAccount) {
+      setError('No TapStamp account found for this email. Create one below.');
+      setMode('signup');
+    }
+  }, [noAccount]);
+
+  const handleSubmit = async () => {
     setError(null);
     if (!email.trim() || !password) {
       setError('Enter your email and password');
       return;
     }
-
-    setLoading(true);
-    const result = await signIn(email.trim(), password);
-    setLoading(false);
-
-    if (result.error) {
-      setError(result.error);
+    if (mode === 'signup' && password.length < 8) {
+      setError('Password must be at least 8 characters');
       return;
     }
 
-    router.replace('/');
+    setLoading(true);
+    try {
+      const result = mode === 'signup'
+        ? await signUp(email.trim(), password, businessName.trim() || 'My Business')
+        : await signIn(email.trim(), password);
+
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+
+      router.replace('/');
+    } catch {
+      setError('Something went wrong. Check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDevSignIn = async () => {
@@ -86,7 +109,7 @@ export default function GateScreen() {
       return;
     }
     if (!hasDevBootstrap()) {
-      setError('Add EXPO_PUBLIC_DEV_BOOTSTRAP_SECRET to .env (must match Supabase DEV_BOOTSTRAP_SECRET)');
+      setError('Add EXPO_PUBLIC_DEV_BOOTSTRAP_SECRET to .env');
       return;
     }
     setError(null);
@@ -100,13 +123,6 @@ export default function GateScreen() {
     router.replace('/');
   };
 
-  const openOrder = () => {
-    const url = orderSignupUrl('starter');
-    if (url) {
-      void Linking.openURL(url);
-    }
-  };
-
   return (
     <Screen scroll safe padded={false}>
       <KeyboardAvoidingView
@@ -118,83 +134,123 @@ export default function GateScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.top}>
-            <BrandLogo size={56} />
-            <Text style={styles.wordmark}>TapStamp</Text>
-            <View style={styles.rule} />
-            <Text style={styles.headline}>Owner sign in</Text>
-            <Text muted style={styles.subline}>
-              Use the same email and password you created when ordering on tapstamp.co.
+          <View style={styles.hero}>
+            <BrandLogo size={52} />
+            <Text variant="caption" style={styles.eyebrow}>TapStamp for business</Text>
+            <Text variant="hero" style={styles.heroTitle}>
+              {mode === 'signup' ? 'Start your loyalty programme' : 'Welcome back'}
             </Text>
+            <Text style={styles.heroSub}>
+              {mode === 'signup'
+                ? 'Create your account, tap your stamp to activate, then set up your card in minutes.'
+                : 'Sign in to manage stamps, customers, and your team.'}
+            </Text>
+            {mode === 'signup' ? (
+              <View style={styles.flowWrap}>
+                <OwnerFlowSteps current="account" />
+              </View>
+            ) : null}
           </View>
 
-          <Card style={styles.signInCard}>
-            <Text variant="h3">Sign in</Text>
-            <Input
-              label="Email"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-              placeholder="you@cafe.com"
-            />
-            <Input
-              label="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoComplete="password"
-              placeholder="••••••••"
-              onSubmitEditing={handleSignIn}
-            />
-            {error ? (
-              <Text variant="caption" color={colors.error} style={styles.error}>
-                {error}
-              </Text>
-            ) : null}
-            <Button title="Sign in" onPress={handleSignIn} loading={loading} style={styles.signInBtn} />
-            <Link href="/(auth)/forgot-password" asChild>
-              <Pressable style={styles.forgot}>
-                <Text variant="bodySmall" color={colors.textSecondary}>
-                  Forgot password?
+          <View style={styles.sheet}>
+            <View style={styles.modeRow}>
+              <Pressable
+                style={[styles.modeTab, mode === 'signin' && styles.modeTabActive]}
+                onPress={() => { setMode('signin'); setError(null); }}
+              >
+                <Text variant="bodySmall" style={mode === 'signin' ? styles.modeTabTextActive : undefined}>
+                  Sign in
                 </Text>
               </Pressable>
-            </Link>
-          </Card>
+              <Pressable
+                style={[styles.modeTab, mode === 'signup' && styles.modeTabActive]}
+                onPress={() => { setMode('signup'); setError(null); }}
+              >
+                <Text variant="bodySmall" style={mode === 'signup' ? styles.modeTabTextActive : undefined}>
+                  Create account
+                </Text>
+              </Pressable>
+            </View>
 
-          <Card style={styles.orderCard}>
-            <Text variant="h3">New to TapStamp?</Text>
-            <Text variant="bodySmall" muted>
-              Order your £35 loyalty stamp on tapstamp.co — you will create your owner account there, then sign in here to track delivery and go live.
-            </Text>
-            <Button title="Order your stamp" variant="secondary" onPress={openOrder} />
-          </Card>
+            <View style={styles.formGroup}>
+              {mode === 'signup' ? (
+                <Input
+                  label="Business name"
+                  value={businessName}
+                  onChangeText={setBusinessName}
+                  autoCapitalize="words"
+                  placeholder="e.g. Corner Cafe"
+                />
+              ) : null}
+              <Input
+                label="Email"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoComplete="email"
+                placeholder="you@business.com"
+              />
+              <Input
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoComplete={mode === 'signup' ? 'new-password' : 'password'}
+                placeholder={mode === 'signup' ? 'Min 8 characters' : 'Your password'}
+                onSubmitEditing={handleSubmit}
+              />
+              {error ? (
+                <View style={styles.errorBox}>
+                  <Ionicons name="alert-circle-outline" size={16} color={colors.error} />
+                  <Text variant="caption" color={colors.error} style={styles.errorText}>{error}</Text>
+                </View>
+              ) : null}
+              <Button
+                title={mode === 'signup' ? 'Continue' : 'Sign in'}
+                onPress={handleSubmit}
+                loading={loading}
+              />
+              {mode === 'signin' ? (
+                <Link href="/(auth)/forgot-password" asChild>
+                  <Pressable style={styles.forgot}>
+                    <Text variant="bodySmall" color={colors.textSecondary}>
+                      Forgot password?
+                    </Text>
+                  </Pressable>
+                </Link>
+              ) : null}
+            </View>
 
-          <View style={styles.bottom}>
-            <Pressable onPress={() => router.push('/(auth)/staff')} style={styles.staff}>
-              <Text variant="bodySmall" color={colors.textSecondary}>
-                Staff / barista mode →
-              </Text>
+            <Pressable
+              onPress={() => router.push('/(auth)/staff')}
+              style={styles.staffCard}
+            >
+              <View style={styles.staffIcon}>
+                <Ionicons name="scan-outline" size={20} color={colors.accentDark} />
+              </View>
+              <View style={styles.staffText}>
+                <Text variant="bodySmall" style={styles.staffTitle}>Staff / barista mode</Text>
+                <Text variant="caption" muted>Stamp and redeem without the owner login</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
             </Pressable>
 
+            {mode === 'signup' ? (
+              <Text variant="caption" muted style={styles.help}>
+                Next: hold your TapStamp to your phone to activate. Questions? {SUPPORT_EMAIL}
+              </Text>
+            ) : null}
+
             {DEV_SIGN_IN_ENABLED ? (
-              <>
+              <View style={styles.devBlock}>
                 <Button
                   title="Dev sign in"
                   variant="outline"
                   onPress={handleDevSignIn}
                   loading={loading}
                 />
-                <Pressable
-                  onPress={() => router.push('/(onboarding)/welcome')}
-                  style={styles.devLink}
-                >
-                  <Text variant="caption" color={colors.accentDark}>
-                    Preview onboarding
-                  </Text>
-                </Pressable>
-              </>
+              </View>
             ) : null}
           </View>
         </ScrollView>
@@ -207,68 +263,111 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: {
     flexGrow: 1,
+    paddingBottom: spacing.xl,
+  },
+  hero: {
+    backgroundColor: TAPSTAMP_BRAND.backgroundColor,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xxl,
     paddingBottom: spacing.xl,
+    gap: spacing.sm,
+    borderBottomLeftRadius: radius.xl,
+    borderBottomRightRadius: radius.xl,
+  },
+  eyebrow: {
+    color: TAPSTAMP_BRAND.labelColor,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginTop: spacing.md,
+  },
+  heroTitle: {
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+  },
+  heroSub: {
+    color: 'rgba(255,255,255,0.72)',
+    lineHeight: 24,
+    maxWidth: 340,
+    fontSize: 16,
+  },
+  flowWrap: {
+    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(201,169,110,0.2)',
+  },
+  sheet: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
     gap: spacing.lg,
   },
-  top: {
+  modeRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.md,
+    padding: 4,
+  },
+  modeTab: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    borderRadius: radius.sm,
+  },
+  modeTabActive: {
+    backgroundColor: colors.surface,
+    ...shadows.sm,
+  },
+  modeTabTextActive: {
+    fontWeight: '600',
+  },
+  formGroup: {
     gap: spacing.md,
-    paddingTop: spacing.lg,
-  },
-  wordmark: {
-    fontSize: 13,
-    fontFamily: 'Inter_600SemiBold',
-    letterSpacing: 5,
-    textTransform: 'uppercase',
-    color: colors.accent,
-  },
-  rule: {
-    width: 32,
-    height: 1,
-    backgroundColor: colors.accent,
-    opacity: 0.5,
-    marginTop: spacing.xs,
-  },
-  headline: {
-    fontSize: 32,
-    fontFamily: 'Inter_400Regular',
-    letterSpacing: -0.8,
-    lineHeight: 38,
-    color: colors.text,
-    marginTop: spacing.sm,
-  },
-  subline: {
-    fontSize: 16,
-    lineHeight: 24,
-    maxWidth: 320,
-  },
-  signInCard: {
-    gap: spacing.md,
-  },
-  orderCard: {
-    gap: spacing.sm,
-    backgroundColor: colors.surfaceElevated,
-  },
-  error: {
-    marginTop: -spacing.xs,
-  },
-  signInBtn: {
+    backgroundColor: colors.surface,
     borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    padding: spacing.md,
+    ...shadows.sm,
   },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    backgroundColor: colors.errorMuted,
+    padding: spacing.sm,
+    borderRadius: radius.sm,
+  },
+  errorText: { flex: 1, lineHeight: 18 },
   forgot: {
     alignSelf: 'center',
     paddingVertical: spacing.xs,
   },
-  bottom: {
+  staffCard: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    paddingTop: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    padding: spacing.md,
+    ...shadows.sm,
   },
-  staff: {
-    paddingVertical: spacing.sm,
+  staffIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.accentMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  devLink: {
-    paddingVertical: spacing.xs,
+  staffText: { flex: 1, gap: 2 },
+  staffTitle: { fontWeight: '600' },
+  help: {
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  devBlock: {
+    marginTop: spacing.sm,
   },
 });

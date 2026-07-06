@@ -3,7 +3,6 @@ import {
   buildGoogleWalletSaveUrl,
   isGoogleWalletConfigured,
 } from '../_shared/googleWallet.ts';
-import { redirectPage, type CafeBrand } from '../_shared/html.ts';
 import { json, lastPathSegment } from '../_shared/utils.ts';
 
 Deno.serve(async (req) => {
@@ -58,16 +57,9 @@ Deno.serve(async (req) => {
       return json({ saveUrl });
     }
 
-    const brand = cafe as CafeBrand;
-    const html = redirectPage(
-      brand,
-      'Adding to Google Wallet',
-      'Your loyalty card is opening in Google Wallet.',
-      saveUrl,
-    );
-
-    return new Response(html, {
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    return new Response(null, {
+      status: 302,
+      headers: { Location: saveUrl },
     });
   } catch (err) {
     console.error('Google Wallet error:', err);

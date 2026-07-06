@@ -17,7 +17,7 @@ export function TrialBanner({ trialEndsAt, planName, monthlyPrice }: TrialBanner
 
   const afterTrial =
     monthlyPrice == null
-      ? 'then your free Starter plan begins (50 customers/month)'
+      ? `then your ${planName} plan continues`
       : `then ${monthlyPrice} for ${planName}`;
 
   return (

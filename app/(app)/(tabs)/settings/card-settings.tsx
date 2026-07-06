@@ -12,7 +12,7 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { ExpandableWalletPreview } from '@/components/ExpandableWalletPreview';
-import { COLOR_PALETTES, type ColorPalette } from '@/constants/colorPalettes';
+import { TAPSTAMP_BRAND } from '@/constants/tapstampBrand';
 import { colors, radius, spacing } from '@/constants/theme';
 
 function parseAmount(value: string): number | null {
@@ -28,24 +28,10 @@ function formatAmount(value: number | null): string {
 
 const SATURDAY_DOUBLE = [{ day: 6, start: '00:00', end: '23:59' }];
 
-function findPaletteId(
-  bg: string | null | undefined,
-  fg: string | null | undefined,
-): string {
-  const match = COLOR_PALETTES.find(
-    (p) => p.backgroundColor === bg && p.foregroundColor === fg,
-  );
-  return match?.id ?? COLOR_PALETTES[0].id;
-}
-
 export default function CardSettingsScreen() {
   const { business } = useAuth();
   const { cafe, isLoading, isSaving, error, saveMinimumSpend, saveCardPreferences, updateCafe, refetch } =
     useOwnerCafe();
-  const [paletteId, setPaletteId] = useState(COLOR_PALETTES[0].id);
-  const [bg, setBg] = useState(COLOR_PALETTES[0].backgroundColor);
-  const [fg, setFg] = useState(COLOR_PALETTES[0].foregroundColor);
-  const [label, setLabel] = useState(COLOR_PALETTES[0].labelColor);
   const [minSpendEnabled, setMinSpendEnabled] = useState(false);
   const [amountText, setAmountText] = useState('');
   const [showCustomerName, setShowCustomerName] = useState(true);
@@ -66,10 +52,6 @@ export default function CardSettingsScreen() {
     if (cafe) {
       setMinSpendEnabled(cafe.minimum_spend != null && cafe.minimum_spend > 0);
       setAmountText(cafe.minimum_spend ? formatAmount(Number(cafe.minimum_spend)) : '');
-      setPaletteId(findPaletteId(cafe.background_color, cafe.foreground_color));
-      setBg(cafe.background_color ?? COLOR_PALETTES[0].backgroundColor);
-      setFg(cafe.foreground_color ?? COLOR_PALETTES[0].foregroundColor);
-      setLabel(cafe.label_color ?? COLOR_PALETTES[0].labelColor);
       setShowCustomerName(cafe.show_customer_name_on_pass ?? true);
       setCollectDetails(cafe.collect_customer_details ?? false);
       setCollectBirthday(cafe.collect_birthday ?? false);
@@ -83,13 +65,6 @@ export default function CardSettingsScreen() {
       setLogoUri(cafe.logo_url);
     }
   }, [cafe]);
-
-  const applyPalette = (p: ColorPalette) => {
-    setPaletteId(p.id);
-    setBg(p.backgroundColor);
-    setFg(p.foregroundColor);
-    setLabel(p.labelColor);
-  };
 
   const pickLogo = async () => {
     if (!cafe?.id) return;
@@ -131,9 +106,6 @@ export default function CardSettingsScreen() {
       show_customer_name_on_pass: showCustomerName,
       collect_customer_details: collectDetails,
       collect_birthday: collectBirthday,
-      background_color: bg,
-      foreground_color: fg,
-      label_color: label,
     });
     if (prefsResult.error) return;
 
@@ -169,7 +141,7 @@ export default function CardSettingsScreen() {
       <ScreenHeader
         compact
         title="Card settings"
-        subtitle="Customise wallet passes, stamps, and customer details"
+        subtitle="Logo, rewards, stamps, and customer details"
       />
 
       {!cafe ? (
@@ -182,9 +154,9 @@ export default function CardSettingsScreen() {
         <>
           <ExpandableWalletPreview
             businessName={business?.name ?? cafe.name}
-            backgroundColor={bg}
-            foregroundColor={fg}
-            labelColor={label}
+            backgroundColor={TAPSTAMP_BRAND.backgroundColor}
+            foregroundColor={TAPSTAMP_BRAND.foregroundColor}
+            labelColor={TAPSTAMP_BRAND.labelColor}
             logoUri={logoUri}
             stampGoal={goalNum}
             stampsFilled={Math.min(3, goalNum)}
@@ -195,39 +167,17 @@ export default function CardSettingsScreen() {
 
           <Card style={styles.section}>
             <Text variant="h3">Logo</Text>
+            <Text variant="caption" muted>Your logo appears on the wallet pass and customer tap page</Text>
             <Pressable onPress={pickLogo} disabled={uploadingLogo}>
               <View style={styles.logoBox}>
                 {logoUri ? (
                   <Image source={{ uri: logoUri }} style={styles.logoPreview} resizeMode="contain" />
                 ) : (
-                  <Text variant="caption" muted>Tap to upload logo for wallet passes</Text>
+                  <Text variant="caption" muted>Tap to upload your logo</Text>
                 )}
               </View>
             </Pressable>
             {uploadingLogo ? <ActivityIndicator color={colors.accent} /> : null}
-          </Card>
-
-          <Card style={styles.section}>
-            <Text variant="h3">Colour palette</Text>
-            <Text variant="caption" muted>Applied to Apple and Google Wallet passes</Text>
-            <View style={styles.paletteGrid}>
-              {COLOR_PALETTES.map((p) => {
-                const active = p.id === paletteId;
-                return (
-                  <Pressable
-                    key={p.id}
-                    style={[styles.paletteCard, active && styles.paletteCardActive]}
-                    onPress={() => applyPalette(p)}
-                  >
-                    <View style={styles.paletteSwatches}>
-                      <View style={[styles.colorDot, { backgroundColor: p.backgroundColor }]} />
-                      <View style={[styles.colorDot, { backgroundColor: p.foregroundColor }]} />
-                    </View>
-                    <Text variant="label">{p.name}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
           </Card>
 
           <Card style={styles.section}>

@@ -11,7 +11,7 @@ import { router } from 'expo-router';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { subscribeToDeepLinks } from '@/lib/authLinking';
-import { provisionCafe } from '@/lib/api';
+import { ownerSignup, provisionCafe } from '@/lib/api';
 import { bootstrapDevAccount } from '@/lib/devBootstrap';
 import { clearStaffSession } from '@/lib/staffSession';
 import type { Business } from '@/types/database';
@@ -21,7 +21,9 @@ interface AuthContextValue {
   user: User | null;
   business: Business | null;
   isLoading: boolean;
+  businessLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, businessName: string) => Promise<{ error: string | null }>;
   signInDev: (email: string, password: string, bootstrapSecret: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshBusiness: () => Promise<void>;
@@ -33,6 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [business, setBusiness] = useState<Business | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [businessLoading, setBusinessLoading] = useState(false);
 
   const fetchBusiness = useCallback(async (userId: string): Promise<Business | null> => {
     const { data, error } = await supabase
@@ -52,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const ensureCafeLinked = useCallback(async (user: User, biz: Business | null) => {
-    if (!user.email || !biz) return;
+    if (!user.email || !biz || biz.onboarding_status === 'pending_activation') return;
 
     await provisionCafe({
       name: biz.name,
@@ -98,13 +101,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       if (nextSession?.user?.id) {
-        fetchBusiness(nextSession.user.id).then((biz) => {
-          if (nextSession.user) {
-            ensureCafeLinked(nextSession.user, biz);
-          }
-        });
+        setBusinessLoading(true);
+        fetchBusiness(nextSession.user.id)
+          .then((biz) => {
+            if (nextSession.user) {
+              return ensureCafeLinked(nextSession.user, biz);
+            }
+          })
+          .finally(() => setBusinessLoading(false));
       } else {
         setBusiness(null);
+        setBusinessLoading(false);
       }
     });
 
@@ -114,12 +121,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(async (email: string, password: string) => {
     await clearStaffSession();
     const normalizedEmail = email.trim().toLowerCase();
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: normalizedEmail,
       password,
     });
-    return { error: error?.message ?? null };
-  }, []);
+    if (error) {
+      return { error: error.message };
+    }
+
+    if (data.user?.id) {
+      setBusinessLoading(true);
+      try {
+        const biz = await fetchBusiness(data.user.id);
+        if (data.user) {
+          await ensureCafeLinked(data.user, biz);
+        }
+      } finally {
+        setBusinessLoading(false);
+      }
+    }
+
+    return { error: null };
+  }, [ensureCafeLinked, fetchBusiness]);
+
+  const signUp = useCallback(async (email: string, password: string, businessName: string) => {
+    await clearStaffSession();
+    const normalizedEmail = email.trim().toLowerCase();
+    const trimmedName = businessName.trim() || 'My Business';
+
+    const signup = await ownerSignup({
+      email: normalizedEmail,
+      password,
+      business_name: trimmedName,
+    });
+    if (signup.error) {
+      return { error: signup.error };
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password,
+    });
+    if (error) {
+      return { error: error.message };
+    }
+
+    if (data.user?.id) {
+      setBusinessLoading(true);
+      try {
+        await fetchBusiness(data.user.id);
+      } finally {
+        setBusinessLoading(false);
+      }
+    }
+
+    return { error: null };
+  }, [fetchBusiness]);
 
   const signInDev = useCallback(async (email: string, password: string, bootstrapSecret: string) => {
     await clearStaffSession();
@@ -160,12 +217,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: session?.user ?? null,
       business,
       isLoading,
+      businessLoading,
       signIn,
+      signUp,
       signInDev,
       signOut,
       refreshBusiness,
     }),
-    [session, business, isLoading, signIn, signInDev, signOut, refreshBusiness],
+    [session, business, isLoading, businessLoading, signIn, signUp, signInDev, signOut, refreshBusiness],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

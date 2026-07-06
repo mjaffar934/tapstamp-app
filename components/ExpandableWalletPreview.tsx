@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { LayoutAnimation, Platform, Pressable, UIManager, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
-import { Card } from '@/components/ui/Card';
 import { WalletPreviewPair, type WalletPreviewProps } from '@/components/onboarding/WalletPassPreview';
 import { colors, radius, spacing } from '@/constants/theme';
 
@@ -12,13 +11,15 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 interface ExpandableWalletPreviewProps extends WalletPreviewProps {
   title?: string;
+  defaultExpanded?: boolean;
 }
 
 export function ExpandableWalletPreview({
   title = 'Wallet preview',
+  defaultExpanded = true,
   ...preview
 }: ExpandableWalletPreviewProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
 
   const toggle = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -26,17 +27,17 @@ export function ExpandableWalletPreview({
   };
 
   return (
-    <Card style={styles.card} padded={false}>
+    <View style={styles.card}>
       <Pressable onPress={toggle} style={styles.header}>
         <View style={styles.headerText}>
           <Text variant="h3">{title}</Text>
           <Text variant="caption" muted>
-            {expanded ? 'Tap to collapse' : 'Tap to see Apple & Google Wallet'}
+            {expanded ? 'Tap to collapse' : 'Tap to preview Apple & Google Wallet'}
           </Text>
         </View>
         <Ionicons
           name={expanded ? 'chevron-up' : 'chevron-down'}
-          size={22}
+          size={20}
           color={colors.textSecondary}
         />
       </Pressable>
@@ -46,21 +47,28 @@ export function ExpandableWalletPreview({
           <WalletPreviewPair {...preview} />
         </View>
       ) : (
-        <View style={styles.collapsedRow}>
+        <Pressable onPress={toggle} style={styles.collapsedRow}>
           <View style={[styles.miniPass, { backgroundColor: preview.backgroundColor }]}>
-            <View style={[styles.miniDot, { backgroundColor: preview.foregroundColor }]} />
+            <View style={[styles.miniStripe, { backgroundColor: preview.foregroundColor }]} />
           </View>
           <Text variant="caption" muted style={styles.collapsedHint}>
             {preview.businessName ?? 'Your business'} · {preview.stampGoal ?? 10} stamps
           </Text>
-        </View>
+        </Pressable>
       )}
-    </Card>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { marginBottom: spacing.lg, overflow: 'hidden' },
+  card: {
+    marginBottom: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -68,7 +76,12 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   headerText: { flex: 1, gap: 2 },
-  preview: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
+  preview: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderLight,
+  },
   collapsedRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -77,12 +90,15 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   miniPass: {
-    width: 48,
-    height: 30,
-    borderRadius: radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 52,
+    height: 32,
+    borderRadius: 6,
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
   },
-  miniDot: { width: 8, height: 8, borderRadius: radius.full },
+  miniStripe: {
+    height: 4,
+    width: '100%',
+  },
   collapsedHint: { flex: 1 },
 });

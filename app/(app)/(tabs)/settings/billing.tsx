@@ -12,14 +12,13 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { TrialBanner } from '@/components/TrialBanner';
 import { StarterUsageBanner } from '@/components/StarterUsageBanner';
-import { PLANS, STARTER_MONTHLY_CUSTOMER_LIMIT, HARDWARE_PRICE_GBP } from '@/constants/plans';
+import { PLANS, STARTER_MONTHLY_CUSTOMER_LIMIT } from '@/constants/plans';
 import { SUPPORT_EMAIL } from '@/constants/config';
 import { parsePlanId } from '@/constants/plans';
 import {
   isTrialActive,
   trialEnded,
   shouldEnforceStarterLimit,
-  isPaidPlan,
 } from '@/lib/planUtils';
 import { colors, spacing } from '@/constants/theme';
 
@@ -43,7 +42,6 @@ export default function BillingScreen() {
   const onTrial = isTrialActive(cafe?.trial_ends_at);
   const trialOver = trialEnded(cafe?.trial_ends_at);
   const starterLimited = shouldEnforceStarterLimit(cafe?.plan, cafe?.trial_ends_at);
-  const paidActive = isPaidPlan(cafe?.plan) && cafe?.subscription_status === 'active';
   const hasStripeCustomer = Boolean(business?.stripe_customer_id);
 
   const manageBilling = async () => {
@@ -59,8 +57,8 @@ export default function BillingScreen() {
     await Linking.openURL(result.portalUrl);
   };
 
-  const contactUpgrade = () => {
-    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=TapStamp%20upgrade`);
+  const contactSupport = () => {
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=TapStamp%20plan`);
   };
 
   if (isLoading) {
@@ -76,11 +74,11 @@ export default function BillingScreen() {
   return (
     <Screen>
       <BackHeader />
-      <ScreenHeader compact title="Billing" subtitle="Your TapStamp plan, trial, and usage." />
+      <ScreenHeader compact title="Plan" subtitle="Your TapStamp plan and usage." />
 
       {!cafe ? (
         <Card>
-          <Text variant="bodySmall" muted>Link your account to a cafe to view billing.</Text>
+          <Text variant="bodySmall" muted>Complete setup to view your plan.</Text>
         </Card>
       ) : (
         <>
@@ -88,7 +86,7 @@ export default function BillingScreen() {
             <TrialBanner
               trialEndsAt={cafe.trial_ends_at}
               planName={plan.name}
-              monthlyPrice={plan.monthlyGbp != null ? `£${plan.monthlyGbp}/mo` : null}
+              monthlyPrice={null}
             />
           ) : null}
 
@@ -99,18 +97,12 @@ export default function BillingScreen() {
               <Text variant="bodySmall" muted>
                 Trial ends {formatDate(cafe.trial_ends_at)}
               </Text>
-            ) : trialOver && plan.monthlyGbp != null ? (
-              <Text variant="bodySmall" muted>
-                £{plan.monthlyGbp}/month{paidActive ? '' : ' — payment required'}
-              </Text>
             ) : trialOver && planId === 'starter' ? (
               <Text variant="bodySmall" muted>
-                Free forever · up to {STARTER_MONTHLY_CUSTOMER_LIMIT} customers/month
+                Free · up to {STARTER_MONTHLY_CUSTOMER_LIMIT} customers/month
               </Text>
             ) : (
-              <Text variant="bodySmall" muted>
-                14-day trial starts when you go live
-              </Text>
+              <Text variant="bodySmall" muted>{plan.tagline}</Text>
             )}
           </Card>
 
@@ -119,37 +111,22 @@ export default function BillingScreen() {
           ) : null}
 
           <Card style={styles.card}>
-            <Text variant="caption" muted>HARDWARE</Text>
-            <Text variant="body">Loyalty stamp · £{HARDWARE_PRICE_GBP}</Text>
-            <Text variant="bodySmall" muted>Paid when you ordered your stamp</Text>
-          </Card>
-
-          <Card style={styles.card}>
             <Text variant="caption" muted>STATUS</Text>
             <Text variant="body" color={cafe.status === 'suspended' ? colors.error : colors.success}>
               {cafe.status === 'suspended' ? 'Suspended' : onTrial ? 'Trial' : 'Active'}
             </Text>
-            {cafe.subscription_status === 'past_due' ? (
-              <Text variant="bodySmall" muted>Update your payment method to restore service.</Text>
-            ) : null}
           </Card>
 
           {hasStripeCustomer ? (
             <Button
-              title="Manage billing in Stripe"
+              title="Manage billing"
               onPress={manageBilling}
               loading={portalLoading}
               style={styles.cta}
             />
           ) : null}
 
-          {planId === 'starter' ? (
-            <Button title="Upgrade to Pro" variant="outline" onPress={contactUpgrade} style={styles.cta} />
-          ) : null}
-
-          {!hasStripeCustomer && trialOver && !paidActive && isPaidPlan(cafe.plan) ? (
-            <Button title="Contact support" onPress={contactUpgrade} style={styles.cta} />
-          ) : null}
+          <Button title="Contact TapStamp" variant="outline" onPress={contactSupport} style={styles.cta} />
         </>
       )}
     </Screen>

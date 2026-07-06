@@ -106,9 +106,6 @@ export function useCafeSettings(userEmail: string | undefined) {
     show_customer_name_on_pass?: boolean;
     collect_customer_details?: boolean;
     collect_birthday?: boolean;
-    background_color?: string;
-    foreground_color?: string;
-    label_color?: string;
   }) => updateCafe(prefs), [updateCafe]);
 
   return {

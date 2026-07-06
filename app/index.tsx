@@ -1,14 +1,14 @@
-import { Redirect, type Href } from 'expo-router';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { Redirect } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { useStaff } from '@/contexts/StaffContext';
 import { colors } from '@/constants/theme';
 
 export default function Index() {
-  const { session, business, isLoading: authLoading } = useAuth();
+  const { session, business, isLoading: authLoading, businessLoading } = useAuth();
   const { staffSession, isLoading: staffLoading } = useStaff();
 
-  if (authLoading || staffLoading) {
+  if (authLoading || staffLoading || (session && businessLoading)) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator size="large" color={colors.accent} />
@@ -24,13 +24,15 @@ export default function Index() {
     return <Redirect href="/(auth)/gate" />;
   }
 
-  if (!business || business.onboarding_status !== 'complete') {
-    if (business?.order_status === 'pending_payment') {
-      return <Redirect href={'/(onboarding)/payment-pending' as Href} />;
-    }
-    if (business && !business.kit_received) {
-      return <Redirect href={'/(onboarding)/waiting' as Href} />;
-    }
+  if (!business) {
+    return <Redirect href="/(auth)/gate?reason=no_account" />;
+  }
+
+  if (business.onboarding_status === 'pending_activation') {
+    return <Redirect href="/(onboarding)/activate" />;
+  }
+
+  if (business.onboarding_status !== 'complete') {
     return <Redirect href="/(onboarding)/welcome" />;
   }
 

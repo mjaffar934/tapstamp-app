@@ -1,0 +1,17 @@
+name = "tapstamp-tap-proxy"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+# Route tapstamp.co customer paths to Supabase edge functions with correct HTML MIME types.
+# Add in Cloudflare dashboard: tapstamp.co/tap/*, tapstamp.co/wallet/*, etc.
+# Or use routes below after `wrangler deploy`:
+# routes = [
+#   { pattern = "tapstamp.co/tap/*", zone_name = "tapstamp.co" },
+#   { pattern = "tapstamp.co/wallet/*", zone_name = "tapstamp.co" },
+#   { pattern = "tapstamp.co/pass/*", zone_name = "tapstamp.co" },
+#   { pattern = "tapstamp.co/google-wallet/*", zone_name = "tapstamp.co" },
+#   { pattern = "tapstamp.co/save-customer", zone_name = "tapstamp.co" },
+# ]
+
+[vars]
+SUPABASE_FUNCTIONS_ORIGIN = "https://biootanbxmqfserzgnxe.supabase.co"

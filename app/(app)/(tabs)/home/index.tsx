@@ -55,8 +55,19 @@ export default function HomeScreen() {
         <TrialBanner
           trialEndsAt={cafe?.trial_ends_at}
           planName={planDef.name}
-          monthlyPrice={planDef.monthlyGbp != null ? `£${planDef.monthlyGbp}/mo` : null}
+          monthlyPrice={null}
         />
+      ) : !cafe?.trial_ends_at ? (
+        <Card style={styles.trialPendingCard}>
+          <Text variant="bodySmall">
+            Link your stamp in Settings → Share programme to start your 14-day trial.
+          </Text>
+          <Button
+            title="Link stamp"
+            variant="outline"
+            onPress={() => router.push('/(app)/(tabs)/settings/share')}
+          />
+        </Card>
       ) : null}
 
       {showStarterUsage ? (
@@ -213,6 +224,11 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: 'center',
     maxWidth: 260,
+  },
+  trialPendingCard: {
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+    backgroundColor: colors.surfaceMuted,
   },
   activityList: {
     paddingHorizontal: spacing.md,

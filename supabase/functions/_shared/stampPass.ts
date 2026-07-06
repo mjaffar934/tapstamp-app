@@ -10,6 +10,7 @@ export interface StampResult {
   stampCount?: number;
   status?: string;
   isRedeemed?: boolean;
+  rewardJustUnlocked?: boolean;
 }
 
 export async function applyStampToPass(
@@ -28,14 +29,7 @@ export async function applyStampToPass(
   }
 
   if (pass.status === 'redeemed') {
-    await supabase.from('passes').update({
-      stamp_count: 1,
-      status: 'active',
-      last_stamp_at: new Date().toISOString(),
-    }).eq('serial_number', serial);
-    await supabase.from('stamps').insert({ pass_id: pass.id, cafe_id: cafeId });
-    await notifyPass({ ...pass, stamp_count: 1, status: 'active' }, cafe);
-    return { ok: true, stampCount: 1, status: 'active', isRedeemed: false };
+    return { ok: false, error: 'redeem_pending' };
   }
 
   const stampsToAdd = isDoubleStampWindow(
@@ -87,6 +81,7 @@ export async function applyStampToPass(
     stampCount: isRedeemed ? stampGoal : newCount,
     status: isRedeemed ? 'redeemed' : 'active',
     isRedeemed,
+    rewardJustUnlocked: isRedeemed,
   };
 }
 

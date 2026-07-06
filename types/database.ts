@@ -21,7 +21,7 @@ export interface Business {
   foreground_color: string | null;
   label_color: string | null;
   show_customer_name_on_pass: boolean;
-  onboarding_status: 'ordered' | 'complete';
+  onboarding_status: 'pending_activation' | 'ordered' | 'complete';
   plan_selected: PlanId | null;
   order_status: OrderStatus;
   kit_received: boolean;
@@ -172,7 +172,7 @@ export interface Database {
           foreground_color?: string | null;
           label_color?: string | null;
           show_customer_name_on_pass?: boolean;
-          onboarding_status?: 'ordered' | 'complete';
+          onboarding_status?: 'pending_activation' | 'ordered' | 'complete';
           plan_selected?: PlanId | null;
           order_status?: OrderStatus;
           kit_received?: boolean;

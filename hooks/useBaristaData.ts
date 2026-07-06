@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { publicEdgeHeaders } from '@/lib/api';
+
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.replace(/\/$/, '');
 
 export interface BaristaPass {
@@ -35,7 +37,9 @@ export function useBaristaData(cafeId: string | undefined) {
     setError(null);
 
     try {
-      const res = await fetch(`${supabaseUrl}/functions/v1/barista/${cafeId}`);
+      const res = await fetch(`${supabaseUrl}/functions/v1/barista/${cafeId}`, {
+        headers: publicEdgeHeaders(),
+      });
       if (!res.ok) throw new Error('Failed to load barista data');
       const json = await res.json();
       setData(json);

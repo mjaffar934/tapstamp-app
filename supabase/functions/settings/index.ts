@@ -24,10 +24,6 @@ Deno.serve(async (req) => {
     const allowed = [
       'reward',
       'stamp_goal',
-      'background_color',
-      'foreground_color',
-      'label_color',
-      'pass_template',
       'show_customer_name_on_pass',
       'collect_customer_details',
       'collect_birthday',

@@ -8,14 +8,12 @@ import { OnboardingStepHeader } from '@/components/onboarding/OnboardingStepHead
 import { ExpandableWalletPreview } from '@/components/ExpandableWalletPreview';
 import { loadOnboardingDraft } from '@/lib/onboardingDraft';
 import { useAuth } from '@/contexts/AuthContext';
+import { TAPSTAMP_BRAND } from '@/constants/tapstampBrand';
 import { spacing } from '@/constants/theme';
 
 export default function CardPreviewScreen() {
   const { business } = useAuth();
   const [draft, setDraft] = useState({
-    backgroundColor: 'rgb(26, 24, 20)',
-    foregroundColor: 'rgb(201, 169, 110)',
-    labelColor: 'rgb(138, 128, 112)',
     logoUri: null as string | null,
     reward: 'Free coffee',
     stampGoal: 10,
@@ -24,9 +22,6 @@ export default function CardPreviewScreen() {
   useEffect(() => {
     loadOnboardingDraft().then((d) => {
       setDraft({
-        backgroundColor: d.backgroundColor,
-        foregroundColor: d.foregroundColor,
-        labelColor: d.labelColor,
         logoUri: d.logoUri,
         reward: d.reward,
         stampGoal: d.stampGoal,
@@ -38,7 +33,7 @@ export default function CardPreviewScreen() {
     <Screen>
       <BackHeader />
       <OnboardingStepHeader
-        step={5}
+        step={4}
         title="Your loyalty card"
         subtitle="Review how it appears on iPhone and Android before you go live."
       />
@@ -46,9 +41,9 @@ export default function CardPreviewScreen() {
       <ExpandableWalletPreview
         title="Wallet preview"
         businessName={business?.name ?? 'Your business'}
-        backgroundColor={draft.backgroundColor}
-        foregroundColor={draft.foregroundColor}
-        labelColor={draft.labelColor}
+        backgroundColor={TAPSTAMP_BRAND.backgroundColor}
+        foregroundColor={TAPSTAMP_BRAND.foregroundColor}
+        labelColor={TAPSTAMP_BRAND.labelColor}
         logoUri={draft.logoUri}
         stampGoal={draft.stampGoal}
         stampsFilled={Math.min(3, draft.stampGoal)}

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" role="img" aria-label="TapStamp">
+  <rect width="120" height="120" rx="28" fill="#141210"/>
+  <rect x="24" y="24" width="72" height="72" rx="18" fill="url(#ts-g)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+  <path d="M60 38c-8.5 0-14 5.2-14 12.8 0 7.2 5.2 10.4 14 14.4 8.2 3.8 12 6.4 12 11.2 0 4.2-3.4 7.2-8.8 7.2-5 0-9-2.4-11.4-6.2l-6.4 5.2c3.4 5.4 9.4 8.8 17.2 8.8 10.4 0 17.8-6.2 17.8-15.4 0-8.2-5.8-11.6-15.2-15.6-7.4-3.2-10.8-5.6-10.8-10 0-3.6 3-6.2 7.6-6.2 4 0 7.2 1.8 9.4 4.8l6-5.4C72.6 40.4 67 38 60 38z" fill="#141210"/>
+  <circle cx="88" cy="34" r="6" fill="#141210" opacity="0.9"/>
+  <defs>
+    <linearGradient id="ts-g" x1="24" y1="24" x2="96" y2="96" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D4B87A"/>
+      <stop offset="1" stop-color="#9A7B45"/>
+    </linearGradient>
+  </defs>
+</svg>

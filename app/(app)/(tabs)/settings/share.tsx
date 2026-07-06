@@ -82,7 +82,12 @@ export default function ShareScreen() {
     setChipInput('');
     await loadChip();
     await refetchCafe();
-    Alert.alert('Stamp linked', `Code ${code} is now linked to your cafe.`);
+    Alert.alert(
+      result.trialStarted ? 'Stamp linked — trial started' : 'Stamp linked',
+      result.trialStarted
+        ? `Code ${code} is linked. Your 14-day trial is now running.`
+        : `Code ${code} is now linked to your cafe.`,
+    );
   };
 
   if (isLoading) {
@@ -113,7 +118,7 @@ export default function ShareScreen() {
           <Ionicons name="radio-outline" size={32} color={colors.textMuted} />
           <Text variant="h3">Link your stamp</Text>
           <Text variant="bodySmall" muted>
-            Enter the code on your TapStamp stamp to generate your tap URL and QR code.
+            Hold your TapStamp to your phone or enter the code below. Linking starts your 14-day trial.
           </Text>
           <Input
             label="Stamp code"

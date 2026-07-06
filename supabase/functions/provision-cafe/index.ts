@@ -4,18 +4,17 @@ import { ensureCafeStaffCode, startGoLiveTrial } from '../_shared/createOrder.ts
 import { generateStaffCode } from '../_shared/staffCode.ts';
 import { json, slugFromEmail } from '../_shared/utils.ts';
 
+import { TAPSTAMP_BG, TAPSTAMP_FG, TAPSTAMP_LABEL } from '../_shared/brand.ts';
+
 interface ProvisionBody {
   name?: string;
   biz_type?: string;
-  pass_template?: string;
-  background_color?: string;
-  foreground_color?: string;
-  label_color?: string;
   show_customer_name_on_pass?: boolean;
   reward?: string;
   stamp_goal?: number;
   minimum_spend?: number | null;
   chip_code?: string;
+  go_live?: boolean;
 }
 
 Deno.serve(async (req) => {
@@ -70,10 +69,10 @@ Deno.serve(async (req) => {
           email,
           slug: slugFromEmail(email, `cafe-${user.id.slice(0, 8)}`),
           biz_type: body.biz_type ?? 'cafe',
-          pass_template: body.pass_template ?? 'classic',
-          background_color: body.background_color ?? 'rgb(26, 24, 20)',
-          foreground_color: body.foreground_color ?? 'rgb(201, 169, 110)',
-          label_color: body.label_color ?? 'rgb(138, 128, 112)',
+          pass_template: 'classic',
+          background_color: TAPSTAMP_BG,
+          foreground_color: TAPSTAMP_FG,
+          label_color: TAPSTAMP_LABEL,
           show_customer_name_on_pass: body.show_customer_name_on_pass ?? true,
           reward: body.reward ?? 'Free coffee',
           stamp_goal: body.stamp_goal ?? 10,
@@ -95,10 +94,6 @@ Deno.serve(async (req) => {
       await supabase.from('cafes').update({
         name: body.name,
         biz_type: body.biz_type,
-        pass_template: body.pass_template,
-        background_color: body.background_color,
-        foreground_color: body.foreground_color,
-        label_color: body.label_color,
         show_customer_name_on_pass: body.show_customer_name_on_pass,
         ...(body.reward != null ? { reward: body.reward } : {}),
         ...(body.stamp_goal != null ? { stamp_goal: body.stamp_goal } : {}),
@@ -117,28 +112,27 @@ Deno.serve(async (req) => {
       if (chip && !chip.cafe_id) {
         await supabase.from('chips').update({ cafe_id: cafeId }).eq('id', chip.id);
       } else if (chip && chip.cafe_id && chip.cafe_id !== cafeId) {
-        return json({ error: 'This chip is already linked to another cafe' }, 409);
+        return json({ error: 'This stamp is already linked to another business' }, 409);
       } else if (!chip) {
-        return json({ error: 'Stamp not found. Check the reference printed on your stamp.' }, 404);
+        return json({ error: 'Stamp not recognised. Hold it under the top of your phone and try again.' }, 404);
       }
 
+      // Trial starts on first NFC stamp link — not when skipping setup.
       await startGoLiveTrial(user.id, cafeId);
     }
 
+    const onboardingComplete = Boolean(body.chip_code || body.go_live);
+
     await supabase.from('businesses').update({
       email,
-      pass_template: body.pass_template,
-      background_color: body.background_color,
-      foreground_color: body.foreground_color,
-      label_color: body.label_color,
       show_customer_name_on_pass: body.show_customer_name_on_pass,
       business_type: body.biz_type,
-      ...(body.chip_code ? { onboarding_status: 'complete' } : {}),
+      ...(onboardingComplete ? { onboarding_status: 'complete' } : {}),
     }).eq('owner_id', user.id);
 
     const staffCode = await ensureCafeStaffCode(cafeId);
 
-    return json({ success: true, cafeId, staffCode });
+    return json({ success: true, cafeId, staffCode, trialStarted: Boolean(body.chip_code) });
   } catch (err) {
     console.error('Provision cafe error:', err);
     return json({ error: (err as Error).message }, 500);

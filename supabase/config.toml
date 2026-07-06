@@ -568,3 +568,69 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/provision-cafe/deno.json"
 entrypoint = "./functions/provision-cafe/index.ts"
+
+[functions.admin-create-client]
+enabled = true
+verify_jwt = false
+import_map = "./functions/admin-create-client/deno.json"
+entrypoint = "./functions/admin-create-client/index.ts"
+
+[functions.wallet]
+enabled = true
+verify_jwt = false
+import_map = "./functions/wallet/deno.json"
+entrypoint = "./functions/wallet/index.ts"
+
+[functions.google-wallet]
+enabled = true
+verify_jwt = false
+import_map = "./functions/google-wallet/deno.json"
+entrypoint = "./functions/google-wallet/index.ts"
+
+[functions.wallet-strip]
+enabled = true
+verify_jwt = false
+import_map = "./functions/wallet-strip/deno.json"
+entrypoint = "./functions/wallet-strip/index.ts"
+
+[functions.barista-action]
+enabled = true
+verify_jwt = false
+import_map = "./functions/barista-action/deno.json"
+entrypoint = "./functions/barista-action/index.ts"
+
+[functions.activate-stamp]
+enabled = true
+verify_jwt = false
+import_map = "./functions/activate-stamp/deno.json"
+entrypoint = "./functions/activate-stamp/index.ts"
+
+[functions.owner-signup]
+enabled = true
+verify_jwt = false
+import_map = "./functions/owner-signup/deno.json"
+entrypoint = "./functions/owner-signup/index.ts"
+
+[functions.admin-generate-chips]
+enabled = true
+verify_jwt = false
+import_map = "./functions/admin-generate-chips/deno.json"
+entrypoint = "./functions/admin-generate-chips/index.ts"
+
+[functions.staff-auth]
+enabled = true
+verify_jwt = false
+import_map = "./functions/staff-auth/deno.json"
+entrypoint = "./functions/staff-auth/index.ts"
+
+[functions.dev-bootstrap]
+enabled = true
+verify_jwt = false
+import_map = "./functions/dev-bootstrap/deno.json"
+entrypoint = "./functions/dev-bootstrap/index.ts"
+
+[functions.dev-seed]
+enabled = true
+verify_jwt = false
+import_map = "./functions/dev-seed/deno.json"
+entrypoint = "./functions/dev-seed/index.ts"

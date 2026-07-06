@@ -1,4 +1,7 @@
-// Premium mobile HTML for NFC tap flow — adapts to cafe brand colours (light + dark palettes).
+// Premium customer tap pages — one TapStamp template; cafe name + logo only.
+
+import { TAPSTAMP_BG, TAPSTAMP_FG, TAPSTAMP_LABEL, TAPSTAMP_MUTED } from './brand.ts';
+import { formatRewardDisplay } from './walletDisplay.ts';
 
 export interface CafeBrand {
   id: string;
@@ -6,40 +9,11 @@ export interface CafeBrand {
   reward: string;
   stamp_goal: number;
   logo_url?: string | null;
-  background_color?: string | null;
-  foreground_color?: string | null;
-  label_color?: string | null;
   welcome_message?: string | null;
   stamp_message?: string | null;
   reward_message?: string | null;
   collect_birthday?: boolean | null;
   minimum_spend?: number | null;
-}
-
-const BRAND_DARK = 'rgb(26,24,20)';
-const BRAND_GOLD = 'rgb(201,169,110)';
-const BRAND_CREAM = 'rgb(250,248,245)';
-const BRAND_INK = 'rgb(26,24,20)';
-
-export function getBg(cafe: CafeBrand) {
-  return cafe.background_color || BRAND_DARK;
-}
-export function getFg(cafe: CafeBrand) {
-  return cafe.foreground_color || BRAND_GOLD;
-}
-
-function parseRgb(color: string): [number, number, number] | null {
-  const m = color.match(/rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/i);
-  if (!m) return null;
-  return [Number(m[1]), Number(m[2]), Number(m[3])];
-}
-
-function isLightBackground(bg: string): boolean {
-  const rgb = parseRgb(bg);
-  if (!rgb) return false;
-  const [r, g, b] = rgb;
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.62;
 }
 
 function escapeHtml(s: string) {
@@ -52,99 +26,124 @@ function getLogo(cafe: CafeBrand) {
     : `<div class="logo-fallback">${escapeHtml(cafe.name.charAt(0).toUpperCase())}</div>`;
 }
 
-function getStamps(cafe: CafeBrand, count: number, filledColor?: string, emptyOpacity = 0.22) {
-  const fg = filledColor ?? getFg(cafe);
+function getStamps(cafe: CafeBrand, count: number) {
   return `<div class="stamps">${Array.from({ length: cafe.stamp_goal }, (_, i) => {
     const filled = i < count;
-    return `<span class="stamp${filled ? ' filled' : ''}" style="--stamp-fg:${fg};--stamp-empty:${emptyOpacity}"></span>`;
+    return `<span class="stamp${filled ? ' filled' : ''}"></span>`;
   }).join('')}</div>`;
 }
 
-function walletButton(label: string, href: string, isAndroid: boolean) {
-  const icon = isAndroid
-    ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>'
-    : '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>';
-  return `<a href="${href}" class="btn wallet-btn">${icon}<span>${escapeHtml(label)}</span></a>`;
+function rewardText(reward: string): string {
+  return escapeHtml(formatRewardDisplay(reward));
 }
 
-function shellStyles(bg: string, fg: string, light: boolean): string {
-  const cardBg = light ? '#FFFFFF' : 'rgba(255,255,255,0.06)';
-  const cardBorder = light ? 'rgba(26,24,20,0.08)' : 'rgba(255,255,255,0.12)';
-  const textMuted = light ? 'rgba(26,24,20,0.55)' : 'rgba(255,255,255,0.55)';
-  const btnText = light ? BRAND_CREAM : bg;
-  const inputBg = light ? '#FAF8F5' : 'rgba(255,255,255,0.07)';
-  const inputBorder = light ? 'rgba(26,24,20,0.1)' : 'rgba(255,255,255,0.12)';
-
-  return `*{box-sizing:border-box;margin:0;padding:0}body{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:${bg};color:${fg};min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.75rem 1.25rem;text-align:center;-webkit-font-smoothing:antialiased}.wrap{width:100%;max-width:360px}.card{background:${cardBg};border:1px solid ${cardBorder};border-radius:22px;padding:1.75rem 1.5rem;box-shadow:${light ? '0 12px 40px rgba(26,24,20,0.06)' : '0 8px 32px rgba(0,0,0,0.2)'}}.logo{width:56px;height:56px;object-fit:contain;border-radius:12px;margin:0 auto 1rem;display:block}.logo-fallback{width:56px;height:56px;border-radius:14px;margin:0 auto 1rem;display:flex;align-items:center;justify-content:center;font-size:1.35rem;font-weight:600;background:${light ? 'rgba(201,169,110,0.15)' : 'rgba(255,255,255,0.08)'};color:${fg}h1{font-size:1.35rem;font-weight:600;margin-bottom:0.35rem;letter-spacing:-0.02em;line-height:1.25}p{font-size:0.9rem;color:${textMuted};line-height:1.55;margin-bottom:0.85rem}.muted{font-size:0.8rem;color:${textMuted}}.stamps{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:0.85rem 0 1rem}.stamp{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--stamp-fg);opacity:var(--stamp-empty);display:inline-block;position:relative}.stamp.filled{opacity:1;background:var(--stamp-fg)}.stamp.filled::after{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 10'%3E%3Cpath fill='%23${light ? '1A1814' : '1A1814'}' d='M1 5.2L4.2 8.4 11 1.6'/%3E%3C/svg%3E") center/10px no-repeat;filter:${light ? 'none' : 'invert(1) brightness(0.15)'}}.btn{display:flex;align-items:center;justify-content:center;gap:0.5rem;width:100%;background:${fg};color:${btnText};border:none;border-radius:14px;padding:0.95rem 1rem;font-size:0.95rem;font-weight:600;text-decoration:none;margin-top:0.35rem;cursor:pointer;transition:opacity 0.15s}.btn:active{opacity:0.88}.wallet-btn{min-height:52px}.reward-pill{display:inline-block;background:${light ? 'rgba(201,169,110,0.14)' : 'rgba(255,255,255,0.1)'};border:1px solid ${cardBorder};border-radius:12px;padding:0.75rem 1.25rem;font-size:1rem;font-weight:600;margin:0.5rem 0 0.85rem;color:${fg}}.celebrate{font-size:0.72rem;letter-spacing:0.14em;text-transform:uppercase;color:${fg};opacity:0.7;margin-bottom:0.5rem}input,button{font-family:inherit}input[type=text],input[type=email],input[type=date]{width:100%;background:${inputBg};border:1px solid ${inputBorder};border-radius:12px;padding:0.85rem;color:${fg};font-size:0.95rem;outline:none;margin-bottom:0.75rem}input:focus{border-color:${fg};box-shadow:0 0 0 3px ${light ? 'rgba(201,169,110,0.25)' : 'rgba(255,255,255,0.12)'}}label{font-size:0.68rem;color:${textMuted};text-transform:uppercase;letter-spacing:0.12em;display:block;margin-bottom:5px;text-align:left}.link-btn{display:block;margin-top:0.65rem;color:${fg};opacity:0.45;font-size:0.85rem;text-decoration:none;padding:0.65rem}.powered{font-size:0.62rem;color:${textMuted};margin-top:1.25rem;letter-spacing:0.1em;text-transform:uppercase}`;
+function earnRewardPhrase(reward: string): string {
+  const r = formatRewardDisplay(reward);
+  if (!r) return 'Collect stamps with every visit';
+  if (/^free\b/i.test(r)) return `Earn a ${r}`;
+  if (/^(a|an)\s/i.test(r)) return `Earn ${r}`;
+  const article = /^[aeiou]/i.test(r) ? 'an' : 'a';
+  return `Earn ${article} ${r}`;
 }
+
+function walletButtons(applePassUrl: string, googlePassUrl: string | null): string {
+  const appleIcon = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.05 12.54c-.02-2.3 1.88-3.41 1.96-3.46-1.07-1.56-2.73-1.77-3.32-1.79-1.41-.14-2.76.83-3.48.83-.73 0-1.84-.81-3.03-.79-1.56.02-3 1.01-3.8 2.56-1.62 2.81-.41 6.97 1.16 9.25.77 1.12 1.69 2.38 2.9 2.34 1.17-.05 1.61-.75 3.02-.75 1.41 0 1.81.75 3.05.73 1.26-.02 2.06-1.14 2.82-2.27.89-1.3 1.26-2.56 1.28-2.62-.03-.01-2.46-.94-2.48-3.73zM14.86 4.77c.64-.78 1.07-1.85.95-2.93-.92.04-2.04.61-2.7 1.39-.6.69-1.12 1.8-.98 2.86 1.04.08 2.1-.53 2.73-1.32z"/></svg>';
+  const googleIcon = '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>';
+  const apple = `<a href="${applePassUrl}" class="wallet-btn wallet-apple">${appleIcon}<span>Add to Apple Wallet</span></a>`;
+  const google = googlePassUrl
+    ? `<a href="${googlePassUrl}" class="wallet-btn wallet-google">${googleIcon}<span>Add to Google Wallet</span></a>`
+    : '';
+  return apple + google;
+}
+
+function walletDoneLink(thanksUrl: string) {
+  return `<a href="${thanksUrl}" class="link-btn">I&apos;ve added my card</a>`;
+}
+
+function persistScript(cafeId: string) {
+  const safeId = escapeHtml(cafeId);
+  return `<script>(function(){var id="${safeId}",k="tapstamp_"+id,m=document.cookie.match(new RegExp("(?:^|;)\\\\s*pass_"+id+"=([^;]+)"));if(m){try{localStorage.setItem(k,m[1])}catch(e){}}else{try{var s=localStorage.getItem(k);if(s&&!location.search.includes("new=1")){document.cookie="pass_"+id+"="+s+";path=/;max-age=31536000;SameSite=Lax";location.reload()}}catch(e){}}})();</script>`;
+}
+
+const STYLES = `*{box-sizing:border-box;margin:0;padding:0}body{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:${TAPSTAMP_BG};background-image:radial-gradient(ellipse 120% 80% at 50% -20%,rgba(201,169,110,0.12),transparent 55%);color:${TAPSTAMP_FG};min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1.25rem;text-align:center;-webkit-font-smoothing:antialiased}.wrap{width:100%;max-width:380px}.card{background:rgba(255,255,255,0.04);border:1px solid rgba(201,169,110,0.14);border-radius:24px;padding:2rem 1.75rem;box-shadow:0 24px 48px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.04)}.logo{width:80px;height:80px;object-fit:contain;border-radius:18px;margin:0 auto 1.5rem;display:block;box-shadow:0 8px 24px rgba(0,0,0,0.25)}.logo-fallback{width:80px;height:80px;border-radius:20px;margin:0 auto 1.5rem;display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:600;background:rgba(201,169,110,0.12);color:${TAPSTAMP_FG};border:1px solid rgba(201,169,110,0.25)}.divider{width:40px;height:1px;background:linear-gradient(90deg,transparent,rgba(201,169,110,0.5),transparent);margin:0 auto 1rem}h1{font-size:1.65rem;font-weight:600;margin-bottom:0.65rem;letter-spacing:-0.03em;line-height:1.15;color:#fff}.tagline{font-size:1rem;color:rgba(255,255,255,0.72);line-height:1.55;margin-bottom:1.25rem}p{font-size:0.92rem;color:${TAPSTAMP_MUTED};line-height:1.6;margin-bottom:1rem}.muted{font-size:0.8rem;color:${TAPSTAMP_MUTED}}.stamps{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:1.25rem 0 1rem}.stamp{width:30px;height:30px;border-radius:50%;border:1.5px solid ${TAPSTAMP_FG};opacity:0.2}.stamp.filled{opacity:1;background:${TAPSTAMP_FG};box-shadow:0 0 12px rgba(201,169,110,0.35)}.btn{display:flex;align-items:center;justify-content:center;gap:0.5rem;width:100%;background:${TAPSTAMP_FG};color:${TAPSTAMP_BG};border:none;border-radius:14px;padding:1rem 1.1rem;font-size:0.95rem;font-weight:600;text-decoration:none;margin-top:0.5rem;cursor:pointer;transition:transform 0.15s,opacity 0.15s}.btn:active{opacity:0.9;transform:scale(0.98)}.btn-secondary{background:transparent;color:${TAPSTAMP_FG};border:1px solid rgba(201,169,110,0.35)}.wallet-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:50px;border-radius:10px;padding:0.85rem 1rem;font-size:0.9rem;font-weight:600;text-decoration:none;margin-top:0.5rem;cursor:pointer;transition:opacity 0.15s;letter-spacing:-0.01em}.wallet-btn:active{opacity:0.88}.wallet-apple{background:#000;color:#fff;border:1px solid rgba(255,255,255,0.12)}.wallet-google{background:#fff;color:#3c4043;border:1px solid #dadce0;box-shadow:0 1px 2px rgba(60,64,67,0.12)}.reward-pill{display:inline-block;background:rgba(201,169,110,0.1);border:1px solid rgba(201,169,110,0.25);border-radius:14px;padding:0.85rem 1.35rem;font-size:1.05rem;font-weight:600;margin:0.75rem 0 1rem;color:#fff}.reward-line strong{color:#fff;font-weight:600}input,button{font-family:inherit}input[type=text],input[type=email],input[type=date]{width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(201,169,110,0.2);border-radius:12px;padding:0.9rem;color:#fff;font-size:0.95rem;outline:none;margin-bottom:0.85rem}input::placeholder{color:rgba(255,255,255,0.35)}input:focus{border-color:${TAPSTAMP_FG};box-shadow:0 0 0 3px rgba(201,169,110,0.15)}label{font-size:0.65rem;color:${TAPSTAMP_LABEL};text-transform:uppercase;letter-spacing:0.14em;display:block;margin-bottom:6px;text-align:left}.link-btn{display:block;margin-top:0.75rem;color:${TAPSTAMP_FG};opacity:0.75;font-size:0.85rem;text-decoration:none;padding:0.5rem}.powered{font-size:0.6rem;color:rgba(255,255,255,0.28);margin-top:1.5rem;letter-spacing:0.14em;text-transform:uppercase}`;
 
 export function shell(cafe: CafeBrand, content: string) {
-  const bg = getBg(cafe);
-  const fg = getFg(cafe);
-  const light = isLightBackground(bg);
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><meta name="theme-color" content="${bg}"><meta name="apple-mobile-web-app-capable" content="yes"><title>${escapeHtml(cafe.name)}</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><style>${shellStyles(bg, fg, light)}</style></head><body><div class="wrap">${content}</div><div class="powered">TapStamp</div></body></html>`;
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><meta name="theme-color" content="${TAPSTAMP_BG}"><meta name="apple-mobile-web-app-capable" content="yes"><title>${escapeHtml(cafe.name)}</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><style>${STYLES}</style></head><body><div class="wrap">${content}</div><div class="powered">TapStamp</div>${persistScript(cafe.id)}</body></html>`;
 }
 
-/** Standalone page when cafe brand is unknown (chip errors, global errors). */
 export function brandShell(title: string, content: string) {
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="${BRAND_DARK}"><title>${escapeHtml(title)}</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><style>${shellStyles(BRAND_DARK, BRAND_GOLD, false)}</style></head><body><div class="wrap"><div class="card">${content}</div><div class="powered">TapStamp</div></div></body></html>`;
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="${TAPSTAMP_BG}"><title>${escapeHtml(title)}</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><style>${STYLES}</style></head><body><div class="wrap"><div class="card">${content}</div><div class="powered">TapStamp</div></div></body></html>`;
 }
 
 export function chipNotActivatedPage() {
-  return brandShell(
-    'TapStamp',
-    `<div class="logo-fallback" style="margin-bottom:1rem">T</div><h1>Stamp not linked yet</h1><p>This TapStamp hasn't been connected to a cafe. If you're the owner, finish setup in the TapStamp app.</p><p class="muted">Customers: ask staff — your loyalty stamp will be ready soon.</p>`,
-  );
+  return brandShell('TapStamp', `<div class="logo-fallback" style="margin-bottom:1rem">T</div><h1>Stamp not linked yet</h1><p>This TapStamp hasn&apos;t been connected to a cafe yet.</p>`);
 }
 
 export function errorPage(message = 'Something went wrong. Please try tapping again.') {
-  return brandShell('TapStamp', `<h1>Please try again</h1><p>${escapeHtml(message)}</p><p class="muted">Hold your phone on the stamp for a moment, then try again.</p>`);
+  return brandShell('TapStamp', `<h1>Please try again</h1><p>${escapeHtml(message)}</p>`);
 }
 
 export function stampErrorPage(cafe: CafeBrand) {
-  return shell(cafe, `<div class="card">${getLogo(cafe)}<h1>Couldn't add stamp</h1><p>Please try again in a moment. If this keeps happening, show this screen to a member of staff.</p></div>`);
+  return shell(cafe, `<div class="card">${getLogo(cafe)}<h1>Couldn&apos;t add stamp</h1><p>Please try again. If this keeps happening, show this screen to staff.</p></div>`);
 }
 
 export function redirectPage(cafe: CafeBrand, title: string, subtitle: string, redirectUrl: string) {
   const safeUrl = escapeHtml(redirectUrl);
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="0;url=${safeUrl}"><meta name="theme-color" content="${getBg(cafe)}"><title>${escapeHtml(title)}</title><style>${shellStyles(getBg(cafe), getFg(cafe), isLightBackground(getBg(cafe)))}</style></head><body><div class="wrap"><div class="card">${getLogo(cafe)}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(subtitle)}</p><p class="muted">Opening Wallet…</p><a href="${safeUrl}" class="btn wallet-btn" style="margin-top:1rem">Continue</a></div><div class="powered">TapStamp</div></div></body></html>`;
+  return shell(cafe, `<div class="card">${getLogo(cafe)}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(subtitle)}</p><p class="muted">Opening Wallet…</p><a href="${safeUrl}" class="btn wallet-btn" style="margin-top:1rem">Continue</a><meta http-equiv="refresh" content="0;url=${safeUrl}"></div>`);
 }
 
 export function suspendedPage(cafe: CafeBrand) {
-  return shell(cafe, `<div class="card">${getLogo(cafe)}<h1>${escapeHtml(cafe.name)}</h1><p>This loyalty programme is temporarily unavailable. Please check back soon.</p></div>`);
+  return shell(cafe, `<div class="card">${getLogo(cafe)}<h1>${escapeHtml(cafe.name)}</h1><p>This loyalty programme is temporarily unavailable.</p></div>`);
 }
 
 export function capacityReachedPage(cafe: CafeBrand) {
-  return shell(cafe, `<div class="card">${getLogo(cafe)}<h1>${escapeHtml(cafe.name)}</h1><p>We're at capacity for new loyalty cards this month. If you're a regular, ask staff to stamp your existing card.</p><p class="muted">New sign-ups reopen next month.</p></div>`);
+  return shell(cafe, `<div class="card">${getLogo(cafe)}<h1>${escapeHtml(cafe.name)}</h1><p>We&apos;re at capacity for new cards this month. Ask staff if you&apos;re a regular.</p></div>`);
 }
 
-export function alreadyStampedPage(cafe: CafeBrand, stampCount: number, hoursLeft: number) {
+export function alreadyStampedPage(cafe: CafeBrand, stampCount: number) {
   const remaining = cafe.stamp_goal - stampCount;
-  return shell(cafe, `<div class="card">${getLogo(cafe)}<h1>Already stamped</h1><p>Come back in <strong style="color:inherit;opacity:0.95">${hoursLeft} hour${hoursLeft !== 1 ? 's' : ''}</strong> for your next stamp.</p>${getStamps(cafe, stampCount)}<p class="muted">${stampCount}/${cafe.stamp_goal} stamps · ${remaining} more until ${escapeHtml(cafe.reward)}</p></div>`);
+  return shell(cafe, `<div class="card">${getLogo(cafe)}<div class="divider"></div><h1>Already stamped</h1><p>You&apos;ve already collected a stamp today. Come back on your next visit.</p>${getStamps(cafe, stampCount)}<p class="muted">${stampCount}/${cafe.stamp_goal} stamps · ${remaining} until ${rewardText(cafe.reward)}</p></div>`);
+}
+
+export function joinLandingPage(cafe: CafeBrand, tapUrl: string) {
+  const joinUrl = tapUrl.includes('?') ? `${tapUrl}&new=1` : `${tapUrl}?new=1`;
+  const restoreUrl = tapUrl.includes('?') ? `${tapUrl}&restore=1` : `${tapUrl}?restore=1`;
+  const tagline = earnRewardPhrase(cafe.reward);
+  return shell(cafe, `<div class="card">${getLogo(cafe)}<div class="divider"></div><h1>${escapeHtml(cafe.name)}</h1><p class="tagline">${escapeHtml(tagline)}</p><a href="${joinUrl}" class="btn">Join loyalty programme</a><a href="${restoreUrl}" class="btn btn-secondary">I already have a card</a></div>`);
 }
 
 export function welcomePage(
   cafe: CafeBrand,
   serial: string,
   count: number,
-  passUrl: string,
-  isAndroid: boolean,
+  applePassUrl: string,
+  googlePassUrl: string | null,
+  thanksUrl: string,
 ) {
   const remaining = cafe.stamp_goal - count;
-  const btnLabel = isAndroid ? 'Add to Google Wallet' : 'Add to Apple Wallet';
-  return shell(cafe, `<div class="card">${getLogo(cafe)}<h1>${escapeHtml(cafe.name)}</h1><p>${escapeHtml(cafe.welcome_message || 'Welcome — add your loyalty card to collect stamps.')}</p>${getStamps(cafe, count)}<p class="muted">${remaining} more stamp${remaining !== 1 ? 's' : ''} until <strong style="color:inherit;opacity:0.9">${escapeHtml(cafe.reward)}</strong></p>${walletButton(btnLabel, passUrl, isAndroid)}<p class="muted" style="margin-top:0.75rem;font-size:0.75rem">Tap the button, then confirm Add in the prompt</p></div>`);
+  const tagline = cafe.welcome_message?.trim() || earnRewardPhrase(cafe.reward);
+  return shell(cafe, `<div class="card">${getLogo(cafe)}<div class="divider"></div><h1>${escapeHtml(cafe.name)}</h1><p class="tagline">${escapeHtml(tagline)}</p>${getStamps(cafe, count)}<p class="muted reward-line">${remaining} stamp${remaining !== 1 ? 's' : ''} until <strong>${rewardText(cafe.reward)}</strong></p>${walletButtons(applePassUrl, googlePassUrl)}${walletDoneLink(thanksUrl)}</div>`);
 }
 
-export function stampedPage(cafe: CafeBrand, count: number, isRedeemed: boolean) {
-  if (isRedeemed) {
-    return shell(cafe, `<div class="card">${getLogo(cafe)}<p class="celebrate">Reward ready</p><h1>${escapeHtml(cafe.reward_message || 'Your reward is ready')}</h1><p>${escapeHtml(cafe.name)}</p><div class="reward-pill">${escapeHtml(cafe.reward)}</div><p class="muted">Show this screen at the counter to claim your reward</p></div>`);
+export function thanksJoinedPage(cafe: CafeBrand, count: number) {
+  const remaining = cafe.stamp_goal - count;
+  return shell(cafe, `<div class="card">${getLogo(cafe)}<p class="eyebrow">You&apos;re in</p><h1>Thanks for joining</h1><p>Your card is in Wallet. Keep tapping to collect stamps.</p>${getStamps(cafe, count)}<p class="muted reward-line"><strong>${remaining}</strong> until ${rewardText(cafe.reward)}</p></div>`);
+}
+
+export function stampedPage(cafe: CafeBrand, count: number, rewardJustUnlocked = false) {
+  if (rewardJustUnlocked) {
+    return shell(cafe, `<div class="card">${getLogo(cafe)}<p class="eyebrow">Card complete</p><h1>All stamps collected</h1><p>${escapeHtml(cafe.name)}</p>${getStamps(cafe, count)}<div class="reward-pill">${rewardText(cafe.reward)}</div><p class="muted">Your reward is unlocked. <strong class="reward-line">Tap again on your next visit</strong> to show staff at the counter.</p><p class="muted" style="font-size:0.75rem">Your Wallet pass will update automatically.</p></div>`);
   }
   const remaining = cafe.stamp_goal - count;
-  return shell(cafe, `<div class="card">${getLogo(cafe)}<h1>${escapeHtml(cafe.stamp_message || 'Stamp added')}</h1><p>${escapeHtml(cafe.name)}</p>${getStamps(cafe, count)}<p class="muted">${remaining} more stamp${remaining !== 1 ? 's' : ''} until <strong style="color:inherit;opacity:0.9">${escapeHtml(cafe.reward)}</strong></p></div>`);
+  return shell(cafe, `<div class="card">${getLogo(cafe)}<p class="eyebrow">Stamp added</p><h1>${escapeHtml(cafe.stamp_message || 'See you again soon')}</h1><p>${escapeHtml(cafe.name)}</p>${getStamps(cafe, count)}<p class="muted reward-line"><strong>${remaining}</strong> stamp${remaining !== 1 ? 's' : ''} until ${rewardText(cafe.reward)}</p><p class="muted" style="font-size:0.75rem">Your Wallet pass updates automatically.</p></div>`);
 }
 
-export function customerForm(cafe: CafeBrand, serial: string, saveUrl: string) {
-  return shell(cafe, `<div class="card" style="text-align:left">${getLogo(cafe)}<h1 style="text-align:center">${escapeHtml(cafe.name)}</h1><p style="text-align:center;margin-bottom:1.25rem">Join our loyalty programme and earn your way to ${escapeHtml(cafe.reward)}</p><form action="${saveUrl}" method="POST"><input type="hidden" name="serial" value="${serial}"><input type="hidden" name="cafe_id" value="${cafe.id}"><label>Your name</label><input type="text" name="customer_name" placeholder="First name" autocomplete="given-name"><label>Email</label><input type="email" name="customer_email" placeholder="you@email.com" autocomplete="email">${cafe.collect_birthday ? '<label>Birthday</label><input type="date" name="birthday">' : ''}<button type="submit" class="btn" style="border:none">Join &amp; add to Wallet</button></form><form action="${saveUrl}" method="POST"><input type="hidden" name="serial" value="${serial}"><input type="hidden" name="cafe_id" value="${cafe.id}"><input type="hidden" name="skip" value="1"><button type="submit" class="link-btn" style="width:100%;background:transparent;border:none;cursor:pointer">Skip for now</button></form></div>`);
+export function redeemReadyPage(cafe: CafeBrand) {
+  return shell(cafe, `<div class="card">${getLogo(cafe)}<p class="eyebrow">Reward ready</p><h1>${escapeHtml(cafe.reward_message || 'Time to claim your reward')}</h1><div class="reward-pill">${rewardText(cafe.reward)}</div>${getStamps(cafe, cafe.stamp_goal)}<p class="muted"><strong class="reward-line">Show this screen at the counter</strong> so staff can redeem your reward.</p></div>`);
+}
+
+export function customerForm(cafe: CafeBrand, serial: string, _chipCode: string, tapUrl: string) {
+  return shell(cafe, `<div class="card" style="text-align:left">${getLogo(cafe)}<h1 style="text-align:center">${escapeHtml(cafe.name)}</h1><p style="text-align:center;margin-bottom:1.25rem" class="tagline">${escapeHtml(earnRewardPhrase(cafe.reward))}</p><form action="${tapUrl}" method="POST"><input type="hidden" name="serial" value="${serial}"><label>Your name</label><input type="text" name="customer_name" placeholder="First name" autocomplete="given-name"><label>Email</label><input type="email" name="customer_email" placeholder="you@email.com" autocomplete="email">${cafe.collect_birthday ? '<label>Birthday</label><input type="date" name="birthday">' : ''}<button type="submit" class="btn" style="border:none">Continue</button></form><form action="${tapUrl}" method="POST"><input type="hidden" name="serial" value="${serial}"><button type="submit" class="link-btn" style="width:100%;background:transparent;border:none;cursor:pointer">Skip for now</button></form><a href="${tapUrl}?restore=1" class="link-btn" style="text-align:center">Restore an existing card</a></div>`);
 }
 
 function formatPounds(amount: number): string {
@@ -153,26 +152,18 @@ function formatPounds(amount: number): string {
 
 export function minimumSpendConfirmPage(cafe: CafeBrand, tapUrl: string, amount: number) {
   const confirmUrl = tapUrl.includes('?') ? `${tapUrl}&confirmed=1` : `${tapUrl}?confirmed=1`;
-  const formatted = formatPounds(amount);
-  return shell(cafe, `<div class="card">${getLogo(cafe)}<h1>Minimum spend</h1><p>To collect a stamp today, your purchase must be at least:</p><div class="reward-pill">${formatted}</div><p class="muted">Stamps are for in-store purchases only</p><a href="${confirmUrl}" class="btn">Yes, I spent ${formatted} or more</a><a href="${tapUrl}?dismissed=1" class="link-btn">Not today</a></div>`);
+  return shell(cafe, `<div class="card">${getLogo(cafe)}<h1>Minimum spend</h1><p>Today&apos;s purchase must be at least:</p><div class="reward-pill">${formatPounds(amount)}</div><a href="${confirmUrl}" class="btn">Yes, I spent ${formatPounds(amount)}+</a><a href="${tapUrl}?dismissed=1" class="link-btn">Not today</a></div>`);
 }
 
 export function minimumSpendDismissedPage(cafe: CafeBrand) {
-  return shell(cafe, `<div class="card">${getLogo(cafe)}<h1>No stamp today</h1><p>No worries — come back when you've made a qualifying purchase. We'd love to see you again soon.</p><p class="muted">${escapeHtml(cafe.name)}</p></div>`);
-}
-
-export function returningVisitorPage(cafe: CafeBrand, tapUrl: string) {
-  const restoreUrl = tapUrl.includes('?') ? `${tapUrl}&restore=1` : `${tapUrl}?restore=1`;
-  const newUrl = tapUrl.includes('?') ? `${tapUrl}&new=1` : `${tapUrl}?new=1`;
-  return shell(cafe, `<div class="card">${getLogo(cafe)}<h1>${escapeHtml(cafe.name)}</h1><p>Have you visited before?</p><a href="${restoreUrl}" class="btn">Yes — restore my card</a><a href="${newUrl}" class="link-btn">No — get my stamp</a></div>`);
+  return shell(cafe, `<div class="card">${getLogo(cafe)}<h1>No stamp today</h1><p>Come back when you&apos;ve made a qualifying purchase.</p></div>`);
 }
 
 export function restoreCardFormPage(cafe: CafeBrand, tapUrl: string) {
-  const backUrl = tapUrl.split('?')[0];
-  return shell(cafe, `<div class="card" style="text-align:left">${getLogo(cafe)}<h1 style="text-align:center">Restore your card</h1><p style="text-align:center;margin-bottom:1.25rem">Enter the email you used when you joined.</p><form method="POST" action="${tapUrl}"><label>Email</label><input type="email" name="customer_email" required placeholder="you@email.com" autocomplete="email"><button type="submit" class="btn" style="border:none">Restore my card</button></form><a href="${backUrl}" class="link-btn" style="text-align:center">Back</a></div>`);
+  return shell(cafe, `<div class="card" style="text-align:left">${getLogo(cafe)}<h1 style="text-align:center">Restore your card</h1><p style="text-align:center;margin-bottom:1.25rem">Enter the email you used when you joined.</p><form method="POST" action="${tapUrl}"><label>Email</label><input type="email" name="customer_email" required placeholder="you@email.com" autocomplete="email"><button type="submit" class="btn" style="border:none">Restore my card</button></form></div>`);
 }
 
 export function restoreNotFoundPage(cafe: CafeBrand, tapUrl: string, email: string) {
   const newUrl = tapUrl.includes('?') ? `${tapUrl}&new=1` : `${tapUrl}?new=1`;
-  return shell(cafe, `<div class="card">${getLogo(cafe)}<h1>No card found</h1><p>We couldn't find a loyalty card for <strong style="color:inherit;opacity:0.95">${escapeHtml(email)}</strong> at ${escapeHtml(cafe.name)}.</p><a href="${newUrl}" class="btn">Start fresh</a></div>`);
+  return shell(cafe, `<div class="card">${getLogo(cafe)}<h1>No card found</h1><p>No card for <strong class="reward-line">${escapeHtml(email)}</strong> at ${escapeHtml(cafe.name)}.</p><a href="${newUrl}" class="btn">Start fresh</a></div>`);
 }

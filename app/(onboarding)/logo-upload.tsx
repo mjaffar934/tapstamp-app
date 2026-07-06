@@ -43,7 +43,7 @@ export default function LogoUploadScreen() {
     <Screen>
       <BackHeader />
       <OnboardingStepHeader
-        step={3}
+        step={2}
         title="Add your logo"
         subtitle="Optional. Appears on your customers' wallet cards and at the counter."
       />

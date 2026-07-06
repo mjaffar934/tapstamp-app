@@ -10,14 +10,17 @@ interface Props {
 }
 
 export function OnboardingStepHeader({ step, title, subtitle }: Props) {
-  const progress = step / ONBOARDING_STEPS;
-
   return (
     <View style={styles.wrap}>
-      <View style={styles.track}>
-        <View style={[styles.fill, { width: `${progress * 100}%` }]} />
+      <View style={styles.dots}>
+        {Array.from({ length: ONBOARDING_STEPS }).map((_, i) => (
+          <View
+            key={i}
+            style={[styles.dot, i < step ? styles.dotFilled : styles.dotEmpty]}
+          />
+        ))}
       </View>
-      <Text variant="caption" color={colors.accentDark} style={styles.step}>
+      <Text variant="caption" muted style={styles.step}>
         Step {step} of {ONBOARDING_STEPS}
       </Text>
       <Text variant="h1" style={styles.title}>{title}</Text>
@@ -27,23 +30,35 @@ export function OnboardingStepHeader({ step, title, subtitle }: Props) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginTop: spacing.md, marginBottom: spacing.lg },
-  track: {
-    height: 2,
-    backgroundColor: colors.border,
-    borderRadius: 1,
+  wrap: { marginTop: spacing.sm, marginBottom: spacing.lg },
+  dots: {
+    flexDirection: 'row',
+    gap: 6,
     marginBottom: spacing.md,
-    overflow: 'hidden',
   },
-  fill: {
-    height: '100%',
-    backgroundColor: colors.accent,
+  dot: {
+    flex: 1,
+    height: 3,
+    borderRadius: 2,
+  },
+  dotFilled: {
+    backgroundColor: colors.text,
+  },
+  dotEmpty: {
+    backgroundColor: colors.border,
   },
   step: {
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginBottom: spacing.sm,
+    letterSpacing: 0.5,
+    marginBottom: spacing.xs,
   },
-  title: { letterSpacing: -0.3 },
-  subtitle: { marginTop: spacing.xs, lineHeight: 24, maxWidth: 340 },
+  title: {
+    letterSpacing: -0.5,
+    fontSize: 28,
+  },
+  subtitle: {
+    marginTop: spacing.sm,
+    lineHeight: 24,
+    maxWidth: 340,
+    fontSize: 16,
+  },
 });

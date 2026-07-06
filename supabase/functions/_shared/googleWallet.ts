@@ -1,4 +1,7 @@
 import forge from 'https://esm.sh/node-forge@1.3.1';
+import { TAPSTAMP_BG } from './brand.ts';
+import { functionsUrl } from './client.ts';
+import { buildStampDotsRow, formatRewardDisplay } from './walletDisplay.ts';
 
 export interface GoogleWalletPassInput {
   cafe: Record<string, unknown>;
@@ -67,6 +70,7 @@ export function isGoogleWalletConfigured(): boolean {
   return walletConfig() !== null;
 }
 
+
 function buildLoyaltyPayload(input: GoogleWalletPassInput) {
   const config = walletConfig();
   if (!config) throw new Error('Google Wallet not configured');
@@ -75,48 +79,62 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
   const cafeId = String(cafe.id);
   const cafeName = String(cafe.name || 'TapStamp');
   const stampGoal = Number(cafe.stamp_goal) || 10;
-  const reward = String(cafe.reward || 'Free reward');
+  const reward = formatRewardDisplay(String(cafe.reward || 'Free reward'));
   const isRedeemed = status === 'redeemed';
-  const bg = String(cafe.background_color || 'rgb(26, 24, 20)');
+  const bg = TAPSTAMP_BG;
   const logoUrl = cafe.logo_url ? String(cafe.logo_url) : undefined;
+  const showName = cafe.show_customer_name_on_pass !== false;
   const campaignMessage = typeof cafe.active_campaign_message === 'string'
     ? cafe.active_campaign_message.trim()
     : '';
+  const stampDots = buildStampDotsRow(stampCount, stampGoal, isRedeemed);
+  const stripUrl = functionsUrl(`/wallet-strip/${serialNumber}`);
 
   const loyaltyClass = {
     id: classId(config.issuerId, cafeId),
     issuerName: cafeName,
     reviewStatus: 'UNDER_REVIEW',
-    programName: `${cafeName} Loyalty`,
+    programName: cafeName,
     programLogo: logoUrl
       ? { sourceUri: { uri: logoUrl }, contentDescription: { defaultValue: { language: 'en', value: cafeName } } }
       : undefined,
     hexBackgroundColor: rgbToHex(bg),
+    localizedAccountNameLabel: {
+      defaultValue: { language: 'en', value: showName && customerName ? 'MEMBER' : 'LOYALTY' },
+    },
+    classTemplateInfo: {
+      cardBarcodeSectionDetails: {
+        firstTopDetail: {
+          fieldSelector: {
+            fields: [{ fieldPath: 'object.heroImage' }],
+          },
+        },
+      },
+    },
   };
 
   const loyaltyObject = {
     id: objectId(config.issuerId, serialNumber),
     classId: classId(config.issuerId, cafeId),
     state: isRedeemed ? 'COMPLETED' : 'ACTIVE',
-    accountId: serialNumber,
-    accountName: customerName ? String(customerName) : 'Member',
+    accountId: serialNumber.replace(/-/g, '').slice(0, 20),
+    accountName: showName && customerName ? String(customerName) : cafeName,
     loyaltyPoints: {
-      label: 'Stamps',
+      label: 'STAMPS',
       balance: { string: isRedeemed ? `${stampGoal} / ${stampGoal}` : `${stampCount} / ${stampGoal}` },
     },
     secondaryLoyaltyPoints: {
-      label: 'Reward',
+      label: 'REWARD',
       balance: { string: isRedeemed ? 'Ready to redeem' : reward },
     },
-    barcode: {
-      type: 'QR_CODE',
-      value: serialNumber,
-      alternateText: 'Show at counter',
+    heroImage: {
+      sourceUri: { uri: stripUrl },
+      contentDescription: { defaultValue: { language: 'en', value: stampDots } },
     },
     ...(campaignMessage
       ? {
         textModulesData: [{
-          header: 'Update',
+          header: 'MESSAGE',
           body: campaignMessage,
           id: 'campaign',
         }],

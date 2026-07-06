@@ -79,13 +79,13 @@ export default function AccountScreen() {
           <Text variant="caption" muted style={styles.hint}>
             {trialDaysRemaining(cafe?.trial_ends_at)} days left · trial ends {formatDate(cafe?.trial_ends_at)}
           </Text>
-        ) : plan.monthlyGbp != null ? (
+        ) : planId === 'starter' ? (
           <Text variant="caption" muted style={styles.hint}>
-            £{plan.monthlyGbp}/month after trial
+            Free · up to 50 customers/month
           </Text>
         ) : (
           <Text variant="caption" muted style={styles.hint}>
-            Free after trial · 50 customers/month
+            {plan.tagline}
           </Text>
         )}
       </Card>

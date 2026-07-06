@@ -6,7 +6,10 @@ import {
 } from 'https://deno.land/x/zipjs@v2.7.52/index.js';
 import { Image } from 'https://deno.land/x/imagescript@1.3.0/mod.ts';
 import { SUPABASE_URL } from './client.ts';
-import { resolvePassTemplate } from './passTemplates.ts';
+import { PASS_TEMPLATES } from './passTemplates.ts';
+import { TAPSTAMP_BG, TAPSTAMP_FG, TAPSTAMP_LABEL } from './brand.ts';
+import { buildStampStripPng } from './stampStrip.ts';
+import { buildStampDotsRow, formatRewardDisplay } from './walletDisplay.ts';
 import { createPkcs7Signature, sha1Hex } from './pkcs7.ts';
 
 export interface PassInput {
@@ -71,29 +74,17 @@ function darken(color: number, amount: number): number {
   return (r << 24) | (g << 16) | (b << 8) | 255;
 }
 
-function resolveColors(cafe: Record<string, unknown>) {
-  const template = resolvePassTemplate(cafe);
-  const bg = normalizePassColor(cafe.background_color, template.backgroundColor);
-  const fg = normalizePassColor(cafe.foreground_color, template.foregroundColor);
-  const label = normalizePassColor(cafe.label_color, template.labelColor);
-  const labelMuted = label === fg ? template.labelColor : label;
-  return { bg, fg, label: labelMuted };
+function resolveColors(_cafe: Record<string, unknown>) {
+  const template = PASS_TEMPLATES.classic;
+  return { bg: template.backgroundColor, fg: template.foregroundColor, label: template.labelColor };
 }
 
-/** Visual stamp row — lives in secondary field (below primary, no strip overlap). */
-export function buildStampDotsRow(
-  stampCount: number,
-  goal: number,
-  isRedeemed: boolean,
-): string {
-  const filled = isRedeemed ? goal : stampCount;
-  return Array.from({ length: goal }, (_, i) => (i < filled ? '●' : '○')).join('  ');
-}
+export { buildStampDotsRow } from './walletDisplay.ts';
 
 function buildPassJson(input: PassInput): string {
   const { cafe, serialNumber, authToken, stampCount, status, customerName } = input;
   const stampGoal = Number(cafe.stamp_goal) || 10;
-  const reward = truncate(String(cafe.reward || 'Free reward'), 24);
+  const reward = truncate(formatRewardDisplay(String(cafe.reward || 'Free reward')), 24);
   const cafeName = String(cafe.name || 'TapStamp');
   const isRedeemed = status === 'redeemed';
   const colors = resolveColors(cafe);
@@ -127,7 +118,7 @@ function buildPassJson(input: PassInput): string {
           key: 'status',
           label: 'REDEEM',
           value: 'Now',
-          changeMessage: 'Your reward is ready — %@',
+          changeMessage: 'Your reward is ready — open Wallet to claim it',
         },
       ]
       : [
@@ -135,7 +126,7 @@ function buildPassJson(input: PassInput): string {
           key: 'stamps',
           label: 'STAMPS',
           value: `${stampCount} / ${stampGoal}`,
-          changeMessage: 'Stamp added! You are now at %@',
+          changeMessage: 'New stamp — you are now at %@',
         },
       ],
     secondaryFields: [
@@ -150,6 +141,7 @@ function buildPassJson(input: PassInput): string {
         key: 'reward',
         label: 'REWARD',
         value: reward,
+        ...(isRedeemed ? { changeMessage: 'Reward unlocked — %@' } : {}),
       },
     ],
     backFields: [
@@ -188,12 +180,6 @@ function buildPassJson(input: PassInput): string {
     labelColor: colors.label,
     webServiceURL: `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/passkit-register`,
     authenticationToken: authToken,
-    barcodes: [{
-      message: serialNumber,
-      format: 'PKBarcodeFormatQR',
-      messageEncoding: 'iso-8859-1',
-      altText: 'Show at counter',
-    }],
     storeCard,
   };
 
@@ -314,6 +300,24 @@ async function prepareIcons(
   return out;
 }
 
+async function buildStripImages(
+  stampCount: number,
+  goal: number,
+  isRedeemed: boolean,
+): Promise<Record<string, Uint8Array>> {
+  const sizes = [
+    { name: 'strip.png', w: 375, h: 123 },
+    { name: 'strip@2x.png', w: 750, h: 246 },
+    { name: 'strip@3x.png', w: 1125, h: 369 },
+  ] as const;
+
+  const out: Record<string, Uint8Array> = {};
+  for (const { name, w, h } of sizes) {
+    out[name] = await buildStampStripPng(w, h, stampCount, goal, isRedeemed);
+  }
+  return out;
+}
+
 async function fetchImage(url: string | null | undefined): Promise<Uint8Array | null> {
   if (!url) return null;
   try {
@@ -345,15 +349,20 @@ export async function buildPkpass(input: PassInput): Promise<Uint8Array> {
 
   const cafeInitial = String(input.cafe.name || 'T').charAt(0).toUpperCase();
 
-  const [logos, icons] = await Promise.all([
+  const stampGoal = Number(input.cafe.stamp_goal) || 10;
+  const isRedeemed = input.status === 'redeemed';
+
+  const [logos, icons, strips] = await Promise.all([
     prepareLogos(rawLogo, bgRgba, fgRgba, cafeInitial),
     prepareIcons(rawLogo, bgRgba, fgRgba, cafeInitial),
+    buildStripImages(input.stampCount, stampGoal, isRedeemed),
   ]);
 
   const files: Record<string, Uint8Array> = {
     'pass.json': new TextEncoder().encode(passJson),
     ...logos,
     ...icons,
+    ...strips,
   };
 
   const manifest: Record<string, string> = {};

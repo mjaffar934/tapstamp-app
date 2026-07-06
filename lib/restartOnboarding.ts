@@ -9,7 +9,6 @@ export async function restartOnboardingForDev(
     .from('businesses')
     .update({
       onboarding_status: 'ordered',
-      kit_received: false,
     })
     .eq('owner_id', ownerId);
 

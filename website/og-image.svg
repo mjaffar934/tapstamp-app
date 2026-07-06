@@ -1,8 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
-  <rect width="1200" height="630" fill="#FAF8F5"/>
-  <rect x="80" y="80" width="72" height="72" rx="16" fill="rgba(201,169,110,0.15)"/>
-  <text x="116" y="128" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="36" font-weight="600" fill="#8B7355">T</text>
-  <text x="180" y="128" font-family="Inter, system-ui, sans-serif" font-size="28" font-weight="600" letter-spacing="6" fill="#C9A96E">TAPSTAMP</text>
-  <text x="80" y="240" font-family="Inter, system-ui, sans-serif" font-size="56" font-weight="600" fill="#1A1814">The loyalty stamp your customers actually use</text>
-  <text x="80" y="310" font-family="Inter, system-ui, sans-serif" font-size="28" fill="rgba(26,24,20,0.55)">Customers tap your counter stamp. Their card appears in Apple Wallet or Google Wallet.</text>
+  <rect width="1200" height="630" fill="#141210"/>
+  <rect x="80" y="80" width="56" height="56" rx="14" fill="url(#og)"/>
+  <path d="M108 98c-4 0-6.5 2.4-6.5 6 0 3.4 2.4 5 6.5 7 3.8 1.8 5.6 3 5.6 5.2 0 2-1.6 3.4-4 3.4-2.3 0-4.2-1.1-5.3-2.9l-3 2.4c1.6 2.5 4.4 4.1 8 4.1 4.8 0 8.2-2.9 8.2-7.2 0-3.8-2.7-5.4-7-7.2-3.4-1.5-5-2.6-5-4.7 0-1.7 1.4-2.9 3.5-2.9 1.9 0 3.4.9 4.4 2.3l2.8-2.5C114.2 99.4 111.6 98 108 98z" fill="#141210"/>
+  <text x="160" y="118" font-family="Georgia, serif" font-size="22" fill="#C9A96E" letter-spacing="5">TAPSTAMP</text>
+  <text x="80" y="220" font-family="Georgia, serif" font-size="58" font-weight="500" fill="#FAF8F5">The loyalty card your customers never lose.</text>
+  <text x="80" y="280" font-family="system-ui, sans-serif" font-size="22" fill="rgba(250,248,245,0.55)">Wallet loyalty for small businesses — with lock-screen notifications.</text>
+  <defs>
+    <linearGradient id="og" x1="80" y1="80" x2="136" y2="136" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D4B87A"/><stop offset="1" stop-color="#9A7B45"/>
+    </linearGradient>
+  </defs>
 </svg>

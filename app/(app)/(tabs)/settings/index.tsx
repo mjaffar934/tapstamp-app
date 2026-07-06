@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useOwnerCafe } from '@/hooks/useOwnerCafe';
 import { restartOnboardingForDev } from '@/lib/restartOnboarding';
 import { seedDevMockData } from '@/lib/devSeed';
+import { isAdminUser } from '@/constants/adminAuth';
 import { colors, spacing } from '@/constants/theme';
 
 export default function SettingsScreen() {
@@ -110,6 +111,22 @@ export default function SettingsScreen() {
         <Text variant="caption" muted style={styles.sectionLabel}>
           BUSINESS
         </Text>
+        {isAdminUser(user?.email) ? (
+          <>
+            <SettingsRow
+              title="Stamp codes"
+              subtitle="Generate NFC codes for programming stamps"
+              icon="radio-outline"
+              onPress={() => router.push('/(app)/(tabs)/settings/stamp-codes')}
+            />
+            <SettingsRow
+              title="Create client"
+              subtitle="Manual account setup (optional)"
+              icon="person-add-outline"
+              onPress={() => router.push('/(app)/(tabs)/settings/create-client')}
+            />
+          </>
+        ) : null}
         <SettingsRow
           title="Locations"
           subtitle="Cafe address and details"
@@ -118,7 +135,7 @@ export default function SettingsScreen() {
         />
         <SettingsRow
           title="Billing"
-          subtitle="Plan and trial status"
+          subtitle="Your plan"
           icon="card-outline"
           onPress={() => router.push('/(app)/(tabs)/settings/billing')}
         />

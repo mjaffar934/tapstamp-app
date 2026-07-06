@@ -35,24 +35,15 @@ supabase secrets list --project-ref biootanbxmqfserzgnxe
 
 You should see all six `STRIPE_*` names plus `ORDER_WEBSITE_URL`.
 
-## HTML & NFC (no Supabase Pro)
+## HTML & NFC
 
-Supabase rewrites HTML to `text/plain` on `*.supabase.co`. Use **Railway** as a thin proxy instead of Supabase Pro.
-
-| Page | Host |
-|------|------|
-| Marketing + order | `website/` on Cloudflare Pages |
-| NFC tap HTML | Railway `api.tapstamp.co/tap/CODE` → proxies Supabase |
-| `.pkpass` | Railway proxies `/pass/SERIAL` (logic stays in Supabase) |
-| APNs push | Railway `@parse/node-apn` at `/push-update` |
-
-See **`docs/HOSTING.md`** for full setup.
+Customer tap and pass URLs are served directly by **Supabase edge functions**. See **`docs/HOSTING.md`** for custom domain setup (`api.tapstamp.co`) or free-tier fallbacks.
 
 ```bash
-supabase secrets set RAILWAY_URL=https://api.tapstamp.co --project-ref biootanbxmqfserzgnxe
+supabase secrets set FUNCTIONS_PUBLIC_URL=https://api.tapstamp.co --project-ref biootanbxmqfserzgnxe
 ```
 
-App `.env`: `EXPO_PUBLIC_FUNCTIONS_URL=https://api.tapstamp.co`
+App `.env`: `EXPO_PUBLIC_FUNCTIONS_URL=https://api.tapstamp.co` (or the raw `*.supabase.co` URL until custom domain is live)
 
 ## Webhook events
 
@@ -73,13 +64,8 @@ Allow: update payment method, view invoices, cancel subscription (optional).
 ## Deploy
 
 ```bash
-supabase functions deploy order-checkout stripe-webhook resume-checkout billing-portal provision-cafe tap \
-  --no-verify-jwt --project-ref biootanbxmqfserzgnxe
-
-supabase functions deploy billing-portal --project-ref biootanbxmqfserzgnxe
+supabase functions deploy --project-ref biootanbxmqfserzgnxe
 ```
-
-(`billing-portal` and `resume-checkout` require owner JWT.)
 
 ## Flow summary
 
