@@ -7,7 +7,6 @@ import { useOwnerCafe } from '@/hooks/useOwnerCafe';
 import { useDashboard } from '@/hooks/useDashboard';
 import { useMonthlyUsage } from '@/hooks/useMonthlyUsage';
 import { getPersonalizedGreeting } from '@/lib/greeting';
-import { TrialBanner } from '@/components/TrialBanner';
 import { StarterUsageBanner } from '@/components/StarterUsageBanner';
 import { BrandLogo } from '@/components/BrandLogo';
 import { Screen } from '@/components/ui/Screen';
@@ -18,12 +17,7 @@ import { StatCard } from '@/components/ui/StatCard';
 import { ActivityItem } from '@/components/ui/ActivityItem';
 import { Button } from '@/components/ui/Button';
 import { colors, spacing } from '@/constants/theme';
-import { PLANS } from '@/constants/plans';
-import { parsePlanId } from '@/constants/plans';
-import {
-  isTrialActive,
-  shouldEnforceStarterLimit,
-} from '@/lib/planUtils';
+import { shouldEnforceStarterLimit } from '@/lib/planUtils';
 
 export default function HomeScreen() {
   const { business, user } = useAuth();
@@ -32,9 +26,6 @@ export default function HomeScreen() {
   const { uniqueCustomers, isLoading: usageLoading, refetch: refetchUsage } = useMonthlyUsage(cafe?.id);
   const [refreshing, setRefreshing] = useState(false);
 
-  const planId = parsePlanId(cafe?.plan ?? business?.plan_selected ?? undefined);
-  const planDef = PLANS[planId];
-  const showTrial = isTrialActive(cafe?.trial_ends_at);
   const showStarterUsage = shouldEnforceStarterLimit(cafe?.plan, cafe?.trial_ends_at);
 
   const handleRefresh = useCallback(async () => {
@@ -47,28 +38,9 @@ export default function HomeScreen() {
     <Screen refreshing={refreshing || isLoading} onRefresh={handleRefresh}>
       <ScreenHeader
         title={getPersonalizedGreeting(business, user)}
-        subtitle={business?.name ?? cafe?.name ?? 'Your cafe'}
+        subtitle={business?.name ?? cafe?.name ?? 'Your business'}
         trailing={<BrandLogo size={48} />}
       />
-
-      {showTrial ? (
-        <TrialBanner
-          trialEndsAt={cafe?.trial_ends_at}
-          planName={planDef.name}
-          monthlyPrice={null}
-        />
-      ) : !cafe?.trial_ends_at ? (
-        <Card style={styles.trialPendingCard}>
-          <Text variant="bodySmall">
-            Link your stamp in Settings → Share programme to start your 14-day trial.
-          </Text>
-          <Button
-            title="Link stamp"
-            variant="outline"
-            onPress={() => router.push('/(app)/(tabs)/settings/share')}
-          />
-        </Card>
-      ) : null}
 
       {showStarterUsage ? (
         <StarterUsageBanner count={uniqueCustomers} isLoading={usageLoading} />
@@ -117,7 +89,7 @@ export default function HomeScreen() {
         </Text>
         <View style={styles.actionRow}>
           <Button
-            title="Barista mode"
+            title="Staff mode"
             variant="secondary"
             onPress={() => router.push('/(app)/(tabs)/barista')}
             style={styles.actionButton}
@@ -150,10 +122,10 @@ export default function HomeScreen() {
             <View style={styles.empty}>
               <Ionicons name="time-outline" size={28} color={colors.textMuted} />
               <Text variant="bodySmall" muted style={styles.emptyText}>
-                No stamp activity yet. Use barista mode when a customer taps their card.
+                No stamp activity yet. Customers collect stamps by tapping your TapStamp.
               </Text>
               <Button
-                title="Open barista mode"
+                title="Open staff mode"
                 variant="ghost"
                 onPress={() => router.push('/(app)/(tabs)/barista')}
               />

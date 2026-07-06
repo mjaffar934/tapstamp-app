@@ -54,17 +54,17 @@ export default function LocationsScreen() {
       <ScreenHeader
         compact
         title="Location"
-        subtitle="Your cafe details shown on passes and tap pages."
+        subtitle="Business address and details shown on passes."
       />
 
       {!cafe ? (
         <Card>
-          <Text variant="bodySmall" muted>Link your account to a cafe to manage location details.</Text>
+          <Text variant="bodySmall" muted>Complete setup to manage your business location.</Text>
         </Card>
       ) : (
         <>
           <Card style={styles.form}>
-            <Input label="Cafe name" value={name} onChangeText={setName} placeholder="The Daily Grind" />
+            <Input label="Business name" value={name} onChangeText={setName} placeholder="The Daily Grind" />
             <Input label="Street address" value={address} onChangeText={setAddress} placeholder="12 High Street" />
             <Input label="City" value={city} onChangeText={setCity} placeholder="London" />
             <Input label="Postcode" value={postcode} onChangeText={setPostcode} placeholder="SW1A 1AA" />
@@ -75,7 +75,7 @@ export default function LocationsScreen() {
           <Card style={styles.comingSoon}>
             <Text variant="h3">Multiple branches</Text>
             <Text variant="bodySmall" muted>
-              Multi-location support with per-branch staff is on the roadmap. For now, manage your primary cafe here.
+              Multi-location support with per-branch staff is on the roadmap. For now, manage your primary location here.
             </Text>
           </Card>
         </>

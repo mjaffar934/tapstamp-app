@@ -6,8 +6,7 @@ import { useStaff } from '@/contexts/StaffContext';
 import { useOwnerCafe } from '@/hooks/useOwnerCafe';
 import { useCafeSettings } from '@/hooks/useCafeSettings';
 import { useBaristaData } from '@/hooks/useBaristaData';
-import { usePassQrScanner } from '@/hooks/usePassQrScanner';
-import { callBaristaAction, lookupBaristaPass } from '@/lib/api';
+import { callBaristaAction } from '@/lib/api';
 import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Text } from '@/components/ui/Text';
@@ -15,7 +14,7 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { BackHeader } from '@/components/ui/BackHeader';
-import { colors, spacing } from '@/constants/theme';
+import { colors, radius, spacing } from '@/constants/theme';
 import type { BaristaPass } from '@/hooks/useBaristaData';
 
 function formatPounds(amount: number): string {
@@ -24,7 +23,7 @@ function formatPounds(amount: number): string {
 
 function displayName(pass: BaristaPass): string {
   if (pass.customer_name?.trim()) return pass.customer_name.trim();
-  return 'Anonymous member';
+  return 'Member';
 }
 
 interface BaristaModeProps {
@@ -42,50 +41,9 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
   const [selected, setSelected] = useState<BaristaPass | null>(null);
   const [selectedExpanded, setSelectedExpanded] = useState(false);
   const [query, setQuery] = useState('');
-  const [serialLookup, setSerialLookup] = useState('');
   const [acting, setActing] = useState(false);
-  const [lookingUp, setLookingUp] = useState(false);
 
   const loading = (!staffMode && cafeLoading) || isLoading;
-
-  const resolvePass = async (serial: string) => {
-    if (!cafeId) {
-      Alert.alert('Cafe not linked', 'Your owner account is not linked to a cafe yet.');
-      return;
-    }
-
-    const normalized = serial.trim().toLowerCase();
-    const inList = (data?.passes ?? []).find(
-      (p) => p.serial_number.toLowerCase() === normalized,
-    );
-    if (inList) {
-      setSelected(inList);
-      setSelectedExpanded(true);
-      return;
-    }
-
-    setLookingUp(true);
-    const lookedUp = await lookupBaristaPass(cafeId, normalized, { staffMode });
-    setLookingUp(false);
-
-    if (lookedUp.pass) {
-      setSelected(lookedUp.pass);
-      setSelectedExpanded(true);
-      await refetch();
-      return;
-    }
-
-    Alert.alert(
-      'Pass not found',
-      lookedUp.error ?? 'This pass is not linked to your cafe. The customer needs to tap your stamp first.',
-    );
-  };
-
-  const { openScanner } = usePassQrScanner({
-    onSerial: (serial) => {
-      void resolvePass(serial);
-    },
-  });
 
   const filteredPasses = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -93,16 +51,9 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
     if (!q) return passes;
     return passes.filter((pass) => {
       const name = displayName(pass).toLowerCase();
-      return name.includes(q) || pass.serial_number.toLowerCase().includes(q);
+      return name.includes(q);
     });
   }, [data?.passes, query]);
-
-  const selectBySerial = async () => {
-    const serial = serialLookup.trim();
-    if (!serial) return;
-    await resolvePass(serial);
-    setSerialLookup('');
-  };
 
   const confirmMinimumSpend = (): Promise<boolean> => {
     const min = data?.minimumSpend != null ? Number(data.minimumSpend) : 0;
@@ -122,7 +73,7 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
 
   const handleAction = async (action: 'stamp' | 'redeem') => {
     if (!selected) {
-      Alert.alert('Select a pass', 'Scan a wallet QR or pick a customer from the list.');
+      Alert.alert('Select a customer', 'Search by name or pick from recent passes.');
       return;
     }
 
@@ -171,31 +122,42 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
       return;
     }
     setSelected(pass);
-    setSelectedExpanded(true);
+    setSelectedExpanded(false);
   };
 
   const ownerEmail = user?.email ?? business?.email ?? 'this account';
+  const businessLabel = staffMode
+    ? (staffSession?.cafeName ?? 'Your business')
+    : (cafe?.name ?? business?.name ?? 'Your business');
 
   return (
     <Screen refreshing={loading} onRefresh={refetch}>
       {staffMode ? <BackHeader onBack={handleStaffSignOut} title="Staff" /> : null}
 
       <ScreenHeader
-        title="Barista mode"
-        subtitle={
-          staffMode
-            ? `${staffSession?.cafeName ?? 'Your cafe'} — scan or select a pass to stamp`
-            : 'Scan a customer wallet QR, or pick from recent passes'
-        }
+        title="Staff mode"
+        subtitle={`${businessLabel} — stamp or redeem at the counter`}
       />
 
       {!staffMode && !cafeLoading && !cafe ? (
         <Card style={styles.notice}>
           <Text variant="bodySmall" muted>
-            No cafe linked to {ownerEmail}. Complete onboarding or check your cafe email matches your sign-in.
+            No programme linked to {ownerEmail}. Complete setup or check your account email.
           </Text>
         </Card>
       ) : null}
+
+      <Card style={styles.nfcCard}>
+        <View style={styles.nfcIcon}>
+          <Ionicons name="radio-outline" size={24} color={colors.accentDark} />
+        </View>
+        <View style={styles.nfcText}>
+          <Text variant="bodySmall" style={styles.nfcTitle}>Customer taps your TapStamp</Text>
+          <Text variant="caption" muted>
+            Most stamps happen automatically when customers tap your stamp on their phone. Use this screen to stamp or redeem manually.
+          </Text>
+        </View>
+      </Card>
 
       {data?.minimumSpend != null && Number(data.minimumSpend) > 0 ? (
         <Card style={styles.minSpendBanner}>
@@ -254,9 +216,6 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
                       {selected.stamp_count} / {data?.stampGoal ?? 10} stamps
                       {selected.status === 'redeemed' ? ' · Ready to redeem' : ''}
                     </Text>
-                    <Text variant="caption" muted numberOfLines={1}>
-                      {selected.serial_number}
-                    </Text>
                     <Button
                       title="Clear selection"
                       variant="ghost"
@@ -266,28 +225,13 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
                       }}
                     />
                   </View>
-                ) : (
-                  <Text variant="caption" muted style={styles.tapHint}>
-                    Tap to expand
-                  </Text>
-                )}
+                ) : null}
               </Card>
             </Pressable>
           ) : null}
 
           <Card style={styles.passList} padded={false}>
-            <Text variant="h3" style={styles.listTitle}>Recent passes</Text>
-            <View style={styles.lookupRow}>
-              <Input
-                value={serialLookup}
-                onChangeText={setSerialLookup}
-                placeholder="Paste pass serial…"
-                autoCapitalize="none"
-                style={styles.lookupInput}
-                onSubmitEditing={selectBySerial}
-              />
-              <Button title="Find" variant="outline" onPress={selectBySerial} loading={lookingUp} />
-            </View>
+            <Text variant="h3" style={styles.listTitle}>Recent customers</Text>
             <Input
               value={query}
               onChangeText={setQuery}
@@ -298,8 +242,8 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
               <View style={styles.emptyList}>
                 <Text variant="bodySmall" muted>
                   {query
-                    ? 'No passes match your search.'
-                    : 'No passes yet. Customers appear after their first tap.'}
+                    ? 'No customers match your search.'
+                    : 'No customers yet. They appear after their first tap.'}
                 </Text>
               </View>
             ) : (
@@ -333,13 +277,6 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
 
           <View style={styles.actions}>
             <Button
-              title="Scan wallet QR"
-              variant="outline"
-              onPress={openScanner}
-              disabled={!cafeId || lookingUp}
-              style={styles.actionBtn}
-            />
-            <Button
               title="Add stamp"
               style={styles.actionBtn}
               onPress={() => handleAction('stamp')}
@@ -367,6 +304,24 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
 
 const styles = StyleSheet.create({
   notice: { marginBottom: spacing.sm },
+  nfcCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+    backgroundColor: colors.accentMuted,
+    borderColor: colors.accent,
+  },
+  nfcIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nfcText: { flex: 1, gap: 4 },
+  nfcTitle: { fontWeight: '600', color: colors.accentDark },
   minSpendBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -393,16 +348,8 @@ const styles = StyleSheet.create({
   },
   selectedInfo: { flex: 1, gap: 2 },
   selectedDetails: { gap: spacing.xs },
-  tapHint: { marginTop: -spacing.xs },
   passList: { marginBottom: spacing.md },
   listTitle: { padding: spacing.md, paddingBottom: spacing.sm },
-  lookupRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    alignItems: 'center',
-  },
-  lookupInput: { flex: 1, marginBottom: 0 },
   searchInput: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
   emptyList: { padding: spacing.md, paddingTop: 0 },
   passRow: {

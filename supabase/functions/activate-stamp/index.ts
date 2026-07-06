@@ -62,6 +62,27 @@ Deno.serve(async (req) => {
     }
 
     if (chip.cafe_id) {
+      const { data: ownerCafe } = await supabase
+        .from('cafes')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (ownerCafe?.id === chip.cafe_id) {
+        if (business.onboarding_status === 'pending_activation') {
+          await supabase.from('businesses').update({
+            email,
+            onboarding_status: 'ordered',
+          }).eq('owner_id', user.id);
+        }
+        return json({
+          success: true,
+          cafeId: chip.cafe_id,
+          chipCode,
+          alreadyLinked: true,
+        });
+      }
+
       return json({ error: 'This stamp is already linked to another business' }, 409);
     }
 

@@ -53,7 +53,7 @@ export default function ForgotPasswordScreen() {
           onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
-          placeholder="you@cafe.com"
+          placeholder="you@business.com"
         />
         {error ? (
           <Text variant="caption" color={colors.error}>

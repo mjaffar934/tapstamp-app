@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, StyleSheet, Share, ActivityIndicator, Alert } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import QRCode from 'react-native-qrcode-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { useOwnerCafe } from '@/hooks/useOwnerCafe';
 import { supabase } from '@/lib/supabase';
@@ -83,10 +82,8 @@ export default function ShareScreen() {
     await loadChip();
     await refetchCafe();
     Alert.alert(
-      result.trialStarted ? 'Stamp linked — trial started' : 'Stamp linked',
-      result.trialStarted
-        ? `Code ${code} is linked. Your 14-day trial is now running.`
-        : `Code ${code} is now linked to your cafe.`,
+      'Stamp linked',
+      `Code ${code} is now linked to your business.`,
     );
   };
 
@@ -106,7 +103,7 @@ export default function ShareScreen() {
       <ScreenHeader
         compact
         title="Share programme"
-        subtitle="QR code and tap link for posters, receipts, or your counter stamp."
+        subtitle="Tap link for your stamp, posters, and counter."
       />
 
       {!cafe ? (
@@ -118,7 +115,7 @@ export default function ShareScreen() {
           <Ionicons name="radio-outline" size={32} color={colors.textMuted} />
           <Text variant="h3">Link your stamp</Text>
           <Text variant="bodySmall" muted>
-            Hold your TapStamp to your phone or enter the code below. Linking starts your 14-day trial.
+            Hold your TapStamp to your phone or enter the code below.
           </Text>
           <Input
             label="Stamp code"
@@ -135,14 +132,11 @@ export default function ShareScreen() {
             <Text variant="caption" muted>STAMP CODE</Text>
             <Text variant="h2" style={styles.chipCodeText}>{chipCode}</Text>
 
-            {url ? (
-              <View style={styles.qrWrap}>
-                <QRCode value={url} size={180} backgroundColor={colors.surface} color={colors.text} />
-              </View>
-            ) : null}
-
             <Text variant="caption" muted style={styles.urlLabel}>TAP URL</Text>
             <Text variant="bodySmall" style={styles.url} selectable>{url}</Text>
+            <Text variant="caption" muted style={styles.hint}>
+              Share this link on posters, social, or email. Customers tap your stamp to open it.
+            </Text>
           </Card>
 
           <View style={styles.actions}>
@@ -171,12 +165,7 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   linkCard: { gap: spacing.md, marginBottom: spacing.lg, alignItems: 'center' },
   chipCodeText: { letterSpacing: 2 },
-  qrWrap: {
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    marginVertical: spacing.sm,
-  },
+  hint: { textAlign: 'center', marginTop: spacing.xs },
   urlLabel: { alignSelf: 'flex-start', marginTop: spacing.sm },
   url: { color: colors.accentDark, alignSelf: 'stretch' },
   actions: { gap: spacing.sm, marginBottom: spacing.lg },

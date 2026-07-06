@@ -78,7 +78,7 @@ export default function SettingsScreen() {
           <Text variant="caption" muted>STAFF CODE</Text>
           <Text variant="h2" style={styles.staffCode}>{cafe.staff_code}</Text>
           <Text variant="bodySmall" muted>
-            Share this with baristas so they can open Staff mode on the counter iPad.
+            Share this with staff so they can open Staff mode on a shared device.
           </Text>
         </Card>
       ) : null}
@@ -101,7 +101,7 @@ export default function SettingsScreen() {
         />
         <SettingsRow
           title="Share programme"
-          subtitle="QR code and signup link"
+          subtitle="Signup link for your stamp"
           icon="share-social-outline"
           onPress={() => router.push('/(app)/(tabs)/settings/share')}
         />
@@ -129,7 +129,7 @@ export default function SettingsScreen() {
         ) : null}
         <SettingsRow
           title="Locations"
-          subtitle="Cafe address and details"
+          subtitle="Business address and details"
           icon="location-outline"
           onPress={() => router.push('/(app)/(tabs)/settings/locations')}
         />

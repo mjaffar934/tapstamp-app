@@ -48,7 +48,7 @@ export default function StampCodesScreen() {
         <Text variant="bodySmall" style={styles.howTitle}>How it works</Text>
         <Text variant="bodySmall" muted style={styles.howLine}>1. Generate codes here</Text>
         <Text variant="bodySmall" muted style={styles.howLine}>2. Program each stamp with the tap URL (NFC Tools, etc.)</Text>
-        <Text variant="bodySmall" muted style={styles.howLine}>3. Hand stamp to cafe owner at setup — they tap to activate</Text>
+        <Text variant="bodySmall" muted style={styles.howLine}>3. Hand stamp to the business owner — they tap to activate</Text>
       </Card>
 
       <View style={styles.batchRow}>

@@ -63,7 +63,7 @@ export default function CustomersScreen() {
       {!cafe ? (
         <Card>
           <Text variant="bodySmall" muted>
-            Complete onboarding to link your cafe and see wallet members here.
+            Complete onboarding to see wallet members here.
           </Text>
         </Card>
       ) : isLoading && customers.length === 0 ? (

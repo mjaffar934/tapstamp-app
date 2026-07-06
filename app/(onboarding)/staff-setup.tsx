@@ -73,10 +73,7 @@ export default function StaffSetupScreen() {
     await clearOnboardingDraft();
     await refreshBusiness();
     setFinishing(false);
-    router.replace({
-      pathname: '/(onboarding)/done',
-      params: { trial: cafe?.trial_ends_at ? '1' : '0' },
-    });
+    router.replace('/(onboarding)/done');
   };
 
   return (
@@ -84,8 +81,8 @@ export default function StaffSetupScreen() {
       <BackHeader />
       <OnboardingStepHeader
         step={5}
-        title="Barista & staff mode"
-        subtitle="Share this code with your team so they can stamp and redeem without your owner login."
+        title="Staff mode"
+        subtitle="Share this code with your team so they can stamp and redeem at the counter."
       />
 
       <Card style={styles.codeCard}>
@@ -101,7 +98,7 @@ export default function StaffSetupScreen() {
               <Text variant="caption" color={colors.error}>{error}</Text>
             ) : (
               <Text variant="bodySmall" muted style={styles.codeHint}>
-                Baristas enter this on the Staff screen to open barista mode on a shared device.
+                Staff enter this on the Staff screen on a shared device at the counter.
               </Text>
             )}
             {displayCode ? (
@@ -117,17 +114,17 @@ export default function StaffSetupScreen() {
 
       <Card style={styles.feature}>
         <View style={styles.featureRow}>
-          <Ionicons name="scan-outline" size={22} color={colors.textSecondary} />
+          <Ionicons name="radio-outline" size={22} color={colors.textSecondary} />
           <View style={styles.featureText}>
-            <Text variant="bodySmall" style={styles.featureTitle}>Scan wallet QR</Text>
-            <Text variant="caption" muted>Customers show their pass — staff stamp in seconds.</Text>
+            <Text variant="bodySmall" style={styles.featureTitle}>Customer taps your stamp</Text>
+            <Text variant="caption" muted>Stamps are collected automatically when customers tap on their phone.</Text>
           </View>
         </View>
         <View style={styles.featureRow}>
           <Ionicons name="people-outline" size={22} color={colors.textSecondary} />
           <View style={styles.featureText}>
-            <Text variant="bodySmall" style={styles.featureTitle}>Pick from recent passes</Text>
-            <Text variant="caption" muted>Search by name if a customer forgot their wallet.</Text>
+            <Text variant="bodySmall" style={styles.featureTitle}>Manual stamp & redeem</Text>
+            <Text variant="caption" muted>Staff can search by name when needed at the counter.</Text>
           </View>
         </View>
       </Card>

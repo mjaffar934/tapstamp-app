@@ -1,6 +1,4 @@
 import { type ReactNode, Dimensions, Image, View, StyleSheet } from 'react-native';
-import Svg, { Rect } from 'react-native-svg';
-import QRCode from 'react-native-qrcode-svg';
 import { Text } from '@/components/ui/Text';
 
 export interface WalletPreviewProps {
@@ -49,27 +47,36 @@ function StampDots({
   );
 }
 
-function BarcodeStrip({ color }: { color: string }) {
-  const widths = [2, 1, 3, 1, 2, 4, 1, 2, 1, 3, 2, 1, 4, 1, 2, 3, 1, 2, 1, 4, 2, 1, 3, 1, 2];
-  let x = 0;
+function StampStrip({
+  filled,
+  total,
+  bg,
+  fg,
+}: {
+  filled: number;
+  total: number;
+  bg: string;
+  fg: string;
+}) {
+  const count = Math.min(total, 12);
   return (
-    <Svg width={PASS_WIDTH - 48} height={36} viewBox={`0 0 ${PASS_WIDTH - 48} 36`}>
-      {widths.map((w, i) => {
-        const el = (
-          <Rect
-            key={i}
-            x={x}
-            y={0}
-            width={w}
-            height={i % 3 === 0 ? 36 : 26}
-            fill={color}
-            opacity={0.85}
-          />
-        );
-        x += w + 1.2;
-        return el;
-      })}
-    </Svg>
+    <View style={[styles.strip, { backgroundColor: bg }]}>
+      <View style={styles.dotsRowCentered}>
+        {Array.from({ length: count }).map((_, i) => {
+          const on = i < filled;
+          return (
+            <View
+              key={i}
+              style={[
+                styles.dot,
+                { borderColor: fg },
+                on ? { backgroundColor: fg, opacity: 1 } : { opacity: 0.35 },
+              ]}
+            />
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
@@ -88,9 +95,6 @@ function PassFace({
 }: WalletPreviewProps & { variant: 'apple' | 'google' }) {
   const headerLabel = showCustomerName && customerName ? 'MEMBER' : 'LOYALTY';
   const headerValue = showCustomerName && customerName ? customerName : (businessName ?? 'Your business');
-  const qrColor = foregroundColor.includes('255, 255') || foregroundColor.includes('250, 248')
-    ? '#1A1814'
-    : foregroundColor;
 
   return (
     <View style={[styles.pass, { backgroundColor, width: PASS_WIDTH }]}>
@@ -131,19 +135,14 @@ function PassFace({
             {reward}
           </Text>
         </View>
-        {variant === 'apple' ? (
-          <View style={[styles.qrBox, { borderColor: `${foregroundColor}35` }]}>
-            <QRCode value="tapstamp-preview" size={40} color={qrColor} backgroundColor="transparent" />
-          </View>
-        ) : null}
       </View>
 
-      {variant === 'google' ? (
-        <View style={styles.barcodeBlock}>
-          <BarcodeStrip color={foregroundColor} />
-          <Text style={[styles.barcodeHint, { color: labelColor }]}>SHOW AT COUNTER</Text>
-        </View>
-      ) : null}
+      <StampStrip
+        filled={stampsFilled}
+        total={stampGoal}
+        bg={backgroundColor}
+        fg={foregroundColor}
+      />
     </View>
   );
 }
@@ -362,7 +361,24 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   dot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     borderWidth: 1.5,
+  },
+  dotsRowCentered: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    justifyContent: 'center',
+  },
+  strip: {
+    marginTop: 14,
+    marginHorizontal: -14,
+    marginBottom: -14,
+    paddingVertical: 14,
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
   },
   rewardRow: {
     flexDirection: 'row',
@@ -377,22 +393,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter_600SemiBold',
     marginTop: 2,
-  },
-  qrBox: {
-    padding: 3,
-    borderRadius: 4,
-    borderWidth: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  barcodeBlock: {
-    alignItems: 'center',
-    marginTop: 14,
-    gap: 6,
-  },
-  barcodeHint: {
-    fontSize: 9,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    fontFamily: 'Inter_600SemiBold',
   },
 });

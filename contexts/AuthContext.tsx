@@ -209,6 +209,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await clearStaffSession();
     await supabase.auth.signOut();
     setBusiness(null);
+    setBusinessLoading(false);
+    router.replace('/(auth)/gate');
   }, []);
 
   const value = useMemo(

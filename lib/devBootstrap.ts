@@ -11,7 +11,11 @@ export async function bootstrapDevAccount(
 
   const res = await fetch(`${supabaseUrl}/functions/v1/dev-bootstrap`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
+      Authorization: `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? ''}`,
+    },
     body: JSON.stringify({ email, password, secret }),
   });
 

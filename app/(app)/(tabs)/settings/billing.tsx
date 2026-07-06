@@ -10,26 +10,12 @@ import { BackHeader } from '@/components/ui/BackHeader';
 import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { TrialBanner } from '@/components/TrialBanner';
 import { StarterUsageBanner } from '@/components/StarterUsageBanner';
 import { PLANS, STARTER_MONTHLY_CUSTOMER_LIMIT } from '@/constants/plans';
 import { SUPPORT_EMAIL } from '@/constants/config';
 import { parsePlanId } from '@/constants/plans';
-import {
-  isTrialActive,
-  trialEnded,
-  shouldEnforceStarterLimit,
-} from '@/lib/planUtils';
+import { shouldEnforceStarterLimit } from '@/lib/planUtils';
 import { colors, spacing } from '@/constants/theme';
-
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-}
 
 export default function BillingScreen() {
   const { business } = useAuth();
@@ -39,8 +25,6 @@ export default function BillingScreen() {
 
   const planId = parsePlanId(cafe?.plan ?? business?.plan_selected ?? undefined);
   const plan = PLANS[planId];
-  const onTrial = isTrialActive(cafe?.trial_ends_at);
-  const trialOver = trialEnded(cafe?.trial_ends_at);
   const starterLimited = shouldEnforceStarterLimit(cafe?.plan, cafe?.trial_ends_at);
   const hasStripeCustomer = Boolean(business?.stripe_customer_id);
 
@@ -82,27 +66,15 @@ export default function BillingScreen() {
         </Card>
       ) : (
         <>
-          {onTrial ? (
-            <TrialBanner
-              trialEndsAt={cafe.trial_ends_at}
-              planName={plan.name}
-              monthlyPrice={null}
-            />
-          ) : null}
-
           <Card style={styles.card}>
             <Text variant="caption" muted>CURRENT PLAN</Text>
             <Text variant="h2">{plan.name}</Text>
-            {onTrial ? (
-              <Text variant="bodySmall" muted>
-                Trial ends {formatDate(cafe.trial_ends_at)}
-              </Text>
-            ) : trialOver && planId === 'starter' ? (
+            {planId === 'starter' ? (
               <Text variant="bodySmall" muted>
                 Free · up to {STARTER_MONTHLY_CUSTOMER_LIMIT} customers/month
               </Text>
             ) : (
-              <Text variant="bodySmall" muted>{plan.tagline}</Text>
+              <Text variant="bodySmall" muted>{plan.tagline.replace(/after trial/gi, '').trim() || plan.tagline}</Text>
             )}
           </Card>
 
@@ -113,7 +85,7 @@ export default function BillingScreen() {
           <Card style={styles.card}>
             <Text variant="caption" muted>STATUS</Text>
             <Text variant="body" color={cafe.status === 'suspended' ? colors.error : colors.success}>
-              {cafe.status === 'suspended' ? 'Suspended' : onTrial ? 'Trial' : 'Active'}
+              {cafe.status === 'suspended' ? 'Suspended' : 'Active'}
             </Text>
           </Card>
 

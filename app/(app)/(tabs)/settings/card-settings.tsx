@@ -147,7 +147,7 @@ export default function CardSettingsScreen() {
       {!cafe ? (
         <Card>
           <Text variant="bodySmall" muted>
-            Link your owner account to a cafe to manage card settings.
+            Link your owner account to finish setup and manage card settings.
           </Text>
         </Card>
       ) : (
@@ -277,7 +277,7 @@ export default function CardSettingsScreen() {
               <View style={styles.rowText}>
                 <Text variant="h3">Minimum spend (staff verified)</Text>
                 <Text variant="caption" muted>
-                  Staff confirm spend in barista mode before stamping — customers cannot self-report
+                  Staff confirm spend in staff mode before stamping — customers cannot self-report
                 </Text>
               </View>
               <Switch

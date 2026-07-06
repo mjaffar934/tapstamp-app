@@ -16,7 +16,7 @@ interface ExpandableWalletPreviewProps extends WalletPreviewProps {
 
 export function ExpandableWalletPreview({
   title = 'Wallet preview',
-  defaultExpanded = true,
+  defaultExpanded = false,
   ...preview
 }: ExpandableWalletPreviewProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);

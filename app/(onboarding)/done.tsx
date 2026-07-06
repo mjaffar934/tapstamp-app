@@ -1,5 +1,5 @@
 import { View, StyleSheet } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
@@ -11,8 +11,6 @@ import { colors, radius, spacing } from '@/constants/theme';
 
 export default function DoneScreen() {
   const { refreshBusiness, user, business } = useAuth();
-  const params = useLocalSearchParams<{ trial?: string }>();
-  const trialStarted = params.trial === '1';
 
   const openDashboard = async () => {
     if (__DEV__) {
@@ -36,16 +34,10 @@ export default function DoneScreen() {
             <Ionicons name="checkmark" size={20} color={colors.white} />
           </View>
         </View>
-        <Text variant="caption" muted style={styles.eyebrow}>
-          {trialStarted ? "You're live" : 'Setup complete'}
-        </Text>
-        <Text variant="hero" style={styles.title}>
-          {trialStarted ? 'Your trial has started' : 'Your card is ready'}
-        </Text>
+        <Text variant="caption" muted style={styles.eyebrow}>You&apos;re live</Text>
+        <Text variant="hero" style={styles.title}>Your programme is ready</Text>
         <Text muted style={styles.subtitle}>
-          {trialStarted
-            ? 'Your loyalty programme is live and your 14-day trial is running. Share your staff code with the team.'
-            : 'Your loyalty card is ready. Open your dashboard to get started.'}
+          Share your staff code with the team. Customers tap your TapStamp to collect stamps.
           {__DEV__ ? ' Mock customers will be added for testing.' : ''}
         </Text>
         <Button title="Open dashboard" onPress={openDashboard} style={styles.cta} />

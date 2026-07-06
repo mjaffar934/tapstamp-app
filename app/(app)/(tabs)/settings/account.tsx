@@ -12,17 +12,7 @@ import { useOwnerCafe } from '@/hooks/useOwnerCafe';
 import { supabase } from '@/lib/supabase';
 import { PLANS } from '@/constants/plans';
 import { parsePlanId } from '@/constants/plans';
-import { isTrialActive, trialDaysRemaining } from '@/lib/planUtils';
 import { colors, spacing } from '@/constants/theme';
-
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-}
 
 export default function AccountScreen() {
   const { user, business } = useAuth();
@@ -75,17 +65,13 @@ export default function AccountScreen() {
       <Card style={styles.card}>
         <Text variant="caption" muted>PLAN</Text>
         <Text variant="body">{plan.name}</Text>
-        {isTrialActive(cafe?.trial_ends_at) ? (
-          <Text variant="caption" muted style={styles.hint}>
-            {trialDaysRemaining(cafe?.trial_ends_at)} days left · trial ends {formatDate(cafe?.trial_ends_at)}
-          </Text>
-        ) : planId === 'starter' ? (
+        {planId === 'starter' ? (
           <Text variant="caption" muted style={styles.hint}>
             Free · up to 50 customers/month
           </Text>
         ) : (
           <Text variant="caption" muted style={styles.hint}>
-            {plan.tagline}
+            {plan.tagline.replace(/trial/gi, '').replace(/after\s+/gi, '').trim() || plan.tagline}
           </Text>
         )}
       </Card>

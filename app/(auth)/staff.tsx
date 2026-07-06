@@ -7,9 +7,9 @@ import { Text } from '@/components/ui/Text';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { BackHeader } from '@/components/ui/BackHeader';
+import { BrandLogo } from '@/components/BrandLogo';
 import { useStaff } from '@/contexts/StaffContext';
-import { TAPSTAMP_BRAND } from '@/constants/tapstampBrand';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, radius, spacing, shadows } from '@/constants/theme';
 
 export default function StaffLoginScreen() {
   const { signInWithCode } = useStaff();
@@ -37,21 +37,27 @@ export default function StaffLoginScreen() {
 
   return (
     <Screen scroll={false} safe padded={false}>
-      <View style={styles.hero}>
-        <View style={styles.backRow}>
-          <BackHeader />
+      <View style={styles.wrap}>
+        <BackHeader />
+        <View style={styles.hero}>
+          <BrandLogo size={48} />
+          <Text variant="caption" muted style={styles.eyebrow}>TapStamp</Text>
+          <Text variant="hero" style={styles.heroTitle}>Staff mode</Text>
+          <Text muted style={styles.heroSub}>
+            Enter the staff code from Settings. Stamp and redeem when customers tap your TapStamp.
+          </Text>
+          <View style={styles.accentLine} />
         </View>
-        <View style={styles.heroIcon}>
-          <Ionicons name="scan-outline" size={28} color={TAPSTAMP_BRAND.foregroundColor} />
-        </View>
-        <Text variant="hero" style={styles.heroTitle}>Barista mode</Text>
-        <Text style={styles.heroSub}>
-          Enter the staff code from Settings. Stamp and redeem without the owner login.
-        </Text>
-      </View>
 
-      <View style={styles.sheet}>
         <View style={styles.form}>
+          <View style={styles.iconRow}>
+            <View style={styles.iconBox}>
+              <Ionicons name="radio-outline" size={22} color={colors.accentDark} />
+            </View>
+            <Text variant="caption" muted style={styles.iconHint}>
+              No owner login needed on shared devices
+            </Text>
+          </View>
           <Input
             label="Staff code"
             value={code}
@@ -62,7 +68,7 @@ export default function StaffLoginScreen() {
           {error ? (
             <Text variant="caption" color={colors.error}>{error}</Text>
           ) : null}
-          <Button title="Open barista mode" onPress={handleJoin} loading={loading} />
+          <Button title="Open staff mode" onPress={handleJoin} loading={loading} />
         </View>
       </View>
     </Screen>
@@ -70,37 +76,38 @@ export default function StaffLoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  hero: {
-    backgroundColor: TAPSTAMP_BRAND.backgroundColor,
+  wrap: {
+    flex: 1,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
-    borderBottomLeftRadius: radius.xl,
-    borderBottomRightRadius: radius.xl,
+    paddingTop: spacing.md,
+    gap: spacing.lg,
   },
-  backRow: {
-    marginBottom: spacing.sm,
-  },
-  heroIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.lg,
-    backgroundColor: 'rgba(201,169,110,0.15)',
+  hero: {
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
+    gap: spacing.sm,
+    paddingTop: spacing.md,
+  },
+  eyebrow: {
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    marginTop: spacing.sm,
   },
   heroTitle: {
-    color: '#FFFFFF',
-    marginBottom: spacing.sm,
+    letterSpacing: -0.5,
+    textAlign: 'center',
   },
   heroSub: {
-    color: 'rgba(255,255,255,0.72)',
     lineHeight: 24,
     maxWidth: 320,
+    textAlign: 'center',
     fontSize: 16,
   },
-  sheet: {
-    padding: spacing.lg,
+  accentLine: {
+    width: 40,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: colors.accent,
+    marginTop: spacing.sm,
   },
   form: {
     gap: spacing.md,
@@ -109,5 +116,23 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     padding: spacing.md,
+    ...shadows.sm,
+  },
+  iconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  iconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconHint: {
+    flex: 1,
   },
 });

@@ -58,8 +58,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="barista"
         options={{
-          title: 'Barista',
-          tabBarIcon: ({ color }) => <TabBarIcon name="scan-outline" color={color} />,
+          title: 'Staff',
+          tabBarIcon: ({ color }) => <TabBarIcon name="radio-outline" color={color} />,
         }}
       />
     </Tabs>

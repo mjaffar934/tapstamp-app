@@ -14,7 +14,7 @@ const SETUP_STEPS = [
   { icon: 'image-outline' as const, label: 'Logo' },
   { icon: 'gift-outline' as const, label: 'Rewards & stamps' },
   { icon: 'card-outline' as const, label: 'Preview your card' },
-  { icon: 'people-outline' as const, label: 'Staff / barista mode' },
+  { icon: 'people-outline' as const, label: 'Staff mode' },
 ];
 
 export default function WelcomeScreen() {
@@ -32,7 +32,7 @@ export default function WelcomeScreen() {
         <Text variant="caption" muted style={styles.eyebrow}>Step 3 · Your card</Text>
         <Text variant="hero" style={styles.title}>Set up your loyalty card</Text>
         <Text muted style={styles.subtitle}>
-          Your TapStamp is linked and your trial is running. Set up your loyalty card — about two minutes.
+          Your TapStamp is linked. Set up your loyalty card — about two minutes.
         </Text>
       </View>
 

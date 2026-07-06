@@ -18,7 +18,6 @@ import { BrandLogo } from '@/components/BrandLogo';
 import { OwnerFlowSteps } from '@/components/auth/OwnerFlowSteps';
 import { useAuth } from '@/contexts/AuthContext';
 import { SUPPORT_EMAIL } from '@/constants/config';
-import { TAPSTAMP_BRAND } from '@/constants/tapstampBrand';
 import {
   DEV_BOOTSTRAP_SECRET,
   DEV_EMAIL,
@@ -68,7 +67,7 @@ export default function GateScreen() {
 
   useEffect(() => {
     if (noAccount) {
-      setError('No TapStamp account found for this email. Create one below.');
+      setError('No account found for this email. Create one below.');
       setMode('signup');
     }
   }, [noAccount]);
@@ -135,124 +134,118 @@ export default function GateScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.hero}>
-            <BrandLogo size={52} />
-            <Text variant="caption" style={styles.eyebrow}>TapStamp for business</Text>
+            <BrandLogo size={56} />
+            <Text variant="caption" muted style={styles.eyebrow}>TapStamp</Text>
             <Text variant="hero" style={styles.heroTitle}>
-              {mode === 'signup' ? 'Start your loyalty programme' : 'Welcome back'}
+              {mode === 'signup' ? 'Create your account' : 'Sign in'}
             </Text>
-            <Text style={styles.heroSub}>
+            <Text muted style={styles.heroSub}>
               {mode === 'signup'
-                ? 'Create your account, tap your stamp to activate, then set up your card in minutes.'
-                : 'Sign in to manage stamps, customers, and your team.'}
+                ? 'Digital loyalty for any business — activate with your TapStamp, then set up your card.'
+                : 'Manage stamps, customers, and your team.'}
             </Text>
-            {mode === 'signup' ? (
-              <View style={styles.flowWrap}>
-                <OwnerFlowSteps current="account" />
-              </View>
-            ) : null}
+            <View style={styles.accentLine} />
+            {mode === 'signup' ? <OwnerFlowSteps current="account" compact /> : null}
           </View>
 
-          <View style={styles.sheet}>
-            <View style={styles.modeRow}>
-              <Pressable
-                style={[styles.modeTab, mode === 'signin' && styles.modeTabActive]}
-                onPress={() => { setMode('signin'); setError(null); }}
-              >
-                <Text variant="bodySmall" style={mode === 'signin' ? styles.modeTabTextActive : undefined}>
-                  Sign in
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[styles.modeTab, mode === 'signup' && styles.modeTabActive]}
-                onPress={() => { setMode('signup'); setError(null); }}
-              >
-                <Text variant="bodySmall" style={mode === 'signup' ? styles.modeTabTextActive : undefined}>
-                  Create account
-                </Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.formGroup}>
-              {mode === 'signup' ? (
-                <Input
-                  label="Business name"
-                  value={businessName}
-                  onChangeText={setBusinessName}
-                  autoCapitalize="words"
-                  placeholder="e.g. Corner Cafe"
-                />
-              ) : null}
-              <Input
-                label="Email"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                autoComplete="email"
-                placeholder="you@business.com"
-              />
-              <Input
-                label="Password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                autoComplete={mode === 'signup' ? 'new-password' : 'password'}
-                placeholder={mode === 'signup' ? 'Min 8 characters' : 'Your password'}
-                onSubmitEditing={handleSubmit}
-              />
-              {error ? (
-                <View style={styles.errorBox}>
-                  <Ionicons name="alert-circle-outline" size={16} color={colors.error} />
-                  <Text variant="caption" color={colors.error} style={styles.errorText}>{error}</Text>
-                </View>
-              ) : null}
-              <Button
-                title={mode === 'signup' ? 'Continue' : 'Sign in'}
-                onPress={handleSubmit}
-                loading={loading}
-              />
-              {mode === 'signin' ? (
-                <Link href="/(auth)/forgot-password" asChild>
-                  <Pressable style={styles.forgot}>
-                    <Text variant="bodySmall" color={colors.textSecondary}>
-                      Forgot password?
-                    </Text>
-                  </Pressable>
-                </Link>
-              ) : null}
-            </View>
-
+          <View style={styles.modeRow}>
             <Pressable
-              onPress={() => router.push('/(auth)/staff')}
-              style={styles.staffCard}
+              style={[styles.modeTab, mode === 'signin' && styles.modeTabActive]}
+              onPress={() => { setMode('signin'); setError(null); }}
             >
-              <View style={styles.staffIcon}>
-                <Ionicons name="scan-outline" size={20} color={colors.accentDark} />
-              </View>
-              <View style={styles.staffText}>
-                <Text variant="bodySmall" style={styles.staffTitle}>Staff / barista mode</Text>
-                <Text variant="caption" muted>Stamp and redeem without the owner login</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-            </Pressable>
-
-            {mode === 'signup' ? (
-              <Text variant="caption" muted style={styles.help}>
-                Next: hold your TapStamp to your phone to activate. Questions? {SUPPORT_EMAIL}
+              <Text variant="bodySmall" style={mode === 'signin' ? styles.modeTabTextActive : undefined}>
+                Sign in
               </Text>
-            ) : null}
+            </Pressable>
+            <Pressable
+              style={[styles.modeTab, mode === 'signup' && styles.modeTabActive]}
+              onPress={() => { setMode('signup'); setError(null); }}
+            >
+              <Text variant="bodySmall" style={mode === 'signup' ? styles.modeTabTextActive : undefined}>
+                Create account
+              </Text>
+            </Pressable>
+          </View>
 
-            {DEV_SIGN_IN_ENABLED ? (
-              <View style={styles.devBlock}>
-                <Button
-                  title="Dev sign in"
-                  variant="outline"
-                  onPress={handleDevSignIn}
-                  loading={loading}
-                />
+          <View style={styles.formGroup}>
+            {mode === 'signup' ? (
+              <Input
+                label="Business name"
+                value={businessName}
+                onChangeText={setBusinessName}
+                autoCapitalize="words"
+                placeholder="e.g. Corner Coffee"
+              />
+            ) : null}
+            <Input
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+              placeholder="you@business.com"
+            />
+            <Input
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoComplete={mode === 'signup' ? 'new-password' : 'password'}
+              placeholder={mode === 'signup' ? 'Min 8 characters' : 'Your password'}
+              onSubmitEditing={handleSubmit}
+            />
+            {error ? (
+              <View style={styles.errorBox}>
+                <Ionicons name="alert-circle-outline" size={16} color={colors.error} />
+                <Text variant="caption" color={colors.error} style={styles.errorText}>{error}</Text>
               </View>
+            ) : null}
+            <Button
+              title={mode === 'signup' ? 'Continue' : 'Sign in'}
+              onPress={handleSubmit}
+              loading={loading}
+            />
+            {mode === 'signin' ? (
+              <Link href="/(auth)/forgot-password" asChild>
+                <Pressable style={styles.forgot}>
+                  <Text variant="bodySmall" color={colors.textSecondary}>
+                    Forgot password?
+                  </Text>
+                </Pressable>
+              </Link>
             ) : null}
           </View>
+
+          <Pressable
+            onPress={() => router.push('/(auth)/staff')}
+            style={styles.staffCard}
+          >
+            <View style={styles.staffIcon}>
+              <Ionicons name="radio-outline" size={20} color={colors.accentDark} />
+            </View>
+            <View style={styles.staffText}>
+              <Text variant="bodySmall" style={styles.staffTitle}>Staff mode</Text>
+              <Text variant="caption" muted>Stamp and redeem at the counter</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </Pressable>
+
+          {mode === 'signup' ? (
+            <Text variant="caption" muted style={styles.help}>
+              Next: hold your TapStamp to your phone to activate. {SUPPORT_EMAIL}
+            </Text>
+          ) : null}
+
+          {DEV_SIGN_IN_ENABLED ? (
+            <Button
+              title="Dev sign in"
+              variant="outline"
+              onPress={handleDevSignIn}
+              loading={loading}
+              style={styles.devBtn}
+            />
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
@@ -263,43 +256,38 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: {
     flexGrow: 1,
-    paddingBottom: spacing.xl,
-  },
-  hero: {
-    backgroundColor: TAPSTAMP_BRAND.backgroundColor,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xxl,
     paddingBottom: spacing.xl,
+    gap: spacing.lg,
+  },
+  hero: {
+    alignItems: 'center',
     gap: spacing.sm,
-    borderBottomLeftRadius: radius.xl,
-    borderBottomRightRadius: radius.xl,
+    paddingBottom: spacing.sm,
   },
   eyebrow: {
-    color: TAPSTAMP_BRAND.labelColor,
-    letterSpacing: 1.2,
+    letterSpacing: 2,
     textTransform: 'uppercase',
     marginTop: spacing.md,
   },
   heroTitle: {
-    color: '#FFFFFF',
     letterSpacing: -0.5,
+    textAlign: 'center',
   },
   heroSub: {
-    color: 'rgba(255,255,255,0.72)',
     lineHeight: 24,
-    maxWidth: 340,
+    maxWidth: 320,
+    textAlign: 'center',
     fontSize: 16,
   },
-  flowWrap: {
-    marginTop: spacing.md,
-    paddingTop: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(201,169,110,0.2)',
-  },
-  sheet: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    gap: spacing.lg,
+  accentLine: {
+    width: 40,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: colors.accent,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
   },
   modeRow: {
     flexDirection: 'row',
@@ -367,7 +355,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: 'center',
   },
-  devBlock: {
-    marginTop: spacing.sm,
+  devBtn: {
+    marginTop: spacing.xs,
   },
 });
