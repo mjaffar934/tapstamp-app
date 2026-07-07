@@ -37,6 +37,13 @@ export function getOwnerFirstName(
   return 'there';
 }
 
+export function getBusinessDisplayName(
+  business: Business | null | undefined,
+  cafe: { name?: string | null } | null | undefined,
+): string {
+  return business?.name?.trim() || cafe?.name?.trim() || 'Your business';
+}
+
 export function getPersonalizedGreeting(
   business: Business | null | undefined,
   user: User | null | undefined,

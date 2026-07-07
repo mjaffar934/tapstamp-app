@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import { useAuth } from '@/contexts/AuthContext';
 import { useOwnerCafe } from '@/hooks/useOwnerCafe';
+import { supabase } from '@/lib/supabase';
 import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { BackHeader } from '@/components/ui/BackHeader';
@@ -11,6 +13,7 @@ import { Button } from '@/components/ui/Button';
 import { colors, spacing } from '@/constants/theme';
 
 export default function LocationsScreen() {
+  const { business, refreshBusiness } = useAuth();
   const { cafe, isLoading, isSaving, updateCafe } = useOwnerCafe();
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
@@ -20,21 +23,26 @@ export default function LocationsScreen() {
 
   useEffect(() => {
     if (cafe) {
-      setName(cafe.name ?? '');
+      setName(cafe.name ?? business?.name ?? '');
       setAddress(cafe.address ?? '');
       setCity(cafe.city ?? '');
       setPostcode(cafe.postcode ?? '');
     }
-  }, [cafe]);
+  }, [cafe, business?.name]);
 
   const handleSave = async () => {
     setSaved(false);
+    const trimmedName = name.trim() || cafe?.name;
     const result = await updateCafe({
-      name: name.trim() || cafe?.name,
+      name: trimmedName,
       address: address.trim() || null,
       city: city.trim() || null,
       postcode: postcode.trim() || null,
     });
+    if (!result.error && trimmedName && business?.id) {
+      await supabase.from('businesses').update({ name: trimmedName }).eq('id', business.id);
+      await refreshBusiness();
+    }
     if (!result.error) setSaved(true);
   };
 

@@ -6,9 +6,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useOwnerCafe } from '@/hooks/useOwnerCafe';
 import { useDashboard } from '@/hooks/useDashboard';
 import { useMonthlyUsage } from '@/hooks/useMonthlyUsage';
-import { getPersonalizedGreeting } from '@/lib/greeting';
+import { getBusinessDisplayName, getPersonalizedGreeting } from '@/lib/greeting';
 import { StarterUsageBanner } from '@/components/StarterUsageBanner';
-import { BrandLogo } from '@/components/BrandLogo';
+import { BusinessLogo } from '@/components/BusinessLogo';
 import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Text } from '@/components/ui/Text';
@@ -34,12 +34,20 @@ export default function HomeScreen() {
     setRefreshing(false);
   }, [refetch, refetchUsage]);
 
+  const businessName = getBusinessDisplayName(business, cafe);
+
   return (
     <Screen refreshing={refreshing || isLoading} onRefresh={handleRefresh}>
       <ScreenHeader
         title={getPersonalizedGreeting(business, user)}
-        subtitle={business?.name ?? cafe?.name ?? 'Your business'}
-        trailing={<BrandLogo size={48} />}
+        subtitle={businessName}
+        trailing={
+          <BusinessLogo
+            logoUrl={cafe?.logo_url}
+            businessName={businessName}
+            size={48}
+          />
+        }
       />
 
       {showStarterUsage ? (

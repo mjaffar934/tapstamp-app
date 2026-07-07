@@ -12,6 +12,7 @@ import { useOwnerCafe } from '@/hooks/useOwnerCafe';
 import { restartOnboardingForDev } from '@/lib/restartOnboarding';
 import { seedDevMockData } from '@/lib/devSeed';
 import { isAdminUser } from '@/constants/adminAuth';
+import { getBusinessDisplayName } from '@/lib/greeting';
 import { colors, spacing } from '@/constants/theme';
 
 export default function SettingsScreen() {
@@ -70,7 +71,7 @@ export default function SettingsScreen() {
     <Screen>
       <ScreenHeader
         title="Settings"
-        subtitle={business?.name ?? cafe?.name ?? 'Your business'}
+        subtitle={getBusinessDisplayName(business, cafe)}
       />
 
       {cafe?.staff_code ? (

@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
     if (!existingBiz) {
       const { error: bizError } = await supabase.from('businesses').insert({
         owner_id: userId,
-        name: 'Dev Cafe',
+        name: 'My Business',
         email,
         owner_name: 'Dev Owner',
         city: 'London',
@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
 
     if (!existingCafe) {
       const { error: cafeError } = await supabase.from('cafes').insert({
-        name: 'Dev Cafe',
+        name: 'My Business',
         email,
         slug: slugFromEmail(email, `dev-${userId.slice(0, 8)}`),
         biz_type: 'cafe',
