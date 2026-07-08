@@ -93,8 +93,9 @@ function PassFace({
   customerName,
   variant,
 }: WalletPreviewProps & { variant: 'apple' | 'google' }) {
-  const headerLabel = showCustomerName && customerName ? 'MEMBER' : 'LOYALTY';
-  const headerValue = showCustomerName && customerName ? customerName : (businessName ?? 'Your business');
+  const headerLabel = 'LOYALTY';
+  const headerValue = businessName ?? 'Your business';
+  const memberLine = showCustomerName && customerName ? customerName : null;
 
   return (
     <View style={[styles.pass, { backgroundColor, width: PASS_WIDTH }]}>
@@ -102,13 +103,22 @@ function PassFace({
         {logoUri ? (
           <Image source={{ uri: logoUri }} style={styles.logo} resizeMode="contain" />
         ) : (
-          <View style={[styles.logoPlaceholder, { backgroundColor: `${foregroundColor}30` }]} />
+          <View style={[styles.logoMonogram, { backgroundColor: `${foregroundColor}22` }]}>
+            <Text style={[styles.logoMonogramText, { color: foregroundColor }]}>
+              {(businessName ?? 'B').charAt(0).toUpperCase()}
+            </Text>
+          </View>
         )}
         <View style={styles.headText}>
           <Text style={[styles.label, { color: labelColor }]}>{headerLabel}</Text>
           <Text style={[styles.brand, { color: foregroundColor }]} numberOfLines={1}>
             {headerValue}
           </Text>
+          {memberLine ? (
+            <Text style={[styles.memberLine, { color: labelColor }]} numberOfLines={1}>
+              {memberLine}
+            </Text>
+          ) : null}
         </View>
       </View>
 
@@ -119,14 +129,7 @@ function PassFace({
             {stampsFilled} / {stampGoal}
           </Text>
         </View>
-        {variant === 'apple' ? (
-          <StampDots filled={stampsFilled} total={stampGoal} color={foregroundColor} size={9} />
-        ) : null}
       </View>
-
-      {variant === 'google' ? (
-        <StampDots filled={stampsFilled} total={stampGoal} color={foregroundColor} size={10} />
-      ) : null}
 
       <View style={[styles.rewardRow, { borderTopColor: `${foregroundColor}18` }]}>
         <View style={styles.rewardText}>
@@ -317,17 +320,29 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 14,
   },
-  logoPlaceholder: {
+  logoMonogram: {
     width: 36,
     height: 36,
     borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoMonogramText: {
+    fontSize: 16,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  headText: { flex: 1 },
+  memberLine: {
+    fontSize: 11,
+    fontFamily: 'Inter_500Medium',
+    marginTop: 2,
+    opacity: 0.8,
   },
   logo: {
     width: 36,
     height: 36,
     borderRadius: 8,
   },
-  headText: { flex: 1 },
   label: {
     fontSize: 9,
     letterSpacing: 1.1,

@@ -120,7 +120,10 @@ export default function CardSettingsScreen() {
       stamp_message: stampMessage.trim() || null,
       reward_message: rewardMessage.trim() || null,
     });
-    if (!rewardResult.error) setSaved(true);
+    if (!rewardResult.error) {
+      setSaved(true);
+      Alert.alert('Saved', 'Your card settings have been updated.');
+    }
   };
 
   if (isLoading) {

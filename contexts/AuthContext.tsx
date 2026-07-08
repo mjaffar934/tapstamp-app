@@ -23,7 +23,7 @@ interface AuthContextValue {
   isLoading: boolean;
   businessLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string, businessName: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, businessName: string, ownerName?: string) => Promise<{ error: string | null }>;
   signInDev: (email: string, password: string, bootstrapSecret: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshBusiness: () => Promise<void>;
@@ -144,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null };
   }, [ensureCafeLinked, fetchBusiness]);
 
-  const signUp = useCallback(async (email: string, password: string, businessName: string) => {
+  const signUp = useCallback(async (email: string, password: string, businessName: string, ownerName?: string) => {
     await clearStaffSession();
     const normalizedEmail = email.trim().toLowerCase();
     const trimmedName = businessName.trim() || 'My Business';
@@ -153,6 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: normalizedEmail,
       password,
       business_name: trimmedName,
+      owner_name: ownerName?.trim() || undefined,
     });
     if (signup.error) {
       return { error: signup.error };

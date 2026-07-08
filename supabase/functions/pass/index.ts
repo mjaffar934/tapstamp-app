@@ -35,6 +35,12 @@ Deno.serve(async (req) => {
       return new Response('Cafe not found', { status: 404 });
     }
 
+    const { data: tiers } = await supabase
+      .from('reward_tiers')
+      .select('stamp_count, reward')
+      .eq('cafe_id', pass.cafe_id)
+      .order('stamp_count');
+
     const pkpass = await buildPkpass({
       cafe,
       serialNumber: pass.serial_number,
@@ -42,6 +48,8 @@ Deno.serve(async (req) => {
       stampCount: pass.stamp_count,
       status: pass.status,
       customerName: pass.customer_name,
+      lifetimeStamps: pass.lifetime_stamps,
+      tiers: tiers ?? [],
     });
 
     return new Response(pkpass, {

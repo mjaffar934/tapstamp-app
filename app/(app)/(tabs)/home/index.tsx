@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
-import { router } from 'expo-router';
+import { View, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOwnerCafe } from '@/hooks/useOwnerCafe';
@@ -33,6 +33,13 @@ export default function HomeScreen() {
     await Promise.all([refetch(), refetchUsage()]);
     setRefreshing(false);
   }, [refetch, refetchUsage]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refetch();
+      void refetchUsage();
+    }, [refetch, refetchUsage]),
+  );
 
   const businessName = getBusinessDisplayName(business, cafe);
 

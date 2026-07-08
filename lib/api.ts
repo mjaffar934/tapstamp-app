@@ -46,10 +46,14 @@ export async function callBaristaAction(
   serialNumber: string,
   action: 'stamp' | 'redeem',
   staffCode?: string,
-): Promise<{ error?: string; success?: boolean; stampCount?: number; isRedeemed?: boolean }> {
+  verifiedSpend?: number,
+): Promise<{ error?: string; success?: boolean; stampCount?: number; isRedeemed?: boolean; minimumSpend?: number }> {
   if (!supabaseApiBase) return { error: 'Supabase not configured' };
 
-  const body: Record<string, string> = { serial_number: serialNumber, action };
+  const body: Record<string, unknown> = { serial_number: serialNumber, action };
+  if (verifiedSpend != null && Number.isFinite(verifiedSpend)) {
+    body.verified_spend = verifiedSpend;
+  }
   let headers: Record<string, string>;
 
   if (staffCode) {
@@ -180,6 +184,7 @@ export async function ownerSignup(payload: {
   email: string;
   password: string;
   business_name: string;
+  owner_name?: string;
 }): Promise<{ error?: string }> {
   if (!supabaseApiBase) return { error: 'Supabase not configured' };
 
@@ -190,6 +195,7 @@ export async function ownerSignup(payload: {
       email: payload.email.trim().toLowerCase(),
       password: payload.password,
       business_name: payload.business_name.trim(),
+      owner_name: payload.owner_name?.trim() || undefined,
     }),
   });
 

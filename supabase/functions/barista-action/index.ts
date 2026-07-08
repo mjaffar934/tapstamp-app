@@ -13,6 +13,7 @@ Deno.serve(async (req) => {
     const serialNumber = body.serial_number as string | undefined;
     const action = body.action as 'stamp' | 'redeem' | undefined;
     const staffCode = body.staff_code as string | undefined;
+    const verifiedSpend = body.verified_spend != null ? Number(body.verified_spend) : null;
 
     if (!serialNumber || !action) {
       return json({ error: 'serial_number and action required' }, 400);
@@ -68,6 +69,18 @@ Deno.serve(async (req) => {
 
     if (!authorized) {
       return json({ error: 'Forbidden' }, 403);
+    }
+
+    if (action === 'stamp') {
+      const minSpend = Number(cafe.minimum_spend);
+      if (Number.isFinite(minSpend) && minSpend > 0) {
+        if (verifiedSpend == null || !Number.isFinite(verifiedSpend)) {
+          return json({ error: 'verified_spend required', minimumSpend: minSpend }, 400);
+        }
+        if (verifiedSpend < minSpend) {
+          return json({ error: 'below_minimum', minimumSpend: minSpend }, 400);
+        }
+      }
     }
 
     const result = action === 'redeem'

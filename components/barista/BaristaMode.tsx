@@ -42,6 +42,9 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
   const [selectedExpanded, setSelectedExpanded] = useState(false);
   const [query, setQuery] = useState('');
   const [acting, setActing] = useState(false);
+  const [spendAmount, setSpendAmount] = useState('');
+
+  const minSpend = data?.minimumSpend != null ? Number(data.minimumSpend) : 0;
 
   const loading = (!staffMode && cafeLoading) || isLoading;
 
@@ -55,31 +58,24 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
     });
   }, [data?.passes, query]);
 
-  const confirmMinimumSpend = (): Promise<boolean> => {
-    const min = data?.minimumSpend != null ? Number(data.minimumSpend) : 0;
-    if (min <= 0) return Promise.resolve(true);
-
-    return new Promise((resolve) => {
-      Alert.alert(
-        'Confirm minimum spend',
-        `Did this customer spend at least ${formatPounds(min)}? Only stamp if you verified at the till.`,
-        [
-          { text: 'Not yet', style: 'cancel', onPress: () => resolve(false) },
-          { text: 'Yes, stamp', onPress: () => resolve(true) },
-        ],
-      );
-    });
-  };
-
   const handleAction = async (action: 'stamp' | 'redeem') => {
     if (!selected) {
       Alert.alert('Select a customer', 'Search by name or pick from recent passes.');
       return;
     }
 
-    if (action === 'stamp') {
-      const ok = await confirmMinimumSpend();
-      if (!ok) return;
+    let verifiedSpend: number | undefined;
+    if (action === 'stamp' && minSpend > 0) {
+      const parsed = parseFloat(spendAmount.replace(/[^0-9.]/g, ''));
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        Alert.alert('Enter purchase amount', `Type what the customer spent at the till (minimum ${formatPounds(minSpend)}).`);
+        return;
+      }
+      if (parsed < minSpend) {
+        Alert.alert('Below minimum', `Spend must be at least ${formatPounds(minSpend)} to stamp.`);
+        return;
+      }
+      verifiedSpend = parsed;
     }
 
     setActing(true);
@@ -87,6 +83,7 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
       selected.serial_number,
       action,
       staffMode ? staffSession?.staffCode : undefined,
+      verifiedSpend,
     );
     setActing(false);
 
@@ -96,6 +93,10 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
           ? 'Stamped recently — try again later.'
           : result.error === 'not_ready'
             ? 'Reward is not ready yet.'
+          : result.error === 'below_minimum'
+            ? `Spend must be at least ${formatPounds(result.minimumSpend ?? minSpend)}.`
+          : result.error === 'verified_spend required'
+            ? 'Enter the purchase amount before stamping.'
             : result.error;
       Alert.alert('Could not complete', message);
       return;
@@ -104,6 +105,7 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
     await refetch();
     setSelected(null);
     setSelectedExpanded(false);
+    setSpendAmount('');
     Alert.alert(
       action === 'stamp' ? 'Stamp added' : 'Reward redeemed',
       action === 'stamp'
@@ -123,6 +125,7 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
     }
     setSelected(pass);
     setSelectedExpanded(false);
+    setSpendAmount('');
   };
 
   const ownerEmail = user?.email ?? business?.email ?? 'this account';
@@ -275,6 +278,22 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
             )}
           </Card>
 
+          {selected && minSpend > 0 ? (
+            <Card style={styles.spendCard}>
+              <Text variant="caption" muted>VERIFY PURCHASE</Text>
+              <Text variant="bodySmall" muted style={styles.spendHint}>
+                Enter the amount rung up at the till (minimum {formatPounds(minSpend)}).
+              </Text>
+              <Input
+                label="Amount spent (£)"
+                value={spendAmount}
+                onChangeText={setSpendAmount}
+                keyboardType="decimal-pad"
+                placeholder={minSpend.toFixed(2)}
+              />
+            </Card>
+          ) : null}
+
           <View style={styles.actions}>
             <Button
               title="Add stamp"
@@ -332,6 +351,8 @@ const styles = StyleSheet.create({
   },
   minSpendText: { flex: 1, gap: 2 },
   minSpendTitle: { fontWeight: '600', color: colors.accentDark },
+  spendCard: { gap: spacing.sm, marginBottom: spacing.md },
+  spendHint: { marginBottom: spacing.xs },
   centered: { padding: spacing.xl, alignItems: 'center' },
   stats: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
   stat: { flex: 1, alignItems: 'center', gap: spacing.xs },

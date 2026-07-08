@@ -10,6 +10,7 @@ import {
   customerForm,
   errorPage,
   minimumSpendConfirmPage,
+  minimumSpendStaffPage,
   minimumSpendDismissedPage,
   restoreCardFormPage,
   restoreNotFoundPage,
@@ -144,6 +145,7 @@ Deno.serve(async (req) => {
 
         if (welcome) {
           const links = passLinks(pass.serial_number, tapUrl);
+          const hasWallet = Boolean(pass.push_token);
           return html(welcomePage(
             brand,
             pass.serial_number,
@@ -151,6 +153,7 @@ Deno.serve(async (req) => {
             links.apple,
             links.google,
             links.thanks,
+            hasWallet,
           ), cookie);
         }
 
@@ -180,6 +183,7 @@ Deno.serve(async (req) => {
 
         if (welcome) {
           const links = passLinks(existingSerial, tapUrl);
+          const hasWallet = Boolean(pass.push_token);
           return html(welcomePage(
             brand,
             existingSerial,
@@ -187,6 +191,7 @@ Deno.serve(async (req) => {
             links.apple,
             links.google,
             links.thanks,
+            hasWallet,
           ), passCookie(String(cafe.id), existingSerial));
         }
 
@@ -386,8 +391,8 @@ async function stampExistingPass(
   }
 
   const minSpend = minimumSpendAmount(cafe);
-  if (needsMinimumSpendConfirm(cafe, confirmed) && minSpend != null) {
-    return html(minimumSpendConfirmPage(brand, tapUrl, minSpend));
+  if (minSpend != null) {
+    return html(minimumSpendStaffPage(brand, minSpend), cookie);
   }
 
   const result = await applyStampToPass(cafe, pass);
@@ -419,8 +424,8 @@ async function createNewPass(
   android: boolean,
 ): Promise<Response> {
   const minSpend = minimumSpendAmount(cafe);
-  if (needsMinimumSpendConfirm(cafe, confirmed) && minSpend != null) {
-    return html(minimumSpendConfirmPage(brand, tapUrl, minSpend));
+  if (minSpend != null) {
+    return html(minimumSpendStaffPage(brand, minSpend));
   }
 
   if (shouldEnforceStarterLimit(String(cafe.plan), cafe.trial_ends_at as string | null)) {

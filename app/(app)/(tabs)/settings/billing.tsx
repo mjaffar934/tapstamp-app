@@ -41,8 +41,14 @@ export default function BillingScreen() {
     await Linking.openURL(result.portalUrl);
   };
 
-  const contactSupport = () => {
-    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=TapStamp%20plan`);
+  const contactSupport = async () => {
+    const url = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('TapStamp plan')}`;
+    const canOpen = await Linking.canOpenURL(url);
+    if (!canOpen) {
+      Alert.alert('Contact us', SUPPORT_EMAIL);
+      return;
+    }
+    await Linking.openURL(url);
   };
 
   if (isLoading) {

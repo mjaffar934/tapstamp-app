@@ -6,6 +6,7 @@ interface SignupBody {
   email?: string;
   password?: string;
   business_name?: string;
+  owner_name?: string;
 }
 
 Deno.serve(async (req) => {
@@ -18,6 +19,7 @@ Deno.serve(async (req) => {
     const email = body.email?.trim().toLowerCase();
     const password = body.password;
     const businessName = body.business_name?.trim() || 'My Business';
+    const ownerName = body.owner_name?.trim() || '';
 
     if (!email || !password || password.length < 8) {
       return json({ error: 'Email and password (min 8 characters) are required' }, 400);
@@ -55,6 +57,7 @@ Deno.serve(async (req) => {
       owner_id: userId,
       name: businessName,
       email,
+      owner_name: ownerName || null,
       plan_selected: 'starter',
       order_status: 'delivered',
       kit_received: true,

@@ -148,11 +148,11 @@ export default function SettingsScreen() {
         />
       </Card>
 
-      {__DEV__ ? (
+      {__DEV__ && isAdminUser(user?.email) ? (
         <Card style={styles.devCard}>
-          <Text variant="caption" muted>DEVELOPER</Text>
+          <Text variant="caption" muted>ADMIN TOOLS</Text>
           <Text variant="bodySmall" muted>
-            Testing tools — only visible in development builds.
+            Internal testing — only visible to admin accounts in dev builds.
           </Text>
           <Button
             title="Restart full onboarding"

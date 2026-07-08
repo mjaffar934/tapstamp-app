@@ -5,7 +5,7 @@ import {
   ZipWriter,
 } from 'https://deno.land/x/zipjs@v2.7.52/index.js';
 import { Image } from 'https://deno.land/x/imagescript@1.3.0/mod.ts';
-import { SUPABASE_URL } from './client.ts';
+import { SUPABASE_URL, functionsUrl } from './client.ts';
 import { PASS_TEMPLATES } from './passTemplates.ts';
 import { TAPSTAMP_BG, TAPSTAMP_FG, TAPSTAMP_LABEL } from './brand.ts';
 import { buildStampStripPng } from './stampStrip.ts';
@@ -19,6 +19,8 @@ export interface PassInput {
   stampCount: number;
   status: string;
   customerName?: string | null;
+  lifetimeStamps?: number | null;
+  tiers?: Array<{ stamp_count: number; reward: string }>;
 }
 
 const PASS_TYPE_ID = Deno.env.get('PASS_TYPE_ID') || 'pass.com.tapstamp.loyalty';
@@ -82,7 +84,7 @@ function resolveColors(_cafe: Record<string, unknown>) {
 export { buildStampDotsRow } from './walletDisplay.ts';
 
 function buildPassJson(input: PassInput): string {
-  const { cafe, serialNumber, authToken, stampCount, status, customerName } = input;
+  const { cafe, serialNumber, authToken, stampCount, status, customerName, lifetimeStamps, tiers } = input;
   const stampGoal = Number(cafe.stamp_goal) || 10;
   const reward = truncate(formatRewardDisplay(String(cafe.reward || 'Free reward')), 24);
   const cafeName = String(cafe.name || 'TapStamp');
@@ -92,23 +94,23 @@ function buildPassJson(input: PassInput): string {
   const campaignMessage = typeof cafe.active_campaign_message === 'string'
     ? cafe.active_campaign_message.trim()
     : '';
+  const lifetime = Number(lifetimeStamps) || stampCount;
 
-  const headerFields: Array<{ key: string; label: string; value: string }> = [];
+  const headerFields: Array<{ key: string; label: string; value: string }> = [
+    {
+      key: 'cafe',
+      label: 'LOYALTY',
+      value: truncate(cafeName, 18),
+    },
+  ];
+
   if (showName && customerName) {
     headerFields.push({
       key: 'member',
       label: 'MEMBER',
       value: truncate(customerName, 18),
     });
-  } else {
-    headerFields.push({
-      key: 'cafe',
-      label: 'LOYALTY',
-      value: truncate(cafeName, 18),
-    });
   }
-
-  const stampDots = buildStampDotsRow(stampCount, stampGoal, isRedeemed);
 
   const storeCard: Record<string, unknown> = {
     headerFields,
@@ -129,13 +131,6 @@ function buildPassJson(input: PassInput): string {
           changeMessage: 'New stamp — you are now at %@',
         },
       ],
-    secondaryFields: [
-      {
-        key: 'progress',
-        label: ' ',
-        value: stampDots,
-      },
-    ],
     auxiliaryFields: [
       {
         key: 'reward',
@@ -148,7 +143,7 @@ function buildPassJson(input: PassInput): string {
       {
         key: 'program',
         label: 'PROGRAM',
-        value: `${cafeName} Loyalty`,
+        value: cafeName,
       },
       {
         key: 'terms',
@@ -157,6 +152,16 @@ function buildPassJson(input: PassInput): string {
       },
     ],
   };
+
+  const nextTier = (tiers ?? []).find((t) => Number(t.stamp_count) > lifetime);
+  if (nextTier) {
+    const remaining = Number(nextTier.stamp_count) - lifetime;
+    (storeCard.backFields as Array<{ key: string; label: string; value: string }>).push({
+      key: 'next_tier',
+      label: 'NEXT MILESTONE',
+      value: `${remaining} stamp${remaining === 1 ? '' : 's'} until ${truncate(formatRewardDisplay(nextTier.reward), 40)}`,
+    });
+  }
 
   if (campaignMessage) {
     (storeCard.backFields as Array<{ key: string; label: string; value: string }>).unshift({
@@ -173,12 +178,12 @@ function buildPassJson(input: PassInput): string {
     organizationName: cafeName,
     description: `${cafeName} Loyalty`,
     serialNumber,
-    logoText: ' ',
+    logoText: truncate(cafeName, 12),
     suppressStripShine: true,
     backgroundColor: colors.bg,
     foregroundColor: colors.fg,
     labelColor: colors.label,
-    webServiceURL: `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/passkit-register`,
+    webServiceURL: functionsUrl('/passkit-register'),
     authenticationToken: authToken,
     storeCard,
   };

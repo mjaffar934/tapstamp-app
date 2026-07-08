@@ -57,11 +57,25 @@ export function todayStartIso(): string {
 
 export function isDoubleStampWindow(
   doubleStampHours: Array<{ day: number; start: string; end: string }> | null | undefined,
+  timeZone = 'Europe/London',
 ): boolean {
   if (!doubleStampHours?.length) return false;
-  const now = new Date();
-  const day = now.getDay();
-  const mins = now.getHours() * 60 + now.getMinutes();
+
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date());
+
+  const weekday = parts.find((p) => p.type === 'weekday')?.value ?? '';
+  const dayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const day = dayMap[weekday.slice(0, 3)] ?? new Date().getDay();
+  const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? 0);
+  const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? 0);
+  const mins = hour * 60 + minute;
+
   return doubleStampHours.some((w) => {
     if (w.day !== day) return false;
     const [sh, sm] = w.start.split(':').map(Number);

@@ -4,7 +4,7 @@ export const ORDER_WEBSITE_URL =
   process.env.EXPO_PUBLIC_ORDER_WEBSITE_URL ?? '';
 
 export const SUPPORT_EMAIL =
-  process.env.EXPO_PUBLIC_SUPPORT_EMAIL ?? 'support@tapstamp.com';
+  process.env.EXPO_PUBLIC_SUPPORT_EMAIL ?? 'hello@tapstamp.co';
 
 export function orderSignupUrl(plan: PlanId = 'starter'): string {
   const base = ORDER_WEBSITE_URL;

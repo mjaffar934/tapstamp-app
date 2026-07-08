@@ -18,11 +18,11 @@ import { BrandLogo } from '@/components/BrandLogo';
 import { OwnerFlowSteps } from '@/components/auth/OwnerFlowSteps';
 import { useAuth } from '@/contexts/AuthContext';
 import { SUPPORT_EMAIL } from '@/constants/config';
+import { isAdminUser } from '@/constants/adminAuth';
 import {
   DEV_BOOTSTRAP_SECRET,
   DEV_EMAIL,
   DEV_PASSWORD,
-  DEV_SIGN_IN_ENABLED,
   hasDevBootstrap,
   hasDevCredentials,
 } from '@/constants/devAuth';
@@ -48,6 +48,7 @@ export default function GateScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [businessName, setBusinessName] = useState('');
+  const [ownerName, setOwnerName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -86,7 +87,7 @@ export default function GateScreen() {
     setLoading(true);
     try {
       const result = mode === 'signup'
-        ? await signUp(email.trim(), password, businessName.trim() || 'My Business')
+        ? await signUp(email.trim(), password, businessName.trim() || 'My Business', ownerName.trim())
         : await signIn(email.trim(), password);
 
       if (result.error) {
@@ -169,13 +170,22 @@ export default function GateScreen() {
 
           <View style={styles.formGroup}>
             {mode === 'signup' ? (
-              <Input
-                label="Business name"
-                value={businessName}
-                onChangeText={setBusinessName}
-                autoCapitalize="words"
-                placeholder="e.g. Corner Coffee"
-              />
+              <>
+                <Input
+                  label="Your name"
+                  value={ownerName}
+                  onChangeText={setOwnerName}
+                  autoCapitalize="words"
+                  placeholder="Alex Morgan"
+                />
+                <Input
+                  label="Business name"
+                  value={businessName}
+                  onChangeText={setBusinessName}
+                  autoCapitalize="words"
+                  placeholder="e.g. Corner Coffee"
+                />
+              </>
             ) : null}
             <Input
               label="Email"
@@ -237,9 +247,9 @@ export default function GateScreen() {
             </Text>
           ) : null}
 
-          {DEV_SIGN_IN_ENABLED ? (
+          {__DEV__ && isAdminUser(email) && hasDevBootstrap() && hasDevCredentials() ? (
             <Button
-              title="Dev sign in"
+              title="Admin dev sign in"
               variant="outline"
               onPress={handleDevSignIn}
               loading={loading}

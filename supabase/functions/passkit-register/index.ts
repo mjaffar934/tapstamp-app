@@ -1,12 +1,18 @@
 import { supabase } from '../_shared/client.ts';
 import { verifyApplePassAuth } from '../_shared/auth.ts';
+import { buildPkpass } from '../_shared/pkpass.ts';
 import { json } from '../_shared/utils.ts';
 
-// Apple PassKit: /v1/devices/:deviceId/registrations/:passTypeId/:serialNumber
+// Apple PassKit web service — registrations AND pass updates share one base URL.
 
-function parsePasskitPath(pathname: string) {
-  const match = pathname.match(
-    /\/v1\/devices\/([^/]+)\/registrations\/([^/]+)(?:\/([^/]+))?$/,
+function passkitSubpath(pathname: string): string {
+  const idx = pathname.indexOf('/v1/');
+  return idx >= 0 ? pathname.slice(idx) : pathname;
+}
+
+function parseRegistrationPath(subpath: string) {
+  const match = subpath.match(
+    /^\/v1\/devices\/([^/]+)\/registrations\/([^/]+)(?:\/([^/]+))?$/,
   );
   if (!match) return null;
   return {
@@ -16,11 +22,78 @@ function parsePasskitPath(pathname: string) {
   };
 }
 
+function parsePassFetchPath(subpath: string): string | null {
+  const match = subpath.match(/^\/v1\/passes\/[^/]+\/([^/]+)$/);
+  return match?.[1] ?? null;
+}
+
+async function servePass(serial: string, req: Request): Promise<Response> {
+  const authorized = await verifyApplePassAuth(
+    req.headers.get('Authorization'),
+    serial,
+  );
+  if (!authorized) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+
+  const { data: pass } = await supabase
+    .from('passes')
+    .select('*')
+    .eq('serial_number', serial)
+    .single();
+
+  if (!pass) {
+    return new Response('Not found', { status: 404 });
+  }
+
+  const { data: cafe } = await supabase
+    .from('cafes')
+    .select('*')
+    .eq('id', pass.cafe_id)
+    .single();
+
+  if (!cafe) {
+    return new Response('Not found', { status: 404 });
+  }
+
+  const { data: tiers } = await supabase
+    .from('reward_tiers')
+    .select('stamp_count, reward')
+    .eq('cafe_id', pass.cafe_id)
+    .order('stamp_count');
+
+  const pkpass = await buildPkpass({
+    cafe,
+    serialNumber: pass.serial_number,
+    authToken: pass.auth_token,
+    stampCount: pass.stamp_count,
+    status: pass.status,
+    customerName: pass.customer_name,
+    lifetimeStamps: pass.lifetime_stamps,
+    tiers: tiers ?? [],
+  });
+
+  const lastModified = pass.last_stamp_at ?? pass.created_at ?? new Date().toISOString();
+
+  return new Response(pkpass, {
+    headers: {
+      'Content-Type': 'application/vnd.apple.pkpass',
+      'Last-Modified': new Date(lastModified).toUTCString(),
+    },
+  });
+}
+
 Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
-    const parsed = parsePasskitPath(url.pathname);
+    const subpath = passkitSubpath(url.pathname);
 
+    const passSerial = parsePassFetchPath(subpath);
+    if (passSerial && req.method === 'GET') {
+      return await servePass(passSerial, req);
+    }
+
+    const parsed = parseRegistrationPath(subpath);
     if (!parsed) {
       return new Response('Not found', { status: 404 });
     }

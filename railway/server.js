@@ -170,6 +170,15 @@ app.get('/wallet-strip/:serial', (req, res) => {
   proxyToSupabase(req, res, `/wallet-strip/${req.params.serial}`, { binary: true });
 });
 
+/** Apple PassKit web service (device registration + pass updates) */
+app.all(/^\/passkit-register(\/.*)?$/, (req, res) => {
+  const suffix = req.path.replace(/^\/passkit-register/, '') || '';
+  const isPassFetch = /^\/v1\/passes\//.test(suffix);
+  proxyToSupabase(req, res, `/passkit-register${suffix}`, {
+    binary: isPassFetch && req.method === 'GET',
+  });
+});
+
 app.post('/push-update', async (req, res) => {
   const pushToken = req.body?.pushToken || req.body?.push_token;
   if (!pushToken) {
