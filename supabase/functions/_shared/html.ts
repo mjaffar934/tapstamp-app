@@ -3,7 +3,7 @@
 import { TAPSTAMP_BG, TAPSTAMP_FG, TAPSTAMP_LABEL, TAPSTAMP_MUTED } from './brand.ts';
 import { functionsUrl } from './client.ts';
 import { isCampaignVisible, campaignPhase, formatCampaignSchedule, formatCampaignEndsAt, endOfTodayInTimeZone } from './campaign.ts';
-import { formatRewardDisplay, untilMilestonesLine, milestoneAtCount, type RewardTierLike } from './walletDisplay.ts';
+import { formatRewardDisplay, untilMilestonesLine, milestoneAtCount, stripSegmentProgress, type RewardTierLike } from './walletDisplay.ts';
 
 export interface CafeBrand {
   id: string;
@@ -35,10 +35,12 @@ function getLogo(cafe: CafeBrand) {
   return '';
 }
 
-function getStamps(cafe: CafeBrand, count: number) {
-  return `<div class="stamps">${Array.from({ length: cafe.stamp_goal }, (_, i) => {
-    const filled = i < count;
-    return `<span class="stamp${filled ? ' filled' : ''}"></span>`;
+function getStamps(cafe: CafeBrand, count: number, totalOverride?: number) {
+  const total = Math.max(1, totalOverride ?? cafe.stamp_goal);
+  const filled = Math.max(0, Math.min(count, total));
+  return `<div class="stamps">${Array.from({ length: total }, (_, i) => {
+    const isFilled = i < filled;
+    return `<span class="stamp${isFilled ? ' filled' : ''}"></span>`;
   }).join('')}</div>`;
 }
 
@@ -287,7 +289,7 @@ export function suspendedPage(cafe: CafeBrand) {
 }
 
 export function capacityReachedPage(cafe: CafeBrand) {
-  return shell(cafe, `<div class="card">${getLogo(cafe)}<h1>${escapeHtml(cafe.name)}</h1><p>This loyalty programme has reached its limit of <strong>50 unique customers this month</strong>.</p><p class="muted">The counter resets on the 1st. If you&apos;re a regular, ask staff — they may be able to help.</p></div>`);
+  return shell(cafe, `<div class="card">${getLogo(cafe)}<h1>${escapeHtml(cafe.name)}</h1><p>This loyalty programme has reached its free limit of <strong>50 unique customers this month</strong>.</p><p class="muted">Ask staff — once billing is set up, TapStamp upgrades automatically and new customers can join again.</p></div>`);
 }
 
 export function alreadyStampedPage(
@@ -408,9 +410,13 @@ export function stampedPage(cafe: CafeBrand, count: number, _rewardJustUnlocked 
       ? (milestoneAtCount(count, cafe.reward_tiers)?.reward ?? (count >= cafe.stamp_goal ? cafe.reward : null))
       : null);
   if (reward) {
+    const segment = stripSegmentProgress(count, cafe.stamp_goal, cafe.reward_tiers, {
+      complete: true,
+      redeemed: true,
+    });
     return shell(
       cafe,
-      `<div class="card">${getLogo(cafe)}<p class="eyebrow">Reward unlocked</p><h1>Your next visit&apos;s on us</h1><p>You&apos;ve earned a reward of <strong>${rewardText(String(reward))}</strong>. Show your Wallet pass at the counter to claim it.</p><div class="reward-pill">${rewardText(String(reward))}</div>${getStamps(cafe, count)}<p class="muted" style="font-size:0.75rem;margin-top:0.75rem">Your Wallet pass updates automatically.</p></div>`,
+      `<div class="card">${getLogo(cafe)}<p class="eyebrow">Reward unlocked</p><h1>Your next visit&apos;s on us</h1><p>You&apos;ve earned a reward of <strong>${rewardText(String(reward))}</strong>.</p><div class="reward-pill">Redeem now</div><p class="muted" style="margin-top:-0.35rem;margin-bottom:0.75rem">${rewardText(String(reward))}</p><p class="muted reward-line"><strong>${segment.filled}</strong> of ${segment.total}</p>${getStamps(cafe, segment.filled, segment.total)}<p class="muted" style="font-size:0.75rem;margin-top:0.75rem">Show your Wallet pass at the counter to claim it.</p></div>`,
       extra,
     );
   }
@@ -418,8 +424,18 @@ export function stampedPage(cafe: CafeBrand, count: number, _rewardJustUnlocked 
 }
 
 /** Mid-milestone or final reward ready — names the specific reward. */
-export function redeemReadyPage(cafe: CafeBrand, _serial?: string, rewardName?: string) {
+export function redeemReadyPage(
+  cafe: CafeBrand,
+  serial?: string,
+  rewardName?: string,
+  stampCount?: number,
+) {
   const reward = rewardName?.trim() || cafe.reward;
+  const count = stampCount ?? cafe.stamp_goal;
+  const segment = stripSegmentProgress(count, cafe.stamp_goal, cafe.reward_tiers, {
+    complete: true,
+    redeemed: true,
+  });
   const keepGoing = Boolean(
     cafe.reward_tiers &&
       cafe.reward_tiers.length >= 2 &&
@@ -428,9 +444,11 @@ export function redeemReadyPage(cafe: CafeBrand, _serial?: string, rewardName?: 
   const keepLine = keepGoing
     ? `<p class="muted" style="font-size:0.8rem;margin-top:0.75rem">Keep collecting stamps after you claim — your card continues.</p>`
     : `<p class="muted" style="font-size:0.75rem;margin-top:0.75rem">Your Wallet pass updates automatically. Tap again on your next visit to start collecting stamps.</p>`;
+  const extra = serial ? passPersistScripts(cafe.id, serial) : '';
   return shell(
     cafe,
-    `<div class="card">${getLogo(cafe)}<p class="eyebrow">Reward unlocked</p><h1>Your next visit&apos;s on us</h1><p>You&apos;ve earned a reward of <strong>${rewardText(reward)}</strong>.</p><div class="reward-pill">${rewardText(reward)}</div>${getStamps(cafe, cafe.stamp_goal)}<p class="muted"><strong class="reward-line">Show your Wallet pass</strong> at the counter to claim it. Staff will tap Redeem reward in the app.</p>${keepLine}</div>`,
+    `<div class="card">${getLogo(cafe)}<p class="eyebrow">Reward unlocked</p><h1>Your next visit&apos;s on us</h1><p>You&apos;ve earned a reward of <strong>${rewardText(reward)}</strong>.</p><div class="reward-pill">Redeem now</div><p class="muted" style="margin-top:-0.35rem;margin-bottom:0.75rem">${rewardText(reward)}</p><p class="muted reward-line"><strong>${segment.filled}</strong> of ${segment.total}</p>${getStamps(cafe, segment.filled, segment.total)}<p class="muted"><strong class="reward-line">Show your Wallet pass</strong> at the counter to claim it. Staff will tap Redeem reward in the app.</p>${keepLine}</div>`,
+    extra,
   );
 }
 

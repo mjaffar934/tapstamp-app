@@ -455,12 +455,16 @@ export async function designPassWithAi(
   }
 }
 
-export async function openBillingPortal(): Promise<{ error?: string; portalUrl?: string }> {
+export async function openBillingPortal(setup = false): Promise<{ error?: string; portalUrl?: string }> {
   if (!supabaseApiBase) return { error: 'Supabase not configured' };
 
   const res = await fetch(supabaseFn('/billing-portal'), {
     method: 'POST',
-    headers: await authHeaders(),
+    headers: {
+      ...(await authHeaders()),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ setup }),
   });
 
   const data = await res.json();

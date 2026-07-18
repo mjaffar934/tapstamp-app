@@ -30,10 +30,31 @@ export function timeFromString(hhmm: string, base = new Date()): Date {
   return withTime(base, Number.isFinite(h) ? h : 9, Number.isFinite(m) ? m : 0);
 }
 
-export function combineDateAndTime(date: Date, time: Date): string {
-  const merged = new Date(date);
-  merged.setHours(time.getHours(), time.getMinutes(), 0, 0);
-  return merged.toISOString();
+export function combineDateAndTime(date: Date, time: Date, timeZone = 'Europe/London'): string {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const hour = time.getHours();
+  const minute = time.getMinutes();
+
+  // Interpret the picker values as wall-clock time in Europe/London (tap page display TZ).
+  let utcMs = Date.UTC(year, month - 1, day, hour, minute, 0);
+  for (let i = 0; i < 3; i += 1) {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(new Date(utcMs));
+    const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+    const asLondon = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'));
+    const wanted = Date.UTC(year, month - 1, day, hour, minute);
+    utcMs += wanted - asLondon;
+  }
+  return new Date(utcMs).toISOString();
 }
 
 export function TimePickerField({ label, value, onChange }: TimePickerFieldProps) {

@@ -19,12 +19,12 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     name: 'Starter',
     hardwareGbp: HARDWARE_PRICE_GBP,
     monthlyGbp: null,
-    tagline: 'Free after trial — up to 50 customers per month',
+    tagline: 'Free up to 50 customers/month — then Pro £25/mo',
     features: [
       'Free loyalty stamp included',
       '14-day free trial from go-live',
-      'Free forever after trial',
-      '50 unique customers per month (resets monthly)',
+      'Free up to 50 unique customers per month',
+      'Add a card — auto-upgrade to Pro at 50',
     ],
   },
   pro: {

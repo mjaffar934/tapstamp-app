@@ -6,6 +6,7 @@ import { applyStampToPass, applyRedeemRestartAndStamp, hasStampedToday, customer
 import { generateUniqueMemberCode, ensureMemberCode } from '../_shared/memberCode.ts';
 import { isGoogleWalletConfigured } from '../_shared/googleWallet.ts';
 import { isDoubleStampWindow } from '../_shared/utils.ts';
+import { upgradeStarterAtCustomerLimit } from '../_shared/subscription.ts';
 import {
   chipNotActivatedPage,
   customerForm,
@@ -296,6 +297,7 @@ Deno.serve(async (req) => {
               brand,
               pass.serial_number,
               pending ?? undefined,
+              Number(pass.stamp_count),
             ),
             appendCookie(cookie, redeemSeenCookie(String(cafe.id))),
           );
@@ -306,7 +308,7 @@ Deno.serve(async (req) => {
             ? String(pass.pending_milestone_reward)
             : null;
           if (pending || pass.status === 'redeemed') {
-            return html(redeemReadyPage(brand, pass.serial_number, pending ?? undefined), cookie);
+            return html(redeemReadyPage(brand, pass.serial_number, pending ?? undefined, Number(pass.stamp_count)), cookie);
           }
           return html(alreadyStampedPage(brand, Number(pass.stamp_count), pass.serial_number), cookie);
         }
@@ -337,7 +339,7 @@ Deno.serve(async (req) => {
         if (ack) return ack;
 
         if (pass.status === 'redeemed' && !attemptStamp) {
-          return html(redeemReadyPage(brand, pass.serial_number), cookie);
+          return html(redeemReadyPage(brand, pass.serial_number, undefined, Number(pass.stamp_count)), cookie);
         }
 
         if (!attemptStamp) {
@@ -399,7 +401,7 @@ Deno.serve(async (req) => {
 
         // Match ?p= behaviour: wait for staff to redeem; don't auto-restart on every visit.
         if (pass.status === 'redeemed') {
-          return html(redeemReadyPage(brand, existingSerial), passCookie(String(cafe.id), existingSerial));
+          return html(redeemReadyPage(brand, existingSerial, undefined, Number(pass.stamp_count)), passCookie(String(cafe.id), existingSerial));
         }
 
         return await stampExistingPass(
@@ -598,11 +600,11 @@ async function viewPassStatus(
     : null;
 
   if (pass.status === 'redeemed') {
-    return html(redeemReadyPage(brand, serial), cookie);
+    return html(redeemReadyPage(brand, serial, undefined, count), cookie);
   }
 
   if (pending) {
-    return html(redeemReadyPage(brand, serial, pending), cookie);
+    return html(redeemReadyPage(brand, serial, pending, count), cookie);
   }
 
   const stampedToday = await hasStampedToday(String(pass.id));
@@ -633,7 +635,7 @@ async function stampExistingPass(
   if (pass.status === 'redeemed') {
     const restart = await applyRedeemRestartAndStamp(pass, cafe);
     if (!restart.ok) {
-      return html(redeemReadyPage(brand, serial), cookie);
+      return html(redeemReadyPage(brand, serial, undefined, Number(pass.stamp_count)), cookie);
     }
 
     return redirectToPassResult(
@@ -657,7 +659,7 @@ async function stampExistingPass(
   if (!result.ok) {
     if (result.error === 'redeem_pending') {
       return html(
-        redeemReadyPage(brand, serial, result.milestoneReward ?? undefined),
+        redeemReadyPage(brand, serial, result.milestoneReward ?? undefined, result.stampCount ?? Number(pass.stamp_count)),
         cookie,
       );
     }
@@ -679,7 +681,7 @@ async function stampExistingPass(
       );
     }
     return html(
-      redeemReadyPage(brand, serial, result.milestoneReward ?? undefined),
+      redeemReadyPage(brand, serial, result.milestoneReward ?? undefined, result.stampCount),
       cookie,
     );
   }
@@ -728,7 +730,17 @@ async function createNewPass(
   if (shouldEnforceStarterLimit(String(cafe.plan), cafe.trial_ends_at as string | null)) {
     const count = await countUniqueMonthlyCustomers(cafeId);
     if (count >= STARTER_MONTHLY_CUSTOMER_LIMIT) {
-      return html(capacityReachedPage(brand));
+      try {
+        const upgrade = await upgradeStarterAtCustomerLimit(cafe);
+        if (upgrade !== 'upgraded') {
+          return html(capacityReachedPage(brand));
+        }
+        // Upgraded to Pro — allow this join to continue.
+        cafe.plan = 'pro';
+      } catch (err) {
+        console.error('Starter auto-upgrade failed:', err);
+        return html(capacityReachedPage(brand));
+      }
     }
   }
 

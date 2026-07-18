@@ -171,3 +171,140 @@ export async function createBillingPortalSession(
   if (!session.url) throw new Error('Failed to create billing portal session');
   return session.url;
 }
+
+/** Collect a card for Starter shops so we can auto-upgrade at the 50-customer limit. */
+export async function createBillingSetupSession(params: {
+  email: string;
+  businessId: string;
+  cafeId: string;
+  ownerId: string;
+  customerId?: string | null;
+}): Promise<string> {
+  const stripe = getStripeFromSubscription();
+  const website = Deno.env.get('ORDER_WEBSITE_URL') ?? 'https://tapstamp.co';
+
+  let customerId = params.customerId ?? null;
+  if (!customerId) {
+    const customer = await stripe.customers.create({
+      email: params.email,
+      metadata: {
+        business_id: params.businessId,
+        cafe_id: params.cafeId,
+        owner_id: params.ownerId,
+      },
+    });
+    customerId = customer.id;
+    await supabase.from('businesses').update({
+      stripe_customer_id: customerId,
+    }).eq('id', params.businessId);
+  }
+
+  const session = await stripe.checkout.sessions.create({
+    mode: 'setup',
+    customer: customerId,
+    metadata: {
+      owner_id: params.ownerId,
+      business_id: params.businessId,
+      cafe_id: params.cafeId,
+      plan: 'pro',
+      purpose: 'starter_billing_ready',
+    },
+    success_url: `${website}/order/success?session_id={CHECKOUT_SESSION_ID}&billing=1`,
+    cancel_url: `${website}/?billing=canceled`,
+  });
+
+  if (!session.url) throw new Error('Failed to create billing setup session');
+  return session.url;
+}
+
+/**
+ * When Starter hits 50 unique monthly customers and a card is on file,
+ * start Pro (£25/mo) immediately so new customers can keep joining.
+ */
+export async function upgradeStarterAtCustomerLimit(cafe: {
+  id: string;
+  plan?: string | null;
+  trial_ends_at?: string | null;
+  email?: string | null;
+  owner_id?: string | null;
+  owner_email?: string | null;
+}): Promise<'upgraded' | 'needs_billing' | 'skipped'> {
+  if (!isStarterPlan(cafe.plan)) return 'skipped';
+
+  const { data: cafeRow } = await supabase
+    .from('cafes')
+    .select('id, plan, owner_id, owner_email, email')
+    .eq('id', cafe.id)
+    .maybeSingle();
+
+  const ownerId = cafe.owner_id ?? cafeRow?.owner_id ?? null;
+  const ownerEmail = (
+    cafe.owner_email ?? cafe.email ?? cafeRow?.owner_email ?? cafeRow?.email ?? null
+  )?.toString().trim().toLowerCase() || null;
+
+  let biz: {
+    id: string;
+    stripe_customer_id: string | null;
+    email: string | null;
+    owner_id: string;
+    stripe_subscription_id: string | null;
+  } | null = null;
+
+  if (ownerId) {
+    const { data } = await supabase
+      .from('businesses')
+      .select('id, stripe_customer_id, email, owner_id, stripe_subscription_id')
+      .eq('owner_id', ownerId)
+      .maybeSingle();
+    biz = data;
+  }
+
+  if (!biz && ownerEmail) {
+    const { data } = await supabase
+      .from('businesses')
+      .select('id, stripe_customer_id, email, owner_id, stripe_subscription_id')
+      .ilike('email', ownerEmail)
+      .maybeSingle();
+    biz = data;
+  }
+
+  if (!biz?.stripe_customer_id) return 'needs_billing';
+  if (biz.stripe_subscription_id) {
+    await supabase.from('cafes').update({
+      plan: 'pro',
+      subscription_status: 'active',
+      status: 'active',
+    }).eq('id', cafe.id);
+    await supabase.from('businesses').update({
+      plan_selected: 'pro',
+      subscription_status: 'active',
+    }).eq('id', biz.id);
+    return 'upgraded';
+  }
+
+  const stripe = getStripeFromSubscription();
+  const methods = await stripe.paymentMethods.list({
+    customer: biz.stripe_customer_id,
+    type: 'card',
+    limit: 1,
+  });
+  const pm = methods.data[0];
+  if (!pm) return 'needs_billing';
+
+  const priceId = getSubscriptionPriceId('pro');
+  const subscription = await stripe.subscriptions.create({
+    customer: biz.stripe_customer_id,
+    items: [{ price: priceId }],
+    default_payment_method: pm.id,
+    metadata: {
+      business_id: biz.id,
+      cafe_id: cafe.id,
+      owner_id: biz.owner_id ?? '',
+      plan: 'pro',
+      upgrade_reason: 'starter_50_limit',
+    },
+  });
+
+  await syncSubscriptionRecord(subscription);
+  return 'upgraded';
+}

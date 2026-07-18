@@ -20,8 +20,16 @@ Deno.serve(async (req) => {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        if (session.payment_status === 'paid' && session.metadata?.business_id) {
-          await markBusinessPaid(session.metadata.business_id, session);
+        const businessId = session.metadata?.business_id;
+        if (!businessId) break;
+
+        // Setup mode (save card) or paid hardware checkout.
+        if (
+          session.mode === 'setup'
+          || session.payment_status === 'paid'
+          || session.payment_status === 'no_payment_required'
+        ) {
+          await markBusinessPaid(businessId, session);
         }
         break;
       }

@@ -237,31 +237,40 @@ export function useDashboard(cafeId: string | undefined) {
   useEffect(() => {
     if (!cafeId || !isSupabaseConfigured) return;
 
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefresh = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        void fetchDashboardRef.current({ silent: true });
+      }, 250);
+    };
+
     const channel = supabase
       .channel(`${realtimeIdRef.current}-${cafeId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'stamps', filter: `cafe_id=eq.${cafeId}` },
-        () => { void fetchDashboardRef.current({ silent: true }); },
+        scheduleRefresh,
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'passes', filter: `cafe_id=eq.${cafeId}` },
-        () => { void fetchDashboardRef.current({ silent: true }); },
+        scheduleRefresh,
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'redemptions', filter: `cafe_id=eq.${cafeId}` },
-        () => { void fetchDashboardRef.current({ silent: true }); },
+        scheduleRefresh,
       )
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'cafes', filter: `id=eq.${cafeId}` },
-        () => { void fetchDashboardRef.current({ silent: true }); },
+        scheduleRefresh,
       )
       .subscribe();
 
     return () => {
+      if (timer) clearTimeout(timer);
       void supabase.removeChannel(channel);
     };
   }, [cafeId]);

@@ -1,5 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { createBillingPortalSession } from '../_shared/subscription.ts';
+import {
+  createBillingPortalSession,
+  createBillingSetupSession,
+} from '../_shared/subscription.ts';
 import { json } from '../_shared/utils.ts';
 import { supabase, SUPABASE_URL } from '../_shared/client.ts';
 
@@ -30,14 +33,41 @@ Deno.serve(async (req) => {
       return json({ error: 'Unauthorized' }, 401);
     }
 
+    let body: { setup?: boolean } = {};
+    try {
+      body = await req.json();
+    } catch {
+      body = {};
+    }
+
     const { data: business } = await supabase
       .from('businesses')
-      .select('stripe_customer_id')
+      .select('id, stripe_customer_id, email, owner_id')
       .eq('owner_id', user.id)
       .maybeSingle();
 
-    if (!business?.stripe_customer_id) {
-      return json({ error: 'No billing account found. Complete your kit order first.' }, 400);
+    if (!business) {
+      return json({ error: 'Business not found' }, 404);
+    }
+
+    const { data: cafe } = await supabase
+      .from('cafes')
+      .select('id')
+      .eq('owner_id', user.id)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    // Starter shops without a card — collect payment method for auto-upgrade at 50.
+    if (body.setup || !business.stripe_customer_id) {
+      const setupUrl = await createBillingSetupSession({
+        email: business.email || user.email || '',
+        businessId: business.id,
+        cafeId: cafe?.id ?? '',
+        ownerId: user.id,
+        customerId: business.stripe_customer_id,
+      });
+      return json({ portalUrl: setupUrl, setup: true });
     }
 
     const portalUrl = await createBillingPortalSession(

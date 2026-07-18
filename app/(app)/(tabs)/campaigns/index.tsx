@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { useOwnerCafe } from '@/hooks/useOwnerCafe';
 import { useTapStampAlert } from '@/contexts/AlertContext';
@@ -25,6 +25,12 @@ function phaseLabel(phase: ReturnType<typeof campaignPhase>): string {
   return '';
 }
 
+function startOfToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 export default function CampaignsScreen() {
   const { cafe, isLoading, refetch } = useOwnerCafe();
   const alert = useTapStampAlert();
@@ -41,19 +47,40 @@ export default function CampaignsScreen() {
     return d;
   });
   const [sending, setSending] = useState(false);
+  const dirtyRef = useRef(false);
+  const hydratedCafeId = useRef<string | null>(null);
 
   useEffect(() => {
     if (!cafe) return;
+    // Only hydrate from server once per cafe (or after publish/clear resets dirty).
+    if (dirtyRef.current && hydratedCafeId.current === cafe.id) return;
+
     setMessage(cafe.active_campaign_message ?? '');
     if (cafe.campaign_starts_at) {
       const start = new Date(cafe.campaign_starts_at);
       setEventDate(start);
       setStartTime(start);
+    } else {
+      const today = new Date();
+      setEventDate(today);
+      const s = new Date(today);
+      s.setHours(9, 0, 0, 0);
+      setStartTime(s);
     }
     if (cafe.campaign_ends_at) {
       setEndTime(new Date(cafe.campaign_ends_at));
+    } else {
+      const e = new Date();
+      e.setHours(17, 0, 0, 0);
+      setEndTime(e);
     }
+    hydratedCafeId.current = cafe.id;
+    dirtyRef.current = false;
   }, [cafe]);
+
+  const markDirty = () => {
+    dirtyRef.current = true;
+  };
 
   const publish = async () => {
     if (!cafe?.id) return;
@@ -79,6 +106,9 @@ export default function CampaignsScreen() {
       return;
     }
 
+    // Keep the values just published — don't let a refetch wipe them.
+    dirtyRef.current = false;
+    hydratedCafeId.current = null;
     await refetch();
     alert('Published', 'Customers will see this on your tap page during the scheduled window.');
   };
@@ -112,6 +142,8 @@ export default function CampaignsScreen() {
     const resetEnd = new Date(resetDate);
     resetEnd.setHours(17, 0, 0, 0);
     setEndTime(resetEnd);
+    dirtyRef.current = false;
+    hydratedCafeId.current = null;
     await refetch();
   };
 
@@ -128,6 +160,7 @@ export default function CampaignsScreen() {
   const scheduleLabel = formatCampaignSchedule(cafe?.campaign_starts_at, cafe?.campaign_ends_at);
   const phase = cafe ? campaignPhase(cafe) : null;
   const showActiveCard = cafe && hasCampaignMessage(cafe);
+  const minDate = eventDate < startOfToday() ? eventDate : startOfToday();
 
   return (
     <Screen refreshing={isLoading} onRefresh={refetch}>
@@ -174,7 +207,10 @@ export default function CampaignsScreen() {
             </Text>
             <Input
               value={message}
-              onChangeText={setMessage}
+              onChangeText={(v) => {
+                markDirty();
+                setMessage(v);
+              }}
               placeholder="Double stamps this Saturday!"
               multiline
               style={styles.input}
@@ -182,19 +218,28 @@ export default function CampaignsScreen() {
             <DatePickerField
               label="Event date"
               value={eventDate}
-              onChange={setEventDate}
-              minimumDate={new Date()}
+              onChange={(d) => {
+                markDirty();
+                setEventDate(d);
+              }}
+              minimumDate={minDate}
             />
             <View style={styles.timeRow}>
               <TimePickerField
                 label="From"
                 value={startTime}
-                onChange={setStartTime}
+                onChange={(d) => {
+                  markDirty();
+                  setStartTime(d);
+                }}
               />
               <TimePickerField
                 label="Until"
                 value={endTime}
-                onChange={setEndTime}
+                onChange={(d) => {
+                  markDirty();
+                  setEndTime(d);
+                }}
               />
             </View>
             <Button

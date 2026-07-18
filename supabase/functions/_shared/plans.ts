@@ -18,7 +18,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     name: 'Starter',
     hardwareGbp: HARDWARE_PRICE_GBP,
     monthlyGbp: null,
-    tagline: 'Free after trial — 50 unique customers/month',
+    tagline: 'Free up to 50 customers/month — then Pro £25/mo',
   },
   pro: {
     id: 'pro',

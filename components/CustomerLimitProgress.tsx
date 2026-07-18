@@ -48,16 +48,18 @@ export function CustomerLimitProgress({
         />
         <Text variant="caption" muted style={styles.footerText}>
           {atLimit
-            ? 'You have reached 50 unique customers this month. New sign-ups pause until the 1st.'
+            ? 'Limit reached. Add a card in Billing so Pro (£25/mo) can start and new customers keep joining.'
             : nearLimit
-              ? `${remaining} spot${remaining === 1 ? '' : 's'} left this month — counter resets on the 1st.`
-              : 'Each person who stamps counts once per month. Regulars count again next month.'}
+              ? `${remaining} spot${remaining === 1 ? '' : 's'} left — add billing so we can auto-upgrade at 50.`
+              : safeCount >= 30
+                ? 'Add a card in Billing before you hit 50 — we start Pro (£25/mo) automatically.'
+                : 'Each person who stamps counts once per month. Regulars count again next month.'}
         </Text>
       </View>
 
-      {(atLimit || nearLimit) ? (
+      {(atLimit || nearLimit || safeCount >= 30) ? (
         <Button
-          title="Upgrade to Pro"
+          title="Set up billing"
           variant="outline"
           onPress={() => router.push('/(app)/(tabs)/settings/billing')}
           style={styles.cta}

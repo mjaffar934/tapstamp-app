@@ -302,14 +302,6 @@ export async function markBusinessPaid(
   businessId: string,
   session: Stripe.Checkout.Session,
 ): Promise<void> {
-  const { data: existing } = await supabase
-    .from('businesses')
-    .select('order_status')
-    .eq('id', businessId)
-    .maybeSingle();
-
-  if (existing?.order_status === 'paid') return;
-
   const customerId = typeof session.customer === 'string'
     ? session.customer
     : session.customer?.id ?? null;
