@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { View, StyleSheet, Share, ActivityIndicator } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, router } from 'expo-router';
 import { useOwnerCafe } from '@/hooks/useOwnerCafe';
 import { useTapStampAlert } from '@/contexts/AlertContext';
 import { supabase } from '@/lib/supabase';
@@ -108,7 +108,7 @@ export default function ShareScreen() {
 
   return (
     <Screen>
-      <BackHeader />
+      <BackHeader onBack={() => router.replace('/(app)/(tabs)/settings')} />
       <ScreenHeader
         compact
         title="Share programme"

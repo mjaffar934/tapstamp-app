@@ -471,10 +471,21 @@ export function rewardRestartPage(cafe: CafeBrand, count: number, serial?: strin
   );
 }
 
-export function rewardRedeemedPage(cafe: CafeBrand, count: number, memberCode?: string) {
+export function rewardRedeemedPage(
+  cafe: CafeBrand,
+  count: number,
+  memberCode?: string,
+  continued = false,
+) {
   const codeLine = memberCode
     ? `<p class="muted" style="font-size:0.8rem;margin-top:0.5rem">Your member code: <strong>${escapeHtml(memberCode)}</strong></p>`
     : '';
+  if (continued) {
+    return shell(
+      cafe,
+      `<div class="card">${getLogo(cafe)}<p class="eyebrow">Reward redeemed</p><h1>${escapeHtml(cafe.reward_message || 'Enjoy your reward!')}</h1><p>Your stamps carry on — you&apos;re still on <strong>${count}</strong>. Next tap adds stamp ${count + 1}.</p>${getStamps(cafe, count)}${progressRewardLine(cafe, count)}<p class="muted" style="font-size:0.75rem">Your Wallet pass is updated.</p>${codeLine}</div>`,
+    );
+  }
   return shell(
     cafe,
     `<div class="card">${getLogo(cafe)}<p class="eyebrow">Reward redeemed</p><h1>${escapeHtml(cafe.reward_message || 'Enjoy your reward!')}</h1><p>Your card has been reset — start collecting again.</p>${getStamps(cafe, count)}<p class="muted reward-line"><strong>0</strong> of ${cafe.stamp_goal} stamps · ${rewardText(cafe.reward)}</p><p class="muted" style="font-size:0.75rem">Your Wallet pass is updated. Tap again on your next visit for your next stamp.</p>${codeLine}</div>`,

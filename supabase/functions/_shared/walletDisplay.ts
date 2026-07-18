@@ -102,14 +102,20 @@ export function stripSegmentProgress(
     return { filled: Math.min(stampCount, stampGoal), total: Math.max(1, stampGoal) };
   }
 
-  // Exactly on a milestone: show that segment complete (e.g. 5/5 toward pastry).
+  // Sitting exactly on a claimed milestone (pending cleared): start the next segment at 0.
   const onMilestone = sorted.find((t) => Number(t.stamp_count) === stampCount);
   if (onMilestone) {
+    const next = sorted.find((t) => Number(t.stamp_count) > stampCount);
+    if (next) {
+      const start = Number(onMilestone.stamp_count);
+      const end = Number(next.stamp_count);
+      return { filled: 0, total: Math.max(1, end - start) };
+    }
+    // Final milestone count with nowhere to go — treat as complete segment.
     const idx = sorted.indexOf(onMilestone);
     const start = idx > 0 ? Number(sorted[idx - 1].stamp_count) : 0;
     const end = Number(onMilestone.stamp_count);
-    const total = Math.max(1, end - start);
-    return { filled: total, total };
+    return { filled: Math.max(1, end - start), total: Math.max(1, end - start) };
   }
 
   const next = sorted.find((t) => Number(t.stamp_count) > stampCount);
@@ -208,7 +214,6 @@ export function buildRewardFieldCopy(input: {
   const lifetime = Number(input.lifetimeStamps) || input.stampCount;
   const completedCycle = hasCompletedRewardCycle(lifetime, input.stampCount);
   const pending = input.pendingMilestoneReward?.trim() || null;
-  const hit = milestoneAtCount(input.stampCount, tiers);
 
   if (isRedeemed) {
     return {
@@ -228,17 +233,8 @@ export function buildRewardFieldCopy(input: {
     };
   }
 
-  // Exact milestone reached — claim this reward at the counter.
-  if (hasLevels && hit) {
-    return {
-      label: 'REDEEM',
-      value: formatRewardDisplay(hit.reward),
-      levelsLine,
-      upcomingLine,
-    };
-  }
-
-  // Stamp-with-levels: NEXT REWARD + next milestone (e.g. "5 · Free pastry")
+  // Stamp-with-levels: NEXT REWARD + next milestone (e.g. "10 · Free coffee")
+  // Do not treat sitting on a claimed milestone count as REDEEM — that needs pending.
   if (hasLevels) {
     return {
       label: 'NEXT REWARD',

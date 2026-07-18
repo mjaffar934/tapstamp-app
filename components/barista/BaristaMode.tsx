@@ -152,7 +152,9 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
       action === 'stamp' ? 'Stamp added' : 'Reward redeemed',
       action === 'stamp'
         ? `Now at ${result.stampCount ?? 0} stamps.`
-        : 'Pass reset for a new cycle.',
+        : result.continued
+          ? `Still at ${result.stampCount ?? 0} stamps — next tap continues the card.`
+          : 'Pass reset for a new cycle.',
     );
   };
 

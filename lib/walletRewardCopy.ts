@@ -106,11 +106,16 @@ export function stripSegmentProgress(
 
   const onMilestone = sorted.find((t) => Number(t.stamp_count) === stampCount);
   if (onMilestone) {
+    const next = sorted.find((t) => Number(t.stamp_count) > stampCount);
+    if (next) {
+      const start = Number(onMilestone.stamp_count);
+      const end = Number(next.stamp_count);
+      return { filled: 0, total: Math.max(1, end - start) };
+    }
     const idx = sorted.indexOf(onMilestone);
     const start = idx > 0 ? Number(sorted[idx - 1].stamp_count) : 0;
     const end = Number(onMilestone.stamp_count);
-    const total = Math.max(1, end - start);
-    return { filled: total, total };
+    return { filled: Math.max(1, end - start), total: Math.max(1, end - start) };
   }
 
   const next = sorted.find((t) => Number(t.stamp_count) > stampCount);
@@ -142,7 +147,6 @@ export function buildRewardFieldCopy(input: {
   const lifetime = Number(input.lifetimeStamps) || input.stampCount;
   const completedCycle = lifetime > input.stampCount;
   const pending = input.pendingMilestoneReward?.trim() || null;
-  const hit = milestoneAtCount(input.stampCount, tiers);
 
   if (isRedeemed) {
     return { label: 'REDEEM', value: reward, levelsLine, upcomingLine: null };
@@ -152,15 +156,6 @@ export function buildRewardFieldCopy(input: {
     return {
       label: 'REDEEM',
       value: formatRewardDisplay(pending),
-      levelsLine,
-      upcomingLine,
-    };
-  }
-
-  if (hasLevels && hit) {
-    return {
-      label: 'REDEEM',
-      value: formatRewardDisplay(hit.reward),
       levelsLine,
       upcomingLine,
     };

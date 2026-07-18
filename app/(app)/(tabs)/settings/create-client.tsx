@@ -69,7 +69,7 @@ export default function CreateClientScreen() {
 
   return (
     <Screen>
-      <BackHeader />
+      <BackHeader onBack={() => router.replace('/(app)/(tabs)/settings')} />
       <ScreenHeader
         compact
         title="Create client"

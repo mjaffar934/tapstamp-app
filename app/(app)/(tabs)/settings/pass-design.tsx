@@ -255,7 +255,7 @@ export default function PassDesignScreen() {
 
   return (
     <Screen>
-      <BackHeader onBack={() => confirmLeave(() => { if (router.canGoBack()) router.back(); })} />
+      <BackHeader onBack={() => confirmLeave(() => router.replace('/(app)/(tabs)/settings'))} />
       <ScreenHeader
         compact
         title="Pass design"

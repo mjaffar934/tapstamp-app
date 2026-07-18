@@ -1,5 +1,6 @@
 import { View, StyleSheet, Linking, ActivityIndicator } from 'react-native';
 import { useState } from 'react';
+import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTapStampAlert } from '@/contexts/AlertContext';
 import { useOwnerCafe } from '@/hooks/useOwnerCafe';
@@ -65,7 +66,7 @@ export default function BillingScreen() {
 
   return (
     <Screen>
-      <BackHeader />
+      <BackHeader onBack={() => router.replace('/(app)/(tabs)/settings')} />
       <ScreenHeader compact title="Plan" subtitle="Your TapStamp plan and usage." />
 
       {!cafe ? (

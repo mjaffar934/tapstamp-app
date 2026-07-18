@@ -13,6 +13,8 @@ export interface StampResult {
   rewardJustUnlocked?: boolean;
   /** Mid-level or final milestone reward just crossed this stamp. */
   milestoneReward?: string | null;
+  /** Mid-level redeem kept stamp progress (did not reset to 0). */
+  continued?: boolean;
 }
 
 export interface StampOptions {
@@ -122,16 +124,23 @@ export async function applyStampToPass(
   ) ? 2 : 1;
   const stampGoal = Number(cafe.stamp_goal) || 10;
   const prevCount = Number(pass.stamp_count);
+  const sortedTiers = [...(tiers ?? [])].sort(
+    (a, b) => Number(a.stamp_count) - Number(b.stamp_count),
+  );
+  const hasLevels = sortedTiers.length >= 2;
+  // Levels programmes can run past a mis-set stamp_goal (e.g. goal=5 with tiers to 15).
+  const programGoal = hasLevels
+    ? Math.max(stampGoal, Number(sortedTiers[sortedTiers.length - 1].stamp_count))
+    : stampGoal;
 
   // Stop exactly on the next milestone (don't skip past redeem with double stamps).
-  const nextTier = (tiers ?? []).find((t) => Number(t.stamp_count) > prevCount);
+  const nextTier = sortedTiers.find((t) => Number(t.stamp_count) > prevCount);
   if (nextTier) {
     const maxAdd = Number(nextTier.stamp_count) - prevCount;
     stampsToAdd = Math.min(stampsToAdd, Math.max(1, maxAdd));
   }
 
-  const newCount = Math.min(prevCount + stampsToAdd, stampGoal);
-  const isFullCard = newCount >= stampGoal;
+  const newCount = Math.min(prevCount + stampsToAdd, programGoal);
   const newLifetime = (Number(pass.lifetime_stamps) || 0) + stampsToAdd;
   const unlockedTiers: string[] = [...((pass.unlocked_tiers as string[]) || [])];
   const now = new Date().toISOString();
@@ -141,7 +150,7 @@ export async function applyStampToPass(
   );
 
   let milestoneReward: string | null = null;
-  for (const tier of tiers ?? []) {
+  for (const tier of sortedTiers) {
     const at = Number(tier.stamp_count);
     if (prevCount < at && newCount >= at) {
       milestoneReward = String(tier.reward);
@@ -150,6 +159,16 @@ export async function applyStampToPass(
       unlockedTiers.push(tier.id);
     }
   }
+
+  const hasHigherTier = sortedTiers.some((t) => Number(t.stamp_count) > newCount);
+  const lastTierAt = hasLevels ? Number(sortedTiers[sortedTiers.length - 1].stamp_count) : null;
+  const hitFinalTier = Boolean(
+    lastTierAt != null && prevCount < lastTierAt && newCount >= lastTierAt,
+  );
+  // Full cycle only at the final level (or simple cards at stamp_goal) — never mid-levels.
+  const isFullCard = hitFinalTier || (!hasLevels && newCount >= stampGoal)
+    || (hasLevels && newCount >= programGoal && !hasHigherTier);
+
   if (isFullCard && !milestoneReward) {
     milestoneReward = String(cafe.reward || 'Free reward');
   }
@@ -158,7 +177,7 @@ export async function applyStampToPass(
   const pendingReward = milestoneReward && !isFullCard ? milestoneReward : null;
 
   await supabase.from('passes').update({
-    stamp_count: isFullCard ? stampGoal : newCount,
+    stamp_count: isFullCard ? programGoal : newCount,
     status: isFullCard ? 'redeemed' : 'active',
     pending_milestone_reward: isFullCard ? null : pendingReward,
     last_stamp_at: now,
@@ -170,7 +189,7 @@ export async function applyStampToPass(
 
   const updated = {
     ...pass,
-    stamp_count: isFullCard ? stampGoal : newCount,
+    stamp_count: isFullCard ? programGoal : newCount,
     status: isFullCard ? 'redeemed' : 'active',
     pending_milestone_reward: pendingReward,
   };
@@ -178,7 +197,7 @@ export async function applyStampToPass(
 
   return {
     ok: true,
-    stampCount: isFullCard ? stampGoal : newCount,
+    stampCount: isFullCard ? programGoal : newCount,
     status: isFullCard ? 'redeemed' : 'active',
     isRedeemed: isFullCard,
     rewardJustUnlocked: Boolean(milestoneReward),
@@ -194,9 +213,22 @@ export async function applyRedeemToPass(
   const serial = String(pass.serial_number);
   const cafeId = String(cafe.id);
   const pending = pass.pending_milestone_reward ? String(pass.pending_milestone_reward) : null;
-  const isFullCard = pass.status === 'redeemed';
+  const keepCount = Number(pass.stamp_count) || 0;
 
-  if (!isFullCard && !pending) {
+  const { data: tiers } = await supabase
+    .from('reward_tiers')
+    .select('stamp_count')
+    .eq('cafe_id', cafeId)
+    .order('stamp_count');
+  const sorted = [...(tiers ?? [])].sort(
+    (a, b) => Number(a.stamp_count) - Number(b.stamp_count),
+  );
+  const hasHigherTier = sorted.some((t) => Number(t.stamp_count) > keepCount);
+  // Mid-level (or recovery if wrongly marked redeemed before the final tier).
+  const isMidLevel = Boolean(pending) || (pass.status === 'redeemed' && hasHigherTier);
+  const isFullCard = pass.status === 'redeemed' && !isMidLevel;
+
+  if (!isFullCard && !isMidLevel) {
     return { ok: false, error: 'not_ready' };
   }
 
@@ -222,11 +254,11 @@ export async function applyRedeemToPass(
   }
 
   // Mid milestone: claim reward, keep stamp progress, unlock next taps.
-  const keepCount = Number(pass.stamp_count);
   await supabase.from('passes').update({
     pending_milestone_reward: null,
     status: 'active',
     updated_at: now,
+    stamp_count: keepCount,
     redeem_ack_pending: options.skipAck ? false : true,
   }).eq('serial_number', serial);
 
@@ -242,6 +274,7 @@ export async function applyRedeemToPass(
     status: 'active',
     isRedeemed: false,
     milestoneReward: pending,
+    continued: true,
   };
 }
 

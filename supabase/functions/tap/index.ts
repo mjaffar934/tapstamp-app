@@ -89,8 +89,10 @@ async function maybeShowRedeemAck(
   await supabase.from('passes').update({ redeem_ack_pending: false }).eq('serial_number', serial);
 
   const memberCode = pass.member_code ? String(pass.member_code) : undefined;
+  const count = Number(pass.stamp_count) || 0;
+  const continued = count > 0;
   return html(
-    rewardRedeemedPage(brand, Number(pass.stamp_count), memberCode),
+    rewardRedeemedPage(brand, count, memberCode, continued),
     passCookie(cafeId, serial),
   );
 }

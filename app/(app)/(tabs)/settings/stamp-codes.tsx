@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, StyleSheet, Pressable, ScrollView, Platform } from 'react-native';
+import { router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { adminGenerateChips, tapUrl } from '@/lib/api';
@@ -40,7 +41,7 @@ export default function StampCodesScreen() {
 
   return (
     <Screen>
-      <BackHeader />
+      <BackHeader onBack={() => router.replace('/(app)/(tabs)/settings')} />
       <Text variant="h1" style={styles.title}>Stamp codes</Text>
       <Text muted style={styles.subtitle}>
         Generate NFC codes before programming stamps. Each code becomes a unique URL you write to the chip.

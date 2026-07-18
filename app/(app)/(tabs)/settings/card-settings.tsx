@@ -251,7 +251,7 @@ export default function CardSettingsScreen() {
 
   return (
     <Screen>
-      <BackHeader onBack={() => confirmLeave(() => { if (router.canGoBack()) router.back(); })} />
+      <BackHeader onBack={() => confirmLeave(() => router.replace('/(app)/(tabs)/settings'))} />
       <ScreenHeader
         compact
         title="Card settings"

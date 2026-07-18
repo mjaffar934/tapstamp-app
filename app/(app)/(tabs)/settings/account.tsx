@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
+import { router } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { BackHeader } from '@/components/ui/BackHeader';
@@ -52,7 +53,7 @@ export default function AccountScreen() {
 
   return (
     <Screen>
-      <BackHeader />
+      <BackHeader onBack={() => router.replace('/(app)/(tabs)/settings')} />
       <ScreenHeader compact title="Account" subtitle="Email, password, and plan details" />
       <Card style={styles.card}>
         <Text variant="caption" muted>EMAIL</Text>

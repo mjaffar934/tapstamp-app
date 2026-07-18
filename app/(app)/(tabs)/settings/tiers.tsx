@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import { router } from 'expo-router';
 import { useOwnerCafe } from '@/hooks/useOwnerCafe';
 import { useTapStampAlert } from '@/contexts/AlertContext';
 import { supabase } from '@/lib/supabase';
@@ -150,7 +151,7 @@ export default function TiersScreen() {
 
   return (
     <Screen>
-      <BackHeader />
+      <BackHeader onBack={() => router.replace('/(app)/(tabs)/settings')} />
       <ScreenHeader
         compact
         title="Stamp levels"
