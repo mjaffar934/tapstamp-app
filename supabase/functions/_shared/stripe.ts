@@ -35,7 +35,9 @@ export async function createHardwareCheckoutSession(
 
     return await stripe.checkout.sessions.create({
       mode: 'setup',
+      currency: 'gbp',
       customer_email: params.email,
+      payment_method_types: ['card'],
       metadata: {
         owner_id: params.ownerId,
         business_id: params.businessId,

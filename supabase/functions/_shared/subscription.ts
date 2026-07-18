@@ -201,7 +201,9 @@ export async function createBillingSetupSession(params: {
 
   const session = await stripe.checkout.sessions.create({
     mode: 'setup',
+    currency: 'gbp',
     customer: customerId,
+    payment_method_types: ['card'],
     metadata: {
       owner_id: params.ownerId,
       business_id: params.businessId,
