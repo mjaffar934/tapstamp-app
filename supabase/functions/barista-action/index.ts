@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
 
     const result = action === 'redeem'
       ? await applyRedeemToPass(pass, cafe)
-      : await applyStampToPass(cafe, pass);
+      : await applyStampToPass(cafe, pass, { bypassDailyLimit: true });
 
     if (!result.ok) {
       return json({ error: result.error, ...result }, 400);

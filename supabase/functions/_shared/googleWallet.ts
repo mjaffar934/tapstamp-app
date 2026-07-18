@@ -1,7 +1,7 @@
 import forge from 'https://esm.sh/node-forge@1.3.1';
-import { TAPSTAMP_BG } from './brand.ts';
+import { resolvePassColors } from './passTemplates.ts';
 import { functionsUrl } from './client.ts';
-import { buildStampDotsRow, formatRewardDisplay } from './walletDisplay.ts';
+import { buildStampDotsRow, buildRewardFieldCopy, formatRewardDisplay, stripSegmentProgress } from './walletDisplay.ts';
 
 export interface GoogleWalletPassInput {
   cafe: Record<string, unknown>;
@@ -9,6 +9,9 @@ export interface GoogleWalletPassInput {
   stampCount: number;
   status: string;
   customerName?: string | null;
+  lifetimeStamps?: number | null;
+  tiers?: Array<{ stamp_count: number; reward: string }>;
+  pendingMilestoneReward?: string | null;
 }
 
 function base64url(input: string): string {
@@ -75,32 +78,50 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
   const config = walletConfig();
   if (!config) throw new Error('Google Wallet not configured');
 
-  const { cafe, serialNumber, stampCount, status, customerName } = input;
+  const { cafe, serialNumber, stampCount, status, customerName, lifetimeStamps, tiers, pendingMilestoneReward } = input;
   const cafeId = String(cafe.id);
   const cafeName = String(cafe.name || 'TapStamp');
   const stampGoal = Number(cafe.stamp_goal) || 10;
   const reward = formatRewardDisplay(String(cafe.reward || 'Free reward'));
   const isRedeemed = status === 'redeemed';
-  const bg = TAPSTAMP_BG;
+  const isComplete = !isRedeemed && stampCount >= stampGoal;
+  const passColors = resolvePassColors(cafe);
   const logoUrl = cafe.logo_url ? String(cafe.logo_url) : undefined;
   const showName = cafe.show_customer_name_on_pass !== false;
-  const campaignMessage = typeof cafe.active_campaign_message === 'string'
-    ? cafe.active_campaign_message.trim()
-    : '';
-  const stampDots = buildStampDotsRow(stampCount, stampGoal, isRedeemed);
+  const hasLevels = (tiers?.length ?? 0) >= 2;
+  const pending = Boolean(pendingMilestoneReward?.trim());
+  const segment = stripSegmentProgress(stampCount, stampGoal, tiers ?? [], {
+    complete: isComplete || pending,
+    redeemed: isRedeemed || pending,
+  });
+  const stampDots = hasLevels
+    ? buildStampDotsRow(segment.filled, segment.total, isRedeemed || isComplete || pending)
+    : buildStampDotsRow(stampCount, stampGoal, isRedeemed || isComplete);
   const stripUrl = functionsUrl(`/wallet-strip/${serialNumber}`);
+  const rewardCopy = buildRewardFieldCopy({
+    stampCount,
+    stampGoal,
+    status,
+    mainReward: reward,
+    lifetimeStamps: lifetimeStamps ?? stampCount,
+    tiers: tiers ?? [],
+    pendingMilestoneReward,
+  });
 
   const loyaltyClass = {
     id: classId(config.issuerId, cafeId),
     issuerName: cafeName,
-    reviewStatus: 'UNDER_REVIEW',
+    // UNDER_REVIEW = demo (testers only). Set GOOGLE_WALLET_REVIEW_STATUS=APPROVED after Google publishing access.
+    reviewStatus: (Deno.env.get('GOOGLE_WALLET_REVIEW_STATUS') || 'UNDER_REVIEW').toUpperCase() === 'APPROVED'
+      ? 'APPROVED'
+      : 'UNDER_REVIEW',
     programName: cafeName,
     programLogo: logoUrl
       ? { sourceUri: { uri: logoUrl }, contentDescription: { defaultValue: { language: 'en', value: cafeName } } }
       : undefined,
-    hexBackgroundColor: rgbToHex(bg),
+    hexBackgroundColor: rgbToHex(passColors.backgroundColor),
     localizedAccountNameLabel: {
-      defaultValue: { language: 'en', value: showName && customerName ? 'MEMBER' : 'LOYALTY' },
+      defaultValue: { language: 'en', value: 'LOYALTY' },
     },
     classTemplateInfo: {
       cardBarcodeSectionDetails: {
@@ -113,34 +134,50 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
     },
   };
 
-  const loyaltyObject = {
+  const stampBalance = (() => {
+    if (isRedeemed || isComplete || pending) {
+      if (hasLevels && !isRedeemed) {
+        return `${segment.filled} / ${segment.total}`;
+      }
+      return `${stampGoal} / ${stampGoal}`;
+    }
+    if (hasLevels) {
+      return `${segment.filled} / ${segment.total}`;
+    }
+    return `${stampCount} / ${stampGoal}`;
+  })();
+  const redeemReady = isRedeemed || isComplete || rewardCopy.label === 'REDEEM' || pending;
+
+  const loyaltyObject: Record<string, unknown> = {
     id: objectId(config.issuerId, serialNumber),
     classId: classId(config.issuerId, cafeId),
     state: isRedeemed ? 'COMPLETED' : 'ACTIVE',
     accountId: serialNumber.replace(/-/g, '').slice(0, 20),
-    accountName: showName && customerName ? String(customerName) : cafeName,
+    accountName: cafeName,
     loyaltyPoints: {
-      label: 'STAMPS',
-      balance: { string: isRedeemed ? `${stampGoal} / ${stampGoal}` : `${stampCount} / ${stampGoal}` },
+      label: hasLevels ? 'TO NEXT' : 'STAMPS',
+      balance: { string: stampBalance },
     },
     secondaryLoyaltyPoints: {
-      label: 'REWARD',
-      balance: { string: isRedeemed ? 'Ready to redeem' : reward },
+      label: redeemReady ? 'REDEEM NOW' : (hasLevels ? 'NEXT REWARD' : rewardCopy.label),
+      balance: { string: rewardCopy.value },
+    },
+    barcode: {
+      type: 'QR_CODE',
+      value: serialNumber,
+      alternateText: serialNumber.slice(0, 8).toUpperCase(),
     },
     heroImage: {
       sourceUri: { uri: stripUrl },
       contentDescription: { defaultValue: { language: 'en', value: stampDots } },
     },
-    ...(campaignMessage
-      ? {
-        textModulesData: [{
-          header: 'MESSAGE',
-          body: campaignMessage,
-          id: 'campaign',
-        }],
-      }
-      : {}),
   };
+
+  const modules: Array<{ header: string; body: string; id: string }> = [];
+  if (showName && customerName) {
+    modules.push({ header: 'MEMBER', body: String(customerName), id: 'member' });
+  }
+  if (modules.length) loyaltyObject.textModulesData = modules;
 
   return { loyaltyClass, loyaltyObject, config };
 }

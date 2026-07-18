@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { SUPABASE_URL, supabase } from '../_shared/client.ts';
 import { generateStaffCode } from '../_shared/staffCode.ts';
+import { ensureUniqueSlug } from '../_shared/cafeSlug.ts';
 import { json, slugFromEmail } from '../_shared/utils.ts';
 
 interface BootstrapBody {
@@ -142,10 +143,15 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!existingCafe) {
+      const slug = await ensureUniqueSlug(
+        supabase,
+        slugFromEmail(email, `dev-${userId.slice(0, 8)}`),
+      );
+
       const { error: cafeError } = await supabase.from('cafes').insert({
         name: 'My Business',
         email,
-        slug: slugFromEmail(email, `dev-${userId.slice(0, 8)}`),
+        slug,
         biz_type: 'cafe',
         plan: 'pro',
         trial_ends_at: trialEnds.toISOString(),

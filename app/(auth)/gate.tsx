@@ -18,7 +18,6 @@ import { BrandLogo } from '@/components/BrandLogo';
 import { OwnerFlowSteps } from '@/components/auth/OwnerFlowSteps';
 import { useAuth } from '@/contexts/AuthContext';
 import { SUPPORT_EMAIL } from '@/constants/config';
-import { isAdminUser } from '@/constants/adminAuth';
 import {
   DEV_BOOTSTRAP_SECRET,
   DEV_EMAIL,
@@ -59,12 +58,15 @@ export default function GateScreen() {
       setEmail(params.email.trim().toLowerCase());
       return;
     }
+    if (__DEV__ && hasDevCredentials() && DEV_EMAIL && mode === 'signin') {
+      setEmail(DEV_EMAIL);
+    }
     ExpoLinking.getInitialURL().then((url) => {
       if (!url) return;
       const fromUrl = parseEmailFromUrl(url);
       if (fromUrl) setEmail(fromUrl);
     });
-  }, [params.email]);
+  }, [params.email, mode]);
 
   useEffect(() => {
     if (noAccount) {
@@ -176,14 +178,14 @@ export default function GateScreen() {
                   value={ownerName}
                   onChangeText={setOwnerName}
                   autoCapitalize="words"
-                  placeholder="Alex Morgan"
+                  placeholder="Your name"
                 />
                 <Input
                   label="Business name"
                   value={businessName}
                   onChangeText={setBusinessName}
                   autoCapitalize="words"
-                  placeholder="e.g. Corner Coffee"
+                  placeholder="Your business name"
                 />
               </>
             ) : null}
@@ -194,7 +196,7 @@ export default function GateScreen() {
               autoCapitalize="none"
               keyboardType="email-address"
               autoComplete="email"
-              placeholder="you@business.com"
+              placeholder="Enter your email"
             />
             <Input
               label="Password"
@@ -247,9 +249,9 @@ export default function GateScreen() {
             </Text>
           ) : null}
 
-          {__DEV__ && isAdminUser(email) && hasDevBootstrap() && hasDevCredentials() ? (
+          {__DEV__ && hasDevBootstrap() && hasDevCredentials() ? (
             <Button
-              title="Admin dev sign in"
+              title="Dev sign in"
               variant="outline"
               onPress={handleDevSignIn}
               loading={loading}

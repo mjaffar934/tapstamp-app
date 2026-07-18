@@ -1,13 +1,15 @@
 import { useCallback, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOwnerCafe } from '@/hooks/useOwnerCafe';
 import { useDashboard } from '@/hooks/useDashboard';
 import { useMonthlyUsage } from '@/hooks/useMonthlyUsage';
+import { useStampLinkStatus } from '@/hooks/useStampLinkStatus';
+import { LinkStampBanner } from '@/components/LinkStampBanner';
+import { CustomerLimitProgress } from '@/components/CustomerLimitProgress';
 import { getBusinessDisplayName, getPersonalizedGreeting } from '@/lib/greeting';
-import { StarterUsageBanner } from '@/components/StarterUsageBanner';
 import { BusinessLogo } from '@/components/BusinessLogo';
 import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -17,28 +19,30 @@ import { StatCard } from '@/components/ui/StatCard';
 import { ActivityItem } from '@/components/ui/ActivityItem';
 import { Button } from '@/components/ui/Button';
 import { colors, spacing } from '@/constants/theme';
-import { shouldEnforceStarterLimit } from '@/lib/planUtils';
+import { isStarterPlan } from '@/lib/planUtils';
 
 export default function HomeScreen() {
   const { business, user } = useAuth();
   const { cafe } = useOwnerCafe();
+  const { needsLink, refetch: refetchLinkStatus } = useStampLinkStatus();
   const { stats, recentActivity, isLoading, error, refetch } = useDashboard(cafe?.id);
   const { uniqueCustomers, isLoading: usageLoading, refetch: refetchUsage } = useMonthlyUsage(cafe?.id);
   const [refreshing, setRefreshing] = useState(false);
 
-  const showStarterUsage = shouldEnforceStarterLimit(cafe?.plan, cafe?.trial_ends_at);
+  const showCustomerProgress = isStarterPlan(cafe?.plan) && !needsLink;
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([refetch(), refetchUsage()]);
+    await Promise.all([refetch(), refetchUsage(), refetchLinkStatus()]);
     setRefreshing(false);
-  }, [refetch, refetchUsage]);
+  }, [refetch, refetchUsage, refetchLinkStatus]);
 
   useFocusEffect(
     useCallback(() => {
       void refetch();
       void refetchUsage();
-    }, [refetch, refetchUsage]),
+      void refetchLinkStatus();
+    }, [refetch, refetchUsage, refetchLinkStatus]),
   );
 
   const businessName = getBusinessDisplayName(business, cafe);
@@ -57,8 +61,12 @@ export default function HomeScreen() {
         }
       />
 
-      {showStarterUsage ? (
-        <StarterUsageBanner count={uniqueCustomers} isLoading={usageLoading} />
+      {needsLink ? (
+        <LinkStampBanner onLinked={() => void refetchLinkStatus()} />
+      ) : null}
+
+      {showCustomerProgress ? (
+        <CustomerLimitProgress count={uniqueCustomers} isLoading={usageLoading} />
       ) : null}
 
       {error ? (
@@ -97,6 +105,9 @@ export default function HomeScreen() {
           onPress={() => router.push('/(app)/(tabs)/barista')}
         />
       </View>
+      <Text variant="caption" muted style={styles.weekHint}>
+        Weekly stats reset every Monday
+      </Text>
 
       <Card style={styles.quickActions}>
         <Text variant="h3" style={styles.sectionTitle}>
@@ -173,7 +184,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  weekHint: {
     marginBottom: spacing.lg,
+    textAlign: 'center',
   },
   quickActions: {
     marginBottom: spacing.lg,

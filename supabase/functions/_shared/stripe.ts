@@ -1,5 +1,5 @@
 import Stripe from 'https://esm.sh/stripe@17.7.0?target=denonext';
-import { isPaidPlan, parsePlanId, type PlanId } from './plans.ts';
+import { HARDWARE_PRICE_GBP, isPaidPlan, parsePlanId, type PlanId } from './plans.ts';
 
 const WEBSITE = Deno.env.get('ORDER_WEBSITE_URL') ?? 'https://tapstamp.co';
 
@@ -27,6 +27,26 @@ export async function createHardwareCheckoutSession(
   params: CheckoutParams,
 ): Promise<Stripe.Checkout.Session> {
   const stripe = getStripe();
+
+  if (HARDWARE_PRICE_GBP === 0) {
+    if (!isPaidPlan(params.plan)) {
+      throw new Error('No checkout required for Starter');
+    }
+
+    return await stripe.checkout.sessions.create({
+      mode: 'setup',
+      customer_email: params.email,
+      metadata: {
+        owner_id: params.ownerId,
+        business_id: params.businessId,
+        plan: params.plan,
+        email: params.email,
+      },
+      success_url: `${WEBSITE}/order/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${WEBSITE}/order?plan=${params.plan}&canceled=1`,
+    });
+  }
+
   const priceId = getHardwarePriceId();
   const saveCard = isPaidPlan(params.plan);
 

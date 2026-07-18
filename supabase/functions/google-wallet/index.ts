@@ -44,12 +44,21 @@ Deno.serve(async (req) => {
       return json({ error: 'Cafe not found' }, 404);
     }
 
+    const { data: tiers } = await supabase
+      .from('reward_tiers')
+      .select('stamp_count, reward')
+      .eq('cafe_id', pass.cafe_id)
+      .order('stamp_count');
+
     const saveUrl = buildGoogleWalletSaveUrl({
       cafe,
       serialNumber: pass.serial_number,
       stampCount: pass.stamp_count,
       status: pass.status,
       customerName: pass.customer_name,
+      lifetimeStamps: pass.lifetime_stamps,
+      tiers: tiers ?? [],
+      pendingMilestoneReward: pass.pending_milestone_reward ?? null,
     });
 
     const format = url.searchParams.get('format');

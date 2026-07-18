@@ -21,7 +21,7 @@ export const BRAND = {
   subhead:
     'A handcrafted loyalty stamp on your counter. Customers tap their phone. Their card appears in Apple Wallet instantly.',
   ownerAppNote: 'Use the email and password TapStamp set up for your business.',
-  hardwarePrice: `£${HARDWARE_PRICE_GBP}`,
+  hardwarePrice: HARDWARE_PRICE_GBP === 0 ? 'Free' : `£${HARDWARE_PRICE_GBP}`,
   trialDays: TRIAL_DAYS,
   starterLimit: STARTER_MONTHLY_CUSTOMER_LIMIT,
   plans: PLANS,

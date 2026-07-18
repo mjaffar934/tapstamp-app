@@ -9,7 +9,9 @@ const PROXIED_PREFIXES = [
   '/tap/',
   '/wallet/',
   '/pass/',
+  '/passkit-register/',
   '/google-wallet/',
+  '/wallet-strip/',
   '/save-customer',
 ] as const;
 

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { View, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { callBaristaAction } from '@/lib/api';
+import { useTapStampAlert } from '@/contexts/AlertContext';
 import { usePass } from '@/hooks/usePass';
 import { Screen } from '@/components/ui/Screen';
 import { BackHeader } from '@/components/ui/BackHeader';
@@ -20,6 +21,7 @@ export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { pass, stamps, redemptions, stampGoal, reward, isLoading, error, refetch } = usePass(id);
   const [acting, setActing] = useState(false);
+  const alert = useTapStampAlert();
 
   const handleAction = async (action: 'stamp' | 'redeem') => {
     if (!pass) return;
@@ -34,12 +36,12 @@ export default function CustomerDetailScreen() {
           : result.error === 'not_ready'
             ? 'Reward is not ready to redeem yet.'
             : result.error;
-      Alert.alert('Could not complete', message);
+      alert('Could not complete', message);
       return;
     }
 
     await refetch();
-    Alert.alert(
+    alert(
       action === 'stamp' ? 'Stamp added' : 'Reward redeemed',
       action === 'stamp'
         ? `Pass is now at ${result.stampCount ?? pass.stamp_count} stamps.`

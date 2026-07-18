@@ -48,6 +48,12 @@ Deno.serve(async (req) => {
       return new Response('Not found', { status: 404 });
     }
 
+    const { data: tiers } = await supabase
+      .from('reward_tiers')
+      .select('stamp_count, reward')
+      .eq('cafe_id', pass.cafe_id)
+      .order('stamp_count');
+
     const pkpass = await buildPkpass({
       cafe,
       serialNumber: pass.serial_number,
@@ -55,13 +61,17 @@ Deno.serve(async (req) => {
       stampCount: pass.stamp_count,
       status: pass.status,
       customerName: pass.customer_name,
+      lifetimeStamps: pass.lifetime_stamps,
+      tiers: tiers ?? [],
+      pendingMilestoneReward: pass.pending_milestone_reward ?? null,
     });
 
-    const lastModified = pass.last_stamp_at ?? pass.created_at ?? new Date().toISOString();
+    const lastModified = pass.updated_at ?? pass.last_stamp_at ?? pass.created_at ?? new Date().toISOString();
 
     return new Response(pkpass, {
       headers: {
         'Content-Type': 'application/vnd.apple.pkpass',
+        'Cache-Control': 'no-store',
         'Last-Modified': new Date(lastModified).toUTCString(),
       },
     });

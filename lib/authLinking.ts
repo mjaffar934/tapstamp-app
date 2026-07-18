@@ -38,10 +38,23 @@ export function parseChipCodeFromUrl(url: string): string | null {
 }
 
 export async function handleAuthDeepLink(url: string): Promise<'recovery' | 'default' | null> {
-  const params = parseHashParams(url);
-  const accessToken = params.access_token;
-  const refreshToken = params.refresh_token;
-  const type = params.type;
+  const parsed = Linking.parse(url);
+  const hashParams = parseHashParams(url);
+  const queryCode = typeof parsed.queryParams?.code === 'string' ? parsed.queryParams.code : null;
+  const type = hashParams.type
+    ?? (typeof parsed.queryParams?.type === 'string' ? parsed.queryParams.type : undefined);
+
+  if (queryCode) {
+    const { error } = await supabase.auth.exchangeCodeForSession(queryCode);
+    if (error) {
+      console.warn('Failed to exchange auth code from deep link:', error.message);
+      return null;
+    }
+    return type === 'recovery' ? 'recovery' : 'default';
+  }
+
+  const accessToken = hashParams.access_token;
+  const refreshToken = hashParams.refresh_token;
 
   if (accessToken && refreshToken) {
     const { error } = await supabase.auth.setSession({

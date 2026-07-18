@@ -36,6 +36,8 @@ export function Screen({
         contentContainerStyle,
       ]}
       showsVerticalScrollIndicator={false}
+      contentInsetAdjustmentBehavior="automatic"
+      keyboardShouldPersistTaps="handled"
       refreshControl={
         onRefresh ? (
           <RefreshControl

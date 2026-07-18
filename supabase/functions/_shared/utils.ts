@@ -50,9 +50,37 @@ export function slugFromEmail(email: string, fallback = 'cafe'): string {
 }
 
 export function todayStartIso(): string {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
+  return todayStartInTimeZone('Europe/London');
+}
+
+/** Midnight today in the given IANA timezone, as UTC ISO string for DB comparisons. */
+export function todayStartInTimeZone(timeZone = 'Europe/London'): string {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const year = parts.find((p) => p.type === 'year')?.value ?? '1970';
+  const month = parts.find((p) => p.type === 'month')?.value ?? '01';
+  const day = parts.find((p) => p.type === 'day')?.value ?? '01';
+  // UK offset at midnight — good enough for stamp-day boundaries
+  const probe = new Date(`${year}-${month}-${day}T12:00:00Z`);
+  const utcNoon = probe.getTime();
+  const localNoon = new Date(
+    probe.toLocaleString('en-US', { timeZone }),
+  ).getTime();
+  const offsetMs = localNoon - utcNoon;
+  return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)) - offsetMs).toISOString();
+}
+
+export function calendarDayKey(date: Date, timeZone = 'Europe/London'): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
 }
 
 export function isDoubleStampWindow(

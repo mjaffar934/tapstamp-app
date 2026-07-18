@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { View, StyleSheet, Alert, Pressable, ScrollView, Platform } from 'react-native';
+import { View, StyleSheet, Pressable, ScrollView, Platform } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { adminGenerateChips, tapUrl } from '@/lib/api';
+import { useTapStampAlert } from '@/contexts/AlertContext';
 import { Screen } from '@/components/ui/Screen';
 import { BackHeader } from '@/components/ui/BackHeader';
 import { Text } from '@/components/ui/Text';
@@ -16,6 +17,7 @@ export default function StampCodesScreen() {
   const [loading, setLoading] = useState(false);
   const [stamps, setStamps] = useState<Array<{ code: string; tapUrl: string }>>([]);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const alert = useTapStampAlert();
 
   const generate = async (count: number) => {
     setLoading(true);
@@ -23,7 +25,7 @@ export default function StampCodesScreen() {
     setLoading(false);
 
     if (result.error) {
-      Alert.alert('Could not generate', result.error);
+      alert('Could not generate', result.error);
       return;
     }
 
@@ -47,8 +49,12 @@ export default function StampCodesScreen() {
       <Card style={styles.howTo}>
         <Text variant="bodySmall" style={styles.howTitle}>How it works</Text>
         <Text variant="bodySmall" muted style={styles.howLine}>1. Generate codes here</Text>
-        <Text variant="bodySmall" muted style={styles.howLine}>2. Program each stamp with the tap URL (NFC Tools, etc.)</Text>
-        <Text variant="bodySmall" muted style={styles.howLine}>3. Hand stamp to the business owner — they tap to activate</Text>
+        <Text variant="bodySmall" muted style={styles.howLine}>2. Copy the NFC URL below</Text>
+        <Text variant="bodySmall" muted style={styles.howLine}>3. Open NFC Tools (Android) or TagWriter (iOS) → Write URL record</Text>
+        <Text variant="bodySmall" muted style={styles.howLine}>4. Hold phone to blank NTAG chip until write succeeds</Text>
+        <Text variant="caption" muted style={styles.howNote}>
+          iPhones cannot write NFC tags from this app — Apple blocks it. Use NFC Tools on Android for bulk programming.
+        </Text>
       </Card>
 
       <View style={styles.batchRow}>
@@ -125,6 +131,10 @@ const styles = StyleSheet.create({
   },
   howLine: {
     lineHeight: 20,
+  },
+  howNote: {
+    marginTop: spacing.sm,
+    lineHeight: 18,
   },
   batchRow: {
     flexDirection: 'row',

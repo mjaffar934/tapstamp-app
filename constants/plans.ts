@@ -1,6 +1,6 @@
 export type PlanId = 'starter' | 'pro' | 'multi';
 
-export const HARDWARE_PRICE_GBP = 35;
+export const HARDWARE_PRICE_GBP = 0;
 export const STARTER_MONTHLY_CUSTOMER_LIMIT = 50;
 export const TRIAL_DAYS = 14;
 
@@ -21,10 +21,10 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     monthlyGbp: null,
     tagline: 'Free after trial — up to 50 customers per month',
     features: [
-      '1 loyalty stamp (£35)',
+      'Free loyalty stamp included',
       '14-day free trial from go-live',
       'Free forever after trial',
-      '50 unique customers per month',
+      '50 unique customers per month (resets monthly)',
     ],
   },
   pro: {
@@ -34,9 +34,9 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     monthlyGbp: 25,
     tagline: 'Unlimited customers — £25/mo after trial',
     features: [
-      '1 loyalty stamp (£35)',
+      'Free loyalty stamp included',
       '14-day free trial from go-live',
-      'Unlimited loyalty cards',
+      'Unlimited customers per month',
       'Full analytics & campaigns',
     ],
   },
@@ -47,7 +47,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     monthlyGbp: 59,
     tagline: 'Multiple locations — £59/mo after trial',
     features: [
-      '1 loyalty stamp (£35)',
+      'Free loyalty stamp included',
       '14-day free trial from go-live',
       'Up to 5 locations',
       'Combined dashboard',

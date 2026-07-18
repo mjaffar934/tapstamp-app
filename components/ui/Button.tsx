@@ -7,7 +7,7 @@ import {
 import { colors, radius, spacing } from '@/constants/theme';
 import { Text } from './Text';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'outline';
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'outline' | 'destructive';
 
 interface ButtonProps extends Omit<PressableProps, 'style'> {
   title: string;
@@ -41,7 +41,7 @@ export function Button({
       {...props}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? colors.white : colors.accent} />
+        <ActivityIndicator color={variant === 'primary' || variant === 'destructive' ? colors.white : colors.accent} />
       ) : (
         <>
           {icon}
@@ -50,6 +50,7 @@ export function Button({
             style={[
               styles.text,
               variant === 'primary' && styles.textPrimary,
+              variant === 'destructive' && styles.textPrimary,
               variant === 'secondary' && styles.textSecondary,
               variant === 'ghost' && styles.textGhost,
               variant === 'outline' && styles.textOutline,
@@ -87,6 +88,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  destructive: {
+    backgroundColor: colors.error,
   },
   pressed: {
     opacity: 0.88,

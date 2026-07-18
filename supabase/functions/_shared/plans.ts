@@ -1,6 +1,6 @@
 export type PlanId = 'starter' | 'pro' | 'multi';
 
-export const HARDWARE_PRICE_GBP = 35;
+export const HARDWARE_PRICE_GBP = 0;
 export const STARTER_MONTHLY_CUSTOMER_LIMIT = 50;
 export const TRIAL_DAYS = 14;
 
@@ -18,7 +18,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     name: 'Starter',
     hardwareGbp: HARDWARE_PRICE_GBP,
     monthlyGbp: null,
-    tagline: 'Free after trial — up to 50 customers per month',
+    tagline: 'Free after trial — 50 unique customers/month',
   },
   pro: {
     id: 'pro',

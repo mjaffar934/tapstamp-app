@@ -4,16 +4,25 @@ import { colors, radius, spacing } from '@/constants/theme';
 import { Text } from './Text';
 import type { LoyaltyActivity } from '@/types/database';
 
-function formatRelativeTime(iso: string) {
+function formatActivityTime(iso: string) {
   const date = new Date(iso);
-  const diffMs = Date.now() - date.getTime();
+  const now = Date.now();
+  const diffMs = now - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
+
+  const clock = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+
+  if (diffMins < 1) return `Just now · ${clock}`;
+  if (diffMins < 60) return `${diffMins}m ago · ${clock}`;
   const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffHours < 24) return `${diffHours}h ago · ${clock}`;
   const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays}d ago`;
+  return `${diffDays}d ago · ${clock}`;
 }
 
 interface ActivityItemProps {
@@ -40,7 +49,7 @@ export function ActivityItem({ event }: ActivityItemProps) {
             : `${customerName} redeemed a reward`}
         </Text>
         <Text variant="caption" muted>
-          {formatRelativeTime(event.created_at)}
+          {formatActivityTime(event.created_at)}
         </Text>
       </View>
     </View>

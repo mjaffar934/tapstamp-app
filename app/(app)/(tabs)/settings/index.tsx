@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
-import { router } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Text } from '@/components/ui/Text';
@@ -8,9 +8,9 @@ import { Card } from '@/components/ui/Card';
 import { SettingsRow } from '@/components/ui/SettingsRow';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTapStampAlert } from '@/contexts/AlertContext';
 import { useOwnerCafe } from '@/hooks/useOwnerCafe';
 import { restartOnboardingForDev } from '@/lib/restartOnboarding';
-import { seedDevMockData } from '@/lib/devSeed';
 import { isAdminUser } from '@/constants/adminAuth';
 import { getBusinessDisplayName } from '@/lib/greeting';
 import { colors, spacing } from '@/constants/theme';
@@ -19,10 +19,17 @@ export default function SettingsScreen() {
   const { business, signOut, user } = useAuth();
   const { cafe, refetch } = useOwnerCafe();
   const [devBusy, setDevBusy] = useState(false);
+  const alert = useTapStampAlert();
+
+  useFocusEffect(
+    useCallback(() => {
+      void refetch();
+    }, [refetch]),
+  );
 
   const handleRestartOnboarding = () => {
     if (!user?.id) return;
-    Alert.alert(
+    alert(
       'Restart onboarding?',
       'This resets onboarding for testing. You will go through the full flow again.',
       [
@@ -34,36 +41,10 @@ export default function SettingsScreen() {
             setDevBusy(true);
             const result = await restartOnboardingForDev(user.id);
             setDevBusy(false);
-            if (result.error) Alert.alert('Could not restart', result.error);
+            if (result.error) alert('Could not restart', result.error);
           },
         },
       ],
-    );
-  };
-
-  const handleSeedMockData = async () => {
-    const email = user?.email ?? business?.email;
-    const secret = process.env.EXPO_PUBLIC_DEV_BOOTSTRAP_SECRET;
-    if (!email || !secret) {
-      Alert.alert('Dev seed unavailable', 'Set EXPO_PUBLIC_DEV_BOOTSTRAP_SECRET in .env');
-      return;
-    }
-
-    setDevBusy(true);
-    const result = await seedDevMockData(email, secret);
-    setDevBusy(false);
-
-    if (result.error) {
-      Alert.alert('Seed failed', result.error);
-      return;
-    }
-
-    await refetch();
-    Alert.alert(
-      'Mock data ready',
-      result.seeded === 0
-        ? 'Your cafe already has customers — no new mock data added.'
-        : `Added ${result.seeded} mock customers for testing.`,
     );
   };
 
@@ -90,13 +71,19 @@ export default function SettingsScreen() {
         </Text>
         <SettingsRow
           title="Card settings"
-          subtitle="Stamps per reward, card design"
+          subtitle="Stamps per reward, messages, logo"
           icon="card-outline"
           onPress={() => router.push('/(app)/(tabs)/settings/card-settings')}
         />
         <SettingsRow
-          title="Reward tiers"
-          subtitle="VIP levels and perks"
+          title="Pass design"
+          subtitle="Classic TapStamp or AI shop card"
+          icon="color-palette-outline"
+          onPress={() => router.push('/(app)/(tabs)/settings/pass-design')}
+        />
+        <SettingsRow
+          title="Stamp levels"
+          subtitle="Optional: 5 = pastry, 10 = coffee…"
           icon="trophy-outline"
           onPress={() => router.push('/(app)/(tabs)/settings/tiers')}
         />
@@ -148,22 +135,16 @@ export default function SettingsScreen() {
         />
       </Card>
 
-      {__DEV__ && isAdminUser(user?.email) ? (
+      {isAdminUser(user?.email) || __DEV__ ? (
         <Card style={styles.devCard}>
-          <Text variant="caption" muted>ADMIN TOOLS</Text>
+          <Text variant="caption" muted>ADMIN</Text>
           <Text variant="bodySmall" muted>
-            Internal testing — only visible to admin accounts in dev builds.
+            Restart onboarding for this account (quiz and pass design).
           </Text>
           <Button
-            title="Restart full onboarding"
+            title="Restart onboarding"
             variant="outline"
             onPress={handleRestartOnboarding}
-            loading={devBusy}
-          />
-          <Button
-            title="Seed mock customers"
-            variant="outline"
-            onPress={handleSeedMockData}
             loading={devBusy}
           />
         </Card>

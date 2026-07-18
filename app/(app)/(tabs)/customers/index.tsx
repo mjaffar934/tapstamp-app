@@ -36,7 +36,8 @@ export default function CustomersScreen() {
     if (!q) return customers;
     return customers.filter((c) => {
       const name = displayName(c.customer_name, c.customer_email).toLowerCase();
-      return name.includes(q) || c.serial_number.toLowerCase().includes(q);
+      return name.includes(q) || c.serial_number.toLowerCase().includes(q)
+        || (c.member_code?.includes(q) ?? false);
     });
   }, [customers, query]);
 
@@ -50,7 +51,7 @@ export default function CustomersScreen() {
       <Input
         value={query}
         onChangeText={setQuery}
-        placeholder="Search customers…"
+        placeholder="Search by name or 4-digit code…"
         style={styles.search}
       />
 
@@ -97,6 +98,7 @@ export default function CustomersScreen() {
                       {name}
                     </Text>
                     <Text variant="caption" muted>
+                      {customer.member_code ? `#${customer.member_code} · ` : ''}
                       {customer.stamp_count} / {cafe.stamp_goal} stamps · {customer.lifetime_stamps} lifetime
                     </Text>
                   </View>

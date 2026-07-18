@@ -32,6 +32,8 @@ export interface OrderResult {
   businessId?: string;
   plan?: PlanId;
   checkoutUrl?: string;
+  accountReady?: boolean;
+  email?: string;
 }
 
 export async function prepareOrder(body: OrderBody): Promise<OrderResult> {
@@ -71,6 +73,19 @@ export async function prepareOrder(body: OrderBody): Promise<OrderResult> {
 
   if (existingBizByEmail) {
     if (existingBizByEmail.order_status === 'pending_payment') {
+      if (!isPaidPlan(parsePlanId(existingBizByEmail.plan_selected ?? plan))) {
+        await markBusinessPaidFree(existingBizByEmail.id);
+        return {
+          ok: true,
+          status: 200,
+          userId: existingBizByEmail.owner_id,
+          businessId: existingBizByEmail.id,
+          plan: parsePlanId(existingBizByEmail.plan_selected ?? plan),
+          accountReady: true,
+          email,
+        };
+      }
+
       try {
         const session = await createHardwareCheckoutSession({
           ownerId: existingBizByEmail.owner_id,
@@ -201,6 +216,19 @@ export async function prepareOrder(body: OrderBody): Promise<OrderResult> {
   }
 
   try {
+    if (!isPaidPlan(plan)) {
+      await markBusinessPaidFree(businessId);
+      return {
+        ok: true,
+        status: 200,
+        userId,
+        businessId,
+        plan,
+        accountReady: true,
+        email,
+      };
+    }
+
     const session = await createHardwareCheckoutSession({
       ownerId: userId,
       businessId,
@@ -243,8 +271,12 @@ export async function fulfillCheckoutSession(
   try {
     const session = await retrieveCheckoutSession(sessionId);
 
-    if (session.payment_status !== 'paid') {
+    const isSetup = session.mode === 'setup';
+    if (!isSetup && session.payment_status !== 'paid') {
       return { ok: false, error: 'Payment not completed' };
+    }
+    if (isSetup && session.status !== 'complete') {
+      return { ok: false, error: 'Card setup not completed' };
     }
 
     const businessId = session.metadata?.business_id;
@@ -289,6 +321,20 @@ export async function markBusinessPaid(
   }).eq('id', businessId);
 }
 
+export async function markBusinessPaidFree(businessId: string): Promise<void> {
+  const { data: existing } = await supabase
+    .from('businesses')
+    .select('order_status')
+    .eq('id', businessId)
+    .maybeSingle();
+
+  if (existing?.order_status === 'paid') return;
+
+  await supabase.from('businesses').update({
+    order_status: 'paid',
+  }).eq('id', businessId);
+}
+
 export async function resumeCheckoutForOwner(
   ownerId: string,
 ): Promise<{ ok: boolean; checkoutUrl?: string; error?: string }> {
@@ -304,6 +350,11 @@ export async function resumeCheckoutForOwner(
 
   if (business.order_status !== 'pending_payment') {
     return { ok: false, error: 'Order payment already completed' };
+  }
+
+  if (!isPaidPlan(business.plan_selected)) {
+    await markBusinessPaidFree(business.id);
+    return { ok: false, error: 'No payment required for Starter' };
   }
 
   if (!business.email) {

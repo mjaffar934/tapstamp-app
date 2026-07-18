@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { BackHeader } from '@/components/ui/BackHeader';
@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTapStampAlert } from '@/contexts/AlertContext';
 import { useOwnerCafe } from '@/hooks/useOwnerCafe';
 import { supabase } from '@/lib/supabase';
 import { PLANS } from '@/constants/plans';
@@ -20,17 +21,18 @@ export default function AccountScreen() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const alert = useTapStampAlert();
 
   const planId = parsePlanId(cafe?.plan ?? business?.plan_selected ?? undefined);
   const plan = PLANS[planId];
 
   const handleChangePassword = async () => {
     if (newPassword.length < 8) {
-      Alert.alert('Password too short', 'Use at least 8 characters.');
+      alert('Password too short', 'Use at least 8 characters.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert('Passwords do not match', 'Please confirm your new password.');
+      alert('Passwords do not match', 'Please confirm your new password.');
       return;
     }
 
@@ -39,13 +41,13 @@ export default function AccountScreen() {
     setLoading(false);
 
     if (error) {
-      Alert.alert('Could not update password', error.message);
+      alert('Could not update password', error.message);
       return;
     }
 
     setNewPassword('');
     setConfirmPassword('');
-    Alert.alert('Password updated', 'Your new password is now active.');
+    alert('Password updated', 'Your new password is now active.');
   };
 
   return (

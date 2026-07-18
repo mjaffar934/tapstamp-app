@@ -1,6 +1,7 @@
 import { supabase } from '../_shared/client.ts';
 import { verifyApplePassAuth } from '../_shared/auth.ts';
 import { buildPkpass } from '../_shared/pkpass.ts';
+import { ensureMemberCode } from '../_shared/memberCode.ts';
 import { json } from '../_shared/utils.ts';
 
 // Apple PassKit web service — registrations AND pass updates share one base URL.
@@ -69,11 +70,12 @@ async function servePass(serial: string, req: Request): Promise<Response> {
     stampCount: pass.stamp_count,
     status: pass.status,
     customerName: pass.customer_name,
+    memberCode: await ensureMemberCode(pass, String(pass.cafe_id)),
     lifetimeStamps: pass.lifetime_stamps,
     tiers: tiers ?? [],
   });
 
-  const lastModified = pass.last_stamp_at ?? pass.created_at ?? new Date().toISOString();
+  const lastModified = pass.updated_at ?? pass.last_stamp_at ?? pass.created_at ?? new Date().toISOString();
 
   return new Response(pkpass, {
     headers: {
@@ -101,21 +103,37 @@ Deno.serve(async (req) => {
     const { deviceId, passTypeId, serialNumber } = parsed;
 
     if (req.method === 'GET' && !serialNumber) {
+      const passesUpdatedSince = url.searchParams.get('passesUpdatedSince');
+
       const { data: passes } = await supabase
         .from('passes')
-        .select('serial_number, last_stamp_at, created_at')
+        .select('serial_number, last_stamp_at, updated_at, created_at')
         .eq('device_id', deviceId);
 
-      const serialNumbers = (passes ?? []).map((p) => p.serial_number);
-      const lastUpdated = passes?.length
-        ? new Date(
-          Math.max(
-            ...passes.map((p) =>
-              new Date(p.last_stamp_at ?? p.created_at ?? 0).getTime()
-            ),
+      const rows = passes ?? [];
+      const updatedSinceMs = passesUpdatedSince
+        ? new Date(passesUpdatedSince).getTime()
+        : null;
+
+      const changed = updatedSinceMs != null && Number.isFinite(updatedSinceMs)
+        ? rows.filter((p) => {
+          const updated = new Date(p.updated_at ?? p.last_stamp_at ?? p.created_at ?? 0).getTime();
+          return updated > updatedSinceMs;
+        })
+        : rows;
+
+      if (changed.length === 0) {
+        return new Response(null, { status: 204 });
+      }
+
+      const serialNumbers = changed.map((p) => p.serial_number);
+      const lastUpdated = new Date(
+        Math.max(
+          ...changed.map((p) =>
+            new Date(p.updated_at ?? p.last_stamp_at ?? p.created_at ?? 0).getTime()
           ),
-        ).toISOString()
-        : new Date().toISOString();
+        ),
+      ).toISOString();
 
       return json({ lastUpdated, serialNumbers });
     }
@@ -150,13 +168,19 @@ Deno.serve(async (req) => {
         .update({ push_token: pushToken, device_id: deviceId })
         .eq('serial_number', serialNumber);
 
+      console.log('PassKit registered:', serialNumber, 'device', deviceId.slice(0, 8));
+
       return new Response(null, { status: existing?.push_token ? 200 : 201 });
     }
 
     if (req.method === 'DELETE') {
       await supabase
         .from('passes')
-        .update({ push_token: null, device_id: null })
+        .update({
+          push_token: null,
+          device_id: null,
+          wallet_added_at: null,
+        })
         .eq('serial_number', serialNumber)
         .eq('device_id', deviceId);
 

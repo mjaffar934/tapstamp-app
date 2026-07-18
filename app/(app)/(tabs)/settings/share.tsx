@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, StyleSheet, Share, ActivityIndicator, Alert } from 'react-native';
+import { View, StyleSheet, Share, ActivityIndicator } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
 import { useOwnerCafe } from '@/hooks/useOwnerCafe';
+import { useTapStampAlert } from '@/contexts/AlertContext';
 import { supabase } from '@/lib/supabase';
 import { linkChip, tapUrl } from '@/lib/api';
 import { Screen } from '@/components/ui/Screen';
@@ -16,20 +18,21 @@ import { colors, spacing } from '@/constants/theme';
 
 export default function ShareScreen() {
   const { cafe, refetch: refetchCafe } = useOwnerCafe();
+  const alert = useTapStampAlert();
   const [chipCode, setChipCode] = useState<string | null>(null);
   const [chipInput, setChipInput] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [linking, setLinking] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const loadChip = useCallback(async () => {
+  const loadChip = useCallback(async (options?: { silent?: boolean }) => {
     if (!cafe?.id) {
       setChipCode(null);
-      setIsLoading(false);
+      if (!options?.silent) setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
+    if (!options?.silent) setIsLoading(true);
     const { data } = await supabase
       .from('chips')
       .select('code')
@@ -42,8 +45,14 @@ export default function ShareScreen() {
   }, [cafe?.id]);
 
   useEffect(() => {
-    loadChip();
+    void loadChip();
   }, [loadChip]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadChip({ silent: true });
+    }, [loadChip]),
+  );
 
   const url = chipCode ? tapUrl(chipCode) : null;
 
@@ -65,7 +74,7 @@ export default function ShareScreen() {
   const handleLinkChip = async () => {
     const code = chipInput.trim().toUpperCase();
     if (!code) {
-      Alert.alert('Enter a stamp code', 'Type the code printed on your TapStamp stamp.');
+      alert('Enter a stamp code', 'Type the code printed on your TapStamp stamp.');
       return;
     }
 
@@ -74,20 +83,20 @@ export default function ShareScreen() {
     setLinking(false);
 
     if (result.error) {
-      Alert.alert('Could not link stamp', result.error);
+      alert('Could not link stamp', result.error);
       return;
     }
 
     setChipInput('');
     await loadChip();
     await refetchCafe();
-    Alert.alert(
+    alert(
       'Stamp linked',
       `Code ${code} is now linked to your business.`,
     );
   };
 
-  if (isLoading) {
+  if (isLoading && !cafe) {
     return (
       <Screen scroll={false}>
         <View style={styles.centered}>
@@ -107,8 +116,20 @@ export default function ShareScreen() {
       />
 
       {!cafe ? (
-        <Card>
-          <Text variant="bodySmall" muted>Complete onboarding to get your signup link.</Text>
+        <Card style={styles.linkCard}>
+          <Ionicons name="radio-outline" size={32} color={colors.textMuted} />
+          <Text variant="h3">Link your stamp</Text>
+          <Text variant="bodySmall" muted>
+            Enter your TapStamp code to connect it to your business.
+          </Text>
+          <Input
+            label="Stamp code"
+            value={chipInput}
+            onChangeText={setChipInput}
+            autoCapitalize="characters"
+            placeholder="DEMO"
+          />
+          <Button title="Link stamp" onPress={handleLinkChip} loading={linking} />
         </Card>
       ) : !chipCode ? (
         <Card style={styles.linkCard}>

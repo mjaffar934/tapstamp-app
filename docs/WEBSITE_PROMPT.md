@@ -8,7 +8,7 @@ The backend order funnel, Stripe checkout, and owner app are already built. Your
 
 ## No Railway — static site only
 
-**Do not use Railway.** There is no website backend. No Express server, no `/order/create`, no API routes.
+**Hosting:** Railway (`railway/server.js` + `website/`). Order checkout still hits Supabase `order-checkout`.
 
 | Layer | Host |
 |-------|------|

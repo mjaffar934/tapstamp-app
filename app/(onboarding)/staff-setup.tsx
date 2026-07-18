@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/Card';
 import { BackHeader } from '@/components/ui/BackHeader';
 import { OnboardingStepHeader } from '@/components/onboarding/OnboardingStepHeader';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTapStampAlert } from '@/contexts/AlertContext';
 import { useOwnerCafe } from '@/hooks/useOwnerCafe';
 import { clearOnboardingDraft } from '@/lib/onboardingDraft';
 import { completeOnboarding, provisionDraftForStaff } from '@/lib/onboardingProvision';
@@ -23,6 +24,7 @@ export default function StaffSetupScreen() {
   const [finishing, setFinishing] = useState(false);
   const [staffCode, setStaffCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const alert = useTapStampAlert();
 
   useEffect(() => {
     let cancelled = false;
@@ -67,7 +69,7 @@ export default function StaffSetupScreen() {
     const result = await completeOnboarding({ businessName: business?.name });
     if (result.error) {
       setFinishing(false);
-      Alert.alert('Could not finish setup', result.error);
+      alert('Could not finish setup', result.error);
       return;
     }
     await clearOnboardingDraft();

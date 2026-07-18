@@ -2,18 +2,22 @@ import { create, getNumericDate } from 'https://deno.land/x/djwt@v2.8/mod.ts';
 import { pemToDer } from './pkcs7.ts';
 
 const PASS_TYPE_ID = Deno.env.get('PASS_TYPE_ID') || 'pass.com.tapstamp.loyalty';
-const APNS_HOST = Deno.env.get('APNS_PRODUCTION') === 'true'
-  ? 'api.push.apple.com'
-  : 'api.sandbox.push.apple.com';
+const APNS_HOST = Deno.env.get('APNS_PRODUCTION') === 'false'
+  ? 'api.sandbox.push.apple.com'
+  : 'api.push.apple.com';
 
 let certHttpClient: Deno.HttpClient | undefined;
 let tokenJwt: { value: string; expiresAt: number } | undefined;
 
+function normalizePem(value: string | undefined): string | undefined {
+  return value?.replace(/\\n/g, '\n').trim();
+}
+
 function getCertApnsClient(): Deno.HttpClient | undefined {
   if (certHttpClient) return certHttpClient;
 
-  const certPem = Deno.env.get('PASS_CERT');
-  const keyPem = Deno.env.get('PASS_KEY');
+  const certPem = normalizePem(Deno.env.get('PASS_CERT'));
+  const keyPem = normalizePem(Deno.env.get('PASS_KEY'));
   if (!certPem || !keyPem) return undefined;
 
   try {
@@ -40,7 +44,7 @@ function pemPkcs8ToArrayBuffer(pem: string): ArrayBuffer {
 }
 
 async function getTokenJwt(): Promise<string | undefined> {
-  const apnKey = Deno.env.get('APN_KEY')?.replace(/\\n/g, '\n');
+  const apnKey = normalizePem(Deno.env.get('APN_KEY'));
   const apnKeyId = Deno.env.get('APN_KEY_ID');
   const teamId = Deno.env.get('APPLE_TEAM_ID');
   if (!apnKey || !apnKeyId || !teamId) return undefined;
@@ -111,12 +115,41 @@ async function sendApns(pushToken: string): Promise<boolean> {
   return false;
 }
 
+async function pushViaRailway(pushToken: string): Promise<boolean> {
+  const base = Deno.env.get('FUNCTIONS_PUBLIC_URL');
+  if (!base || base.includes('supabase.co')) return false;
+
+  try {
+    const res = await fetch(`${base.replace(/\/$/, '')}/push-update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pushToken }),
+    });
+    if (res.ok) return true;
+    console.error('Railway push-update failed:', res.status, await res.text().catch(() => ''));
+    return false;
+  } catch (err) {
+    console.error('Railway push-update error:', err);
+    return false;
+  }
+}
+
 /** Sends a silent PassKit update push so Wallet re-fetches the pass. */
 export async function pushPassUpdate(pushToken: string | null | undefined): Promise<void> {
-  if (!pushToken) return;
-  try {
-    await sendApns(pushToken);
-  } catch (err) {
-    console.error('APNs push error:', err);
+  if (!pushToken) {
+    console.warn('Wallet push skipped: no push_token on pass (device not registered with PassKit)');
+    return;
+  }
+
+  const [railway, direct] = await Promise.allSettled([
+    pushViaRailway(pushToken),
+    sendApns(pushToken),
+  ]);
+
+  const railwayOk = railway.status === 'fulfilled' && railway.value === true;
+  const directOk = direct.status === 'fulfilled' && direct.value === true;
+
+  if (!railwayOk && !directOk) {
+    console.error('All APNs push paths failed for token', pushToken.slice(0, 12));
   }
 }

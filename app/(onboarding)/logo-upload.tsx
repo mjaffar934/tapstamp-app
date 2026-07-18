@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image, Pressable, View, StyleSheet, Alert } from 'react-native';
+import { Image, Pressable, View, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -8,16 +8,18 @@ import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { BackHeader } from '@/components/ui/BackHeader';
 import { OnboardingStepHeader } from '@/components/onboarding/OnboardingStepHeader';
+import { useTapStampAlert } from '@/contexts/AlertContext';
 import { saveOnboardingDraft } from '@/lib/onboardingDraft';
 import { colors, radius, spacing } from '@/constants/theme';
 
 export default function LogoUploadScreen() {
   const [logoUri, setLogoUri] = useState<string | null>(null);
+  const alert = useTapStampAlert();
 
   const pickLogo = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Photos access', 'Allow photo access to add your logo.');
+      alert('Photos access', 'Allow photo access to add your logo.');
       return;
     }
 

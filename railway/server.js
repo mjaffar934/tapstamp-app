@@ -37,30 +37,42 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 let apnProvider = null;
+let apnProviderFailed = false;
+
+function normalizePem(value) {
+  return typeof value === 'string' ? value.replace(/\\n/g, '\n').trim() : '';
+}
 
 function getApnProvider() {
   if (apnProvider) return apnProvider;
+  if (apnProviderFailed) return null;
 
-  const production = process.env.APNS_PRODUCTION === 'true';
+  try {
+    const production = process.env.APNS_PRODUCTION !== 'false';
 
-  // Token auth (APNs Auth Key .p8) — matches old Railway setup
-  const apnKey = process.env.APN_KEY;
-  const apnKeyId = process.env.APN_KEY_ID;
-  const teamId = process.env.APPLE_TEAM_ID;
-  if (apnKey && apnKeyId && teamId) {
-    apnProvider = new apn.Provider({
-      token: { key: apnKey, keyId: apnKeyId, teamId },
-      production,
-    });
-    return apnProvider;
-  }
+    // Certificate auth (Pass Type ID cert) — preferred for Wallet pass updates
+    const cert = normalizePem(process.env.PASS_CERT);
+    const key = normalizePem(process.env.PASS_KEY);
+    if (cert && key) {
+      apnProvider = new apn.Provider({ cert, key, production });
+      return apnProvider;
+    }
 
-  // Certificate auth (Pass Type ID cert) — optional fallback
-  const cert = process.env.PASS_CERT;
-  const key = process.env.PASS_KEY;
-  if (cert && key) {
-    apnProvider = new apn.Provider({ cert, key, production });
-    return apnProvider;
+    // Token auth (APNs Auth Key .p8)
+    const apnKey = normalizePem(process.env.APN_KEY);
+    const apnKeyId = process.env.APN_KEY_ID;
+    const teamId = process.env.APPLE_TEAM_ID;
+    if (apnKey && apnKeyId && teamId) {
+      apnProvider = new apn.Provider({
+        token: { key: apnKey, keyId: apnKeyId, teamId },
+        production,
+      });
+      return apnProvider;
+    }
+  } catch (err) {
+    apnProviderFailed = true;
+    console.error('APNs provider init failed:', err);
+    return null;
   }
 
   return null;
@@ -84,6 +96,7 @@ async function proxyToSupabase(req, res, supabasePath, options = {}) {
     method: req.method,
     headers,
     redirect: options.followRedirect === false ? 'manual' : 'follow',
+    signal: AbortSignal.timeout(25000),
   };
 
   if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -101,6 +114,8 @@ async function proxyToSupabase(req, res, supabasePath, options = {}) {
 
     if (options.followRedirect === false && upstream.status >= 300 && upstream.status < 400) {
       const location = upstream.headers.get('location');
+      const setCookie = upstream.headers.get('set-cookie');
+      if (setCookie) res.set('Set-Cookie', setCookie);
       if (location) return res.redirect(upstream.status, location);
     }
 
@@ -129,6 +144,8 @@ async function proxyToSupabase(req, res, supabasePath, options = {}) {
       if (contentType) res.set('Content-Type', contentType);
       const disposition = upstream.headers.get('content-disposition');
       if (disposition) res.set('Content-Disposition', disposition);
+      const lastModified = upstream.headers.get('last-modified');
+      if (lastModified) res.set('Last-Modified', lastModified);
       res.set('Cache-Control', 'no-store');
       res.send(body);
       return;
@@ -137,9 +154,13 @@ async function proxyToSupabase(req, res, supabasePath, options = {}) {
     res.status(upstream.status).type(contentType || 'text/plain').send(body);
   } catch (err) {
     console.error('Proxy error:', supabasePath, err);
-    const code = err?.cause?.code;
+    const code = err?.cause?.code ?? err?.code;
     if (code === 'ENOTFOUND' && PROBE_SUPABASE_PATHS.has(supabasePath)) {
       res.status(200).type('html').send('<!DOCTYPE html><html><body>ok</body></html>');
+      return;
+    }
+    if (err?.name === 'TimeoutError' || code === 'ABORT_ERR') {
+      res.status(504).send('Upstream timeout');
       return;
     }
     res.status(502).send('Upstream error');
@@ -147,7 +168,7 @@ async function proxyToSupabase(req, res, supabasePath, options = {}) {
 }
 
 app.all('/tap/:code', (req, res) => {
-  proxyToSupabase(req, res, `/tap/${req.params.code}`, { forceHtml: true });
+  proxyToSupabase(req, res, `/tap/${req.params.code}`, { forceHtml: true, followRedirect: false });
 });
 
 app.get('/pass/:serial', (req, res) => {
@@ -211,15 +232,27 @@ app.post('/push-update', async (req, res) => {
 
 /** Order pages (clean URLs without .html) */
 app.get('/order', (_req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.sendFile(path.join(WEBSITE_ROOT, 'order', 'index.html'));
 });
 
 app.get('/order/success', (_req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.sendFile(path.join(WEBSITE_ROOT, 'order', 'success', 'index.html'));
 });
 
 /** Static marketing site — must be last so API routes above take priority */
-app.use(express.static(WEBSITE_ROOT, { index: 'index.html', extensions: ['html'] }));
+app.use(
+  express.static(WEBSITE_ROOT, {
+    index: 'index.html',
+    extensions: ['html'],
+    setHeaders(res, filePath) {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      }
+    },
+  }),
+);
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`TapStamp on :${PORT}`);

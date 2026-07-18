@@ -19,7 +19,15 @@ export default function AppLayout() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: colors.background },
+        animation: 'slide_from_right',
+        gestureEnabled: true,
+        fullScreenGestureEnabled: true,
+      }}
+    >
       <Stack.Screen name="(tabs)" />
     </Stack>
   );

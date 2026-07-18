@@ -4,6 +4,7 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 export interface CustomerPass {
   id: string;
   serial_number: string;
+  member_code: string | null;
   customer_name: string | null;
   customer_email: string | null;
   stamp_count: number;
@@ -37,7 +38,7 @@ export function useCustomers(cafeId: string | undefined) {
     const { data, error: fetchError } = await supabase
       .from('passes')
       .select(
-        'id, serial_number, customer_name, customer_email, stamp_count, lifetime_stamps, status, last_stamp_at, created_at',
+        'id, serial_number, member_code, customer_name, customer_email, stamp_count, lifetime_stamps, status, last_stamp_at, created_at',
       )
       .eq('cafe_id', cafeId)
       .order('last_stamp_at', { ascending: false, nullsFirst: false });

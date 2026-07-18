@@ -1,5 +1,7 @@
-import { type ReactNode, Dimensions, Image, View, StyleSheet } from 'react-native';
+import { Dimensions, Image, View, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/Text';
+import { enforcePassContrast } from '@/lib/passTemplates';
+import { buildRewardFieldCopy, stripSegmentProgress, type RewardTierLike } from '@/lib/walletRewardCopy';
 
 export interface WalletPreviewProps {
   businessName?: string;
@@ -7,406 +9,425 @@ export interface WalletPreviewProps {
   foregroundColor: string;
   labelColor: string;
   logoUri?: string | null;
+  stripImageUri?: string | null;
   stampsFilled?: number;
   stampGoal?: number;
   reward?: string;
+  levels?: RewardTierLike[];
+  lifetimeStamps?: number;
   showCustomerName?: boolean;
   customerName?: string;
+  memberCode?: string;
+  passStatus?: 'active' | 'complete' | 'redeemed';
 }
 
-const PASS_WIDTH = Math.min(Dimensions.get('window').width - 64, 300);
+const PASS_WIDTH = Math.min(Dimensions.get('window').width - 72, 340);
 
-function StampDots({
-  filled,
-  total,
-  color,
-  size = 10,
-}: {
-  filled: number;
-  total: number;
-  color: string;
-  size?: number;
-}) {
-  const count = Math.min(total, 12);
-  return (
-    <View style={styles.dotsRow}>
-      {Array.from({ length: count }).map((_, i) => {
-        const on = i < filled;
-        return (
-          <View
-            key={i}
-            style={[
-              styles.dot,
-              { width: size, height: size, borderRadius: size / 2, borderColor: color },
-              on ? { backgroundColor: color, opacity: 1 } : { opacity: 0.35 },
-            ]}
-          />
-        );
-      })}
-    </View>
-  );
-}
-
+/**
+ * Apple Wallet storeCard-style preview (matches live pkpass layout users see):
+ * logo + header → stamp strip zone (count + dots) → reward / member code → QR
+ */
 function StampStrip({
   filled,
   total,
+  stampValue,
+  stampLabel,
   bg,
   fg,
+  label,
+  stripImageUri,
+  complete = false,
+  stampsOnLeft = false,
 }: {
   filled: number;
   total: number;
+  stampValue: string;
+  stampLabel: string;
   bg: string;
   fg: string;
+  label: string;
+  stripImageUri?: string | null;
+  complete?: boolean;
+  stampsOnLeft?: boolean;
 }) {
-  const count = Math.min(total, 12);
+  const count = Math.max(total, 0);
+  const showDots = count > 0;
+  const dotSize = showDots
+    ? Math.max(10, Math.min(14, Math.floor(((PASS_WIDTH - 56) * 0.62) / count) - 5))
+    : 0;
+  const displayFilled = complete && showDots ? count : Math.min(filled, count);
+
   return (
     <View style={[styles.strip, { backgroundColor: bg }]}>
-      <View style={styles.dotsRowCentered}>
-        {Array.from({ length: count }).map((_, i) => {
-          const on = i < filled;
-          return (
-            <View
-              key={i}
-              style={[
-                styles.dot,
-                { borderColor: fg },
-                on ? { backgroundColor: fg, opacity: 1 } : { opacity: 0.35 },
-              ]}
-            />
-          );
-        })}
+      {stripImageUri ? (
+        <Image source={{ uri: stripImageUri }} style={styles.stripBg} resizeMode="cover" />
+      ) : null}
+      <View style={[styles.stripInner, stampsOnLeft && styles.stripInnerSplit]}>
+        <View style={stampsOnLeft ? styles.stripLeft : undefined}>
+          {stampValue ? (
+            <Text style={[styles.stripCount, { color: fg }]} numberOfLines={1}>
+              {stampValue}
+            </Text>
+          ) : null}
+          {stampLabel ? (
+            <Text style={[styles.stripLabel, { color: label }]}>{stampLabel}</Text>
+          ) : null}
+        </View>
+        {showDots ? (
+          <View style={[styles.dotsRow, stampsOnLeft && styles.dotsRowRight]}>
+            {Array.from({ length: count }).map((_, i) => {
+              const on = i < displayFilled;
+              return (
+                <View
+                  key={i}
+                  style={[
+                    styles.dot,
+                    {
+                      width: Math.max(dotSize, 11),
+                      height: Math.max(dotSize, 11),
+                      borderRadius: Math.max(dotSize, 11) / 2,
+                      borderColor: fg,
+                      backgroundColor: on ? fg : 'transparent',
+                      opacity: on ? 1 : 0.4,
+                    },
+                  ]}
+                />
+              );
+            })}
+          </View>
+        ) : stampValue ? (
+          <View style={[styles.readyGlow, { backgroundColor: fg }]} />
+        ) : null}
       </View>
     </View>
   );
 }
 
-function PassFace({
+export function WalletPassCard({
   businessName,
   backgroundColor,
   foregroundColor,
   labelColor,
   logoUri,
-  stampsFilled = 3,
+  stripImageUri,
+  stampsFilled = 1,
   stampGoal = 10,
   reward = 'Free coffee',
+  levels,
+  lifetimeStamps,
   showCustomerName = false,
   customerName,
-  variant,
-}: WalletPreviewProps & { variant: 'apple' | 'google' }) {
-  const headerLabel = 'LOYALTY';
-  const headerValue = businessName ?? 'Your business';
-  const memberLine = showCustomerName && customerName ? customerName : null;
+  memberCode = '4827',
+  passStatus = 'active',
+}: WalletPreviewProps) {
+  const safe = enforcePassContrast({ backgroundColor, foregroundColor, labelColor });
+  const cafeName = businessName ?? 'Your business';
+  const isRedeemed = passStatus === 'redeemed';
+  const isComplete = passStatus === 'complete';
+  const sortedLevels = [...(levels ?? [])].sort(
+    (a, b) => Number(a.stamp_count) - Number(b.stamp_count),
+  );
+  const hasLevels = sortedLevels.length >= 2;
+  const segment = stripSegmentProgress(stampsFilled, stampGoal, sortedLevels, {
+    complete: isComplete,
+    redeemed: isRedeemed,
+  });
+  const rewardCopy = buildRewardFieldCopy({
+    stampCount: stampsFilled,
+    stampGoal,
+    status: passStatus === 'redeemed' ? 'redeemed' : 'active',
+    mainReward: reward,
+    lifetimeStamps: lifetimeStamps ?? stampsFilled,
+    tiers: levels,
+  });
+
+  const redeemReady = isRedeemed || isComplete || rewardCopy.label === 'REDEEM';
+  const stripValue = hasLevels
+    ? String(redeemReady ? Math.max(1, segment.filled) : segment.filled)
+    : String(stampsFilled);
+  const stripLabel = hasLevels ? `OF ${Math.max(1, segment.total)}` : `OF ${stampGoal}`;
 
   return (
-    <View style={[styles.pass, { backgroundColor, width: PASS_WIDTH }]}>
-      <View style={styles.passHead}>
+    <View style={[styles.pass, { backgroundColor: safe.backgroundColor, width: PASS_WIDTH }]}>
+      <View style={styles.headerRow}>
         {logoUri ? (
           <Image source={{ uri: logoUri }} style={styles.logo} resizeMode="contain" />
         ) : (
-          <View style={[styles.logoMonogram, { backgroundColor: `${foregroundColor}22` }]}>
-            <Text style={[styles.logoMonogramText, { color: foregroundColor }]}>
-              {(businessName ?? 'B').charAt(0).toUpperCase()}
+          <View style={[styles.logoPlaceholder, { borderColor: `${safe.foregroundColor}40` }]}>
+            <Text style={[styles.logoPlaceholderText, { color: safe.foregroundColor }]}>
+              {(cafeName[0] ?? 'T').toUpperCase()}
             </Text>
           </View>
         )}
-        <View style={styles.headText}>
-          <Text style={[styles.label, { color: labelColor }]}>{headerLabel}</Text>
-          <Text style={[styles.brand, { color: foregroundColor }]} numberOfLines={1}>
-            {headerValue}
-          </Text>
-          {memberLine ? (
-            <Text style={[styles.memberLine, { color: labelColor }]} numberOfLines={1}>
-              {memberLine}
-            </Text>
-          ) : null}
-        </View>
-      </View>
-
-      <View style={styles.stampsRow}>
-        <View>
-          <Text style={[styles.label, { color: labelColor }]}>STAMPS</Text>
-          <Text style={[styles.stampCount, { color: foregroundColor }]}>
-            {stampsFilled} / {stampGoal}
-          </Text>
-        </View>
-      </View>
-
-      <View style={[styles.rewardRow, { borderTopColor: `${foregroundColor}18` }]}>
-        <View style={styles.rewardText}>
-          <Text style={[styles.label, { color: labelColor }]}>REWARD</Text>
-          <Text style={[styles.rewardValue, { color: foregroundColor }]} numberOfLines={1}>
-            {reward}
+        <View style={styles.headerFields}>
+          <Text style={[styles.fieldLabel, { color: safe.labelColor }]}>LOYALTY</Text>
+          <Text style={[styles.headerValue, { color: safe.foregroundColor }]} numberOfLines={1}>
+            {cafeName}
           </Text>
         </View>
       </View>
 
       <StampStrip
-        filled={stampsFilled}
-        total={stampGoal}
-        bg={backgroundColor}
-        fg={foregroundColor}
+        filled={hasLevels ? (redeemReady ? Math.max(1, segment.filled) : segment.filled) : stampsFilled}
+        total={hasLevels ? Math.max(1, segment.total) : stampGoal}
+        stampValue={stripValue}
+        stampLabel={stripLabel}
+        bg={safe.backgroundColor}
+        fg={safe.foregroundColor}
+        label={safe.labelColor}
+        stripImageUri={stripImageUri}
+        complete={redeemReady}
+        stampsOnLeft
       />
-    </View>
-  );
-}
 
-function IPhoneFrame({ children }: { children: ReactNode }) {
-  return (
-    <View style={styles.phone}>
-      <View style={styles.phoneScreen}>
-        <View style={styles.dynamicIsland} />
-        <View style={styles.walletSheet}>
-          <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>Wallet</Text>
-          {children}
+      <View style={styles.fieldsRow}>
+        <View style={[styles.fieldCol, styles.fieldColWide]}>
+          <Text style={[styles.fieldLabel, { color: safe.labelColor }]}>
+            {redeemReady ? 'REDEEM NOW' : hasLevels ? 'NEXT REWARD' : rewardCopy.label}
+          </Text>
+          <Text style={[styles.rewardValueBig, { color: safe.foregroundColor }]} numberOfLines={2}>
+            {rewardCopy.value}
+          </Text>
+        </View>
+        <View style={[styles.fieldCol, styles.fieldColEnd]}>
+          <Text style={[styles.fieldLabel, { color: safe.labelColor }]}>MEMBER CODE</Text>
+          <Text style={[styles.codeValueBig, { color: safe.foregroundColor }]}>{memberCode}</Text>
         </View>
       </View>
-    </View>
-  );
-}
 
-function AndroidFrame({ children }: { children: ReactNode }) {
-  return (
-    <View style={styles.androidPhone}>
-      <View style={styles.gpayHeader}>
-        <View style={styles.gpayDot} />
-        <Text style={styles.gpayLabel}>Google Wallet</Text>
+      {showCustomerName && customerName ? (
+        <View style={styles.memberRow}>
+          <Text style={[styles.fieldLabel, { color: safe.labelColor }]}>MEMBER</Text>
+          <Text style={[styles.auxValue, { color: safe.foregroundColor }]} numberOfLines={1}>
+            {customerName.split(' ')[0]}
+          </Text>
+        </View>
+      ) : null}
+
+      <View style={[styles.barcodeZone, { borderTopColor: `${safe.foregroundColor}22` }]}>
+        <View style={styles.qrBox}>
+          <View style={styles.qrGrid}>
+            {Array.from({ length: 49 }).map((_, i) => {
+              const filledCell = (i * 11 + 3) % 5 !== 0 && (i * 3) % 7 !== 1;
+              return (
+                <View
+                  key={i}
+                  style={[styles.qrCell, filledCell && styles.qrCellOn]}
+                />
+              );
+            })}
+          </View>
+        </View>
+        <Text style={[styles.barcodeAlt, { color: safe.labelColor }]}>
+          {memberCode ? `Member ${memberCode}` : 'Scan at counter'}
+        </Text>
       </View>
-      <View style={styles.androidScreen}>{children}</View>
-    </View>
-  );
-}
-
-export function AppleWalletPreview(props: WalletPreviewProps) {
-  return (
-    <View style={styles.deviceWrap}>
-      <IPhoneFrame>
-        <PassFace {...props} variant="apple" />
-      </IPhoneFrame>
-      <Text style={styles.caption}>Apple Wallet</Text>
-    </View>
-  );
-}
-
-export function GoogleWalletPreview(props: WalletPreviewProps) {
-  return (
-    <View style={styles.deviceWrap}>
-      <AndroidFrame>
-        <PassFace {...props} variant="google" />
-      </AndroidFrame>
-      <Text style={styles.caption}>Google Wallet</Text>
-    </View>
-  );
-}
-
-export function WalletPreviewPair(props: WalletPreviewProps) {
-  return (
-    <View style={styles.pair}>
-      <AppleWalletPreview {...props} />
-      <GoogleWalletPreview {...props} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  pair: { gap: 28, alignItems: 'center' },
-  deviceWrap: { alignItems: 'center', gap: 8 },
-  caption: {
-    fontSize: 12,
-    color: '#8E8E93',
-    fontFamily: 'Inter_500Medium',
-  },
-  phone: {
-    width: PASS_WIDTH + 24,
-    borderRadius: 28,
-    backgroundColor: '#1C1C1E',
-    padding: 6,
+  pass: {
+    borderRadius: 12,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
     elevation: 8,
   },
-  phoneScreen: {
-    borderRadius: 22,
-    backgroundColor: '#000',
-    overflow: 'hidden',
-    minHeight: 340,
-  },
-  dynamicIsland: {
-    alignSelf: 'center',
-    width: 72,
-    height: 22,
-    borderRadius: 14,
-    backgroundColor: '#1C1C1E',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  walletSheet: {
-    flex: 1,
-    backgroundColor: '#F2F2F7',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingTop: 8,
-    paddingHorizontal: 10,
-    paddingBottom: 14,
-    alignItems: 'center',
-  },
-  sheetHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#C8C8CC',
-    marginBottom: 8,
-  },
-  sheetTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#8E8E93',
-    marginBottom: 12,
-    fontFamily: 'Inter_600SemiBold',
-  },
-  androidPhone: {
-    width: PASS_WIDTH + 16,
-    borderRadius: 20,
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#E5E5EA',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  gpayHeader: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    paddingTop: 14,
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: '#F8F9FA',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E5EA',
-  },
-  gpayDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#4285F4',
-  },
-  gpayLabel: {
-    fontSize: 12,
-    color: '#5F6368',
-    fontFamily: 'Inter_500Medium',
-  },
-  androidScreen: {
-    padding: 8,
-    alignItems: 'center',
-    backgroundColor: '#F8F9FA',
-  },
-  pass: {
-    borderRadius: 14,
-    padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.22,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  passHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingBottom: 10,
     gap: 10,
-    marginBottom: 14,
+    minHeight: 52,
   },
-  logoMonogram: {
-    width: 36,
-    height: 36,
+  logo: {
+    width: 50,
+    height: 38,
+  },
+  logoPlaceholder: {
+    width: 40,
+    height: 40,
     borderRadius: 8,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoMonogramText: {
-    fontSize: 16,
+  logoPlaceholderText: {
+    fontSize: 18,
     fontFamily: 'Inter_600SemiBold',
   },
-  headText: { flex: 1 },
-  memberLine: {
-    fontSize: 11,
-    fontFamily: 'Inter_500Medium',
-    marginTop: 2,
-    opacity: 0.8,
+  headerFields: {
+    flex: 1,
+    minWidth: 0,
   },
-  logo: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-  },
-  label: {
+  fieldLabel: {
     fontSize: 9,
     letterSpacing: 1.1,
     textTransform: 'uppercase',
     fontFamily: 'Inter_600SemiBold',
-    opacity: 0.75,
+    opacity: 0.95,
   },
-  brand: {
+  headerValue: {
     fontSize: 16,
     fontFamily: 'Inter_600SemiBold',
-    marginTop: 2,
+    marginTop: 1,
+    letterSpacing: -0.2,
   },
-  stampsRow: {
+  strip: {
+    minHeight: 110,
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  stripBg: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.35,
+  },
+  stripInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    gap: 4,
+  },
+  stripInnerSplit: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginBottom: 4,
+    gap: 10,
   },
-  stampCount: {
-    fontSize: 28,
-    fontFamily: 'Inter_700Bold',
-    letterSpacing: -0.5,
-    lineHeight: 32,
-    marginTop: 2,
+  stripLeft: {
+    width: '32%',
+    alignItems: 'flex-start',
+  },
+  stripCount: {
+    fontSize: 40,
+    fontFamily: 'Inter_400Regular',
+    letterSpacing: -1,
+    lineHeight: 44,
+    zIndex: 1,
+  },
+  stripLabel: {
+    fontSize: 11,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    fontFamily: 'Inter_600SemiBold',
+    zIndex: 1,
   },
   dotsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 4,
-    maxWidth: 100,
-    justifyContent: 'flex-end',
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    borderWidth: 1.5,
-  },
-  dotsRowCentered: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 6,
     justifyContent: 'center',
+    zIndex: 1,
+    marginTop: 4,
   },
-  strip: {
-    marginTop: 14,
-    marginHorizontal: -14,
-    marginBottom: -14,
-    paddingVertical: 14,
-    borderBottomLeftRadius: 14,
-    borderBottomRightRadius: 14,
+  dotsRowRight: {
+    flex: 1,
+    marginTop: 0,
+    justifyContent: 'flex-end',
   },
-  rewardRow: {
+  dotsRowSolo: {
+    marginTop: 16,
+  },
+  readyGlow: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    opacity: 0.85,
+    marginTop: 10,
+    alignSelf: 'center',
+  },
+  dot: {
+    borderWidth: 1.5,
+  },
+  fieldsRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    marginTop: 12,
+    alignItems: 'flex-start',
+    paddingHorizontal: 14,
     paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingBottom: 8,
+    gap: 12,
   },
-  rewardText: { flex: 1, paddingRight: 8 },
+  fieldCol: { flex: 1, minWidth: 0 },
+  fieldColWide: { flex: 1.4 },
+  fieldColEnd: { alignItems: 'flex-end' },
   rewardValue: {
     fontSize: 14,
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: 'Inter_500Medium',
     marginTop: 2,
+    lineHeight: 18,
+  },
+  rewardValueBig: {
+    fontSize: 17,
+    fontFamily: 'Inter_600SemiBold',
+    marginTop: 3,
+    lineHeight: 22,
+  },
+  codeValue: {
+    fontSize: 17,
+    fontFamily: 'Inter_600SemiBold',
+    letterSpacing: 2,
+    marginTop: 2,
+  },
+  codeValueBig: {
+    fontSize: 20,
+    fontFamily: 'Inter_600SemiBold',
+    letterSpacing: 2,
+    marginTop: 3,
+  },
+  levelsRow: {
+    paddingHorizontal: 14,
+    paddingBottom: 8,
+  },
+  levelsValue: {
+    fontSize: 13,
+    fontFamily: 'Inter_500Medium',
+    marginTop: 2,
+    lineHeight: 17,
+  },
+  memberRow: {
+    paddingHorizontal: 14,
+    paddingBottom: 8,
+  },
+  auxValue: {
+    fontSize: 15,
+    fontFamily: 'Inter_500Medium',
+    marginTop: 1,
+  },
+  barcodeZone: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: 8,
+  },
+  qrBox: {
+    width: 96,
+    height: 96,
+    backgroundColor: '#fff',
+    borderRadius: 4,
+    padding: 8,
+  },
+  qrGrid: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  qrCell: {
+    width: '14.28%',
+    height: '14.28%',
+  },
+  qrCellOn: {
+    backgroundColor: '#111',
+  },
+  barcodeAlt: {
+    fontSize: 10,
+    letterSpacing: 0.8,
+    fontFamily: 'Inter_500Medium',
   },
 });

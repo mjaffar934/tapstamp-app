@@ -49,9 +49,10 @@ Deno.serve(async (req) => {
       return json({ error: 'Image body required' }, 400);
     }
 
+    const kind = url.searchParams.get('kind') === 'strip' ? 'strip' : 'logo';
     const contentType = req.headers.get('content-type') || 'image/png';
     const ext = contentType.includes('jpeg') || contentType.includes('jpg') ? 'jpg' : 'png';
-    const filePath = `${cafeId}.${ext}`;
+    const filePath = kind === 'strip' ? `${cafeId}-strip.${ext}` : `${cafeId}.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from('logos')
@@ -64,18 +65,18 @@ Deno.serve(async (req) => {
       return json({ error: uploadError.message }, 500);
     }
 
-    const logoUrl = `${SUPABASE_URL}/storage/v1/object/public/logos/${filePath}`;
+    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/logos/${filePath}`;
 
     const { error: updateError } = await supabase
       .from('cafes')
-      .update({ logo_url: logoUrl })
+      .update(kind === 'strip' ? { strip_image_url: publicUrl } : { logo_url: publicUrl })
       .eq('id', cafeId);
 
     if (updateError) {
       return json({ error: updateError.message }, 500);
     }
 
-    return json({ success: true, url: logoUrl });
+    return json({ success: true, url: publicUrl });
   } catch (err) {
     console.error('Upload logo error:', err);
     return json({ error: (err as Error).message }, 500);

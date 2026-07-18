@@ -26,6 +26,7 @@ Deno.serve(async (req) => {
       'stamp_goal',
       'show_customer_name_on_pass',
       'collect_customer_details',
+      'collect_name_only',
       'collect_birthday',
       'birthday_reward',
       'birthday_message',

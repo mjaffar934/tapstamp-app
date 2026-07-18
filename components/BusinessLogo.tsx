@@ -47,10 +47,12 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   initial: {
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.accentMuted,
+    borderColor: colors.accent,
+    borderWidth: 1,
   },
   initialText: {
-    fontWeight: '600',
-    color: colors.text,
+    fontWeight: '700',
+    color: colors.accentDark,
   },
 });

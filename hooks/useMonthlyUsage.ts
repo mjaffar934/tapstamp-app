@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 function monthStartLondon(): string {
   const now = new Date();
@@ -18,15 +19,20 @@ function monthStartLondon(): string {
 export function useMonthlyUsage(cafeId: string | undefined) {
   const [uniqueCustomers, setUniqueCustomers] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const realtimeIdRef = useRef(`usage-rt-${Math.random().toString(36).slice(2, 11)}`);
+  const fetchUsageRef = useRef<() => Promise<void>>(async () => {});
 
-  const fetchUsage = useCallback(async () => {
+  const fetchUsage = useCallback(async (options?: { silent?: boolean }) => {
     if (!cafeId) {
       setUniqueCustomers(0);
       setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
+    if (!options?.silent) {
+      setIsLoading(true);
+    }
+
     const start = monthStartLondon();
 
     const { data, error } = await supabase
@@ -46,9 +52,45 @@ export function useMonthlyUsage(cafeId: string | undefined) {
     setIsLoading(false);
   }, [cafeId]);
 
+  fetchUsageRef.current = fetchUsage;
+
   useEffect(() => {
-    fetchUsage();
+    void fetchUsage();
   }, [fetchUsage]);
 
-  return { uniqueCustomers, isLoading, refetch: fetchUsage };
+  useEffect(() => {
+    if (!cafeId || !isSupabaseConfigured) return;
+
+    const channel = supabase
+      .channel(`${realtimeIdRef.current}-${cafeId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'stamps', filter: `cafe_id=eq.${cafeId}` },
+        () => { void fetchUsageRef.current({ silent: true }); },
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'passes', filter: `cafe_id=eq.${cafeId}` },
+        () => { void fetchUsageRef.current({ silent: true }); },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [cafeId]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void fetchUsageRef.current({ silent: true });
+      }
+    });
+
+    return () => sub.remove();
+  }, []);
+
+  const refetch = useCallback(() => fetchUsage({ silent: true }), [fetchUsage]);
+
+  return { uniqueCustomers, isLoading, refetch };
 }

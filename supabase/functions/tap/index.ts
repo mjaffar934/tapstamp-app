@@ -1,11 +1,12 @@
-import { supabase, functionsUrl, supabaseFunctionsUrl } from '../_shared/client.ts';
+import { supabase, functionsUrl } from '../_shared/client.ts';
 import { shouldSuspendCafe, shouldEnforceStarterLimit, STARTER_MONTHLY_CUSTOMER_LIMIT } from '../_shared/plans.ts';
 import { countUniqueMonthlyCustomers } from '../_shared/usage.ts';
 import { normalizeCafeBillingState } from '../_shared/subscription.ts';
-import { applyStampToPass } from '../_shared/stampPass.ts';
+import { applyStampToPass, applyRedeemRestartAndStamp, hasStampedToday, customerStampLimitsActive } from '../_shared/stampPass.ts';
+import { generateUniqueMemberCode, ensureMemberCode } from '../_shared/memberCode.ts';
 import { isGoogleWalletConfigured } from '../_shared/googleWallet.ts';
+import { isDoubleStampWindow } from '../_shared/utils.ts';
 import {
-  alreadyStampedPage,
   chipNotActivatedPage,
   customerForm,
   errorPage,
@@ -14,14 +15,19 @@ import {
   minimumSpendDismissedPage,
   restoreCardFormPage,
   restoreNotFoundPage,
+  restoreCardsPage,
   capacityReachedPage,
   stampedPage,
   stampErrorPage,
   suspendedPage,
   thanksJoinedPage,
+  alreadyStampedPage,
   welcomePage,
+  addToWalletPage,
   joinLandingPage,
   redeemReadyPage,
+  rewardRedeemedPage,
+  rewardRestartPage,
   type CafeBrand,
 } from '../_shared/html.ts';
 
@@ -30,8 +36,7 @@ type Cafe = CafeBrand & Record<string, unknown>;
 function passLinks(serial: string, tapUrl: string) {
   return {
     apple: functionsUrl(`/pass/${serial}`),
-    // Google Wallet redirects externally; Supabase URL works until tapstamp.co proxy is updated
-    google: isGoogleWalletConfigured() ? supabaseFunctionsUrl(`/google-wallet/${serial}`) : null,
+    google: isGoogleWalletConfigured() ? functionsUrl(`/google-wallet/${serial}`) : null,
     thanks: `${tapUrl}?thanks=1&p=${encodeURIComponent(serial)}`,
   };
 }
@@ -46,7 +51,47 @@ function needsMinimumSpendConfirm(cafe: Cafe, confirmed: boolean): boolean {
 }
 
 function passCookie(cafeId: string, serial: string): string {
-  return `pass_${cafeId}=${serial}; Max-Age=31536000; Path=/; SameSite=Lax`;
+  return `pass_${cafeId}=${serial}; Max-Age=31536000; Path=/; SameSite=Lax; Secure`;
+}
+
+function newPassCookie(cafeId: string, serial: string): string {
+  return appendCookie(passCookie(cafeId, serial), clearRedeemSeenCookie(cafeId));
+}
+
+function redeemSeenCookie(cafeId: string): string {
+  return `redeem_seen_${cafeId}=1; Max-Age=604800; Path=/; SameSite=Lax; Secure`;
+}
+
+function clearRedeemSeenCookie(cafeId: string): string {
+  return `redeem_seen_${cafeId}=; Max-Age=0; Path=/; SameSite=Lax; Secure`;
+}
+
+function appendCookie(base: string, extra: string): string {
+  return base ? `${base}; ${extra}` : extra;
+}
+
+async function markWalletAdded(serial: string): Promise<void> {
+  await supabase
+    .from('passes')
+    .update({ wallet_added_at: new Date().toISOString() })
+    .eq('serial_number', serial);
+}
+
+async function maybeShowRedeemAck(
+  pass: Record<string, unknown>,
+  brand: CafeBrand,
+  cafeId: string,
+  serial: string,
+): Promise<Response | null> {
+  if (!pass.redeem_ack_pending) return null;
+
+  await supabase.from('passes').update({ redeem_ack_pending: false }).eq('serial_number', serial);
+
+  const memberCode = pass.member_code ? String(pass.member_code) : undefined;
+  return html(
+    rewardRedeemedPage(brand, Number(pass.stamp_count), memberCode),
+    passCookie(cafeId, serial),
+  );
 }
 
 function html(body: string, setCookie?: string): Response {
@@ -59,6 +104,69 @@ function isAndroid(req: Request): boolean {
   return /android/i.test(req.headers.get('user-agent') || '');
 }
 
+function walletSetupUrl(tapUrl: string, serial: string): string {
+  const u = new URL(tapUrl);
+  u.searchParams.set('setup', '1');
+  u.searchParams.set('p', serial);
+  return u.toString();
+}
+
+function redirectToWalletSetup(tapUrl: string, serial: string, cafeId: string, fresh = false): Response {
+  return new Response(null, {
+    status: 303,
+    headers: {
+      Location: walletSetupUrl(tapUrl, serial),
+      'Set-Cookie': fresh ? newPassCookie(cafeId, serial) : passCookie(cafeId, serial),
+    },
+  });
+}
+
+function passResultUrl(
+  tapUrl: string,
+  serial: string,
+  view: 'stamped' | 'reward' | 'cooldown' | 'restarted',
+  stampCount?: number,
+): string {
+  const u = new URL(tapUrl);
+  u.searchParams.set('p', serial);
+  u.searchParams.set(view, '1');
+  if (stampCount != null) u.searchParams.set('n', String(stampCount));
+  return u.toString();
+}
+
+function redirectToPassResult(
+  tapUrl: string,
+  serial: string,
+  cafeId: string,
+  view: 'stamped' | 'reward' | 'cooldown' | 'restarted',
+  cookie: string,
+  extraCookie?: string,
+  stampCount?: number,
+): Response {
+  return new Response(null, {
+    status: 303,
+    headers: {
+      Location: passResultUrl(tapUrl, serial, view, stampCount),
+      'Set-Cookie': extraCookie ? appendCookie(cookie, extraCookie) : cookie,
+    },
+  });
+}
+
+function walletSetupPage(
+  brand: CafeBrand,
+  serial: string,
+  count: number,
+  tapUrl: string,
+  cafeId: string,
+  preferGoogle = false,
+): Response {
+  const links = passLinks(serial, tapUrl);
+  return html(
+    addToWalletPage(brand, count, links.apple, links.google, links.thanks, serial, cafeId, preferGoogle),
+    passCookie(cafeId, serial),
+  );
+}
+
 Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
@@ -69,8 +177,16 @@ Deno.serve(async (req) => {
     const confirmed = url.searchParams.get('confirmed') === '1';
     const welcome = url.searchParams.get('welcome') === '1';
     const thanks = url.searchParams.get('thanks') === '1';
+    const setup = url.searchParams.get('setup') === '1';
     const isNew = url.searchParams.get('new') === '1';
+    const join = url.searchParams.get('join') === '1';
+    const attemptStamp = url.searchParams.get('stamp') === '1';
+    const stampedView = url.searchParams.get('stamped') === '1';
+    const rewardView = url.searchParams.get('reward') === '1';
+    const cooldownView = url.searchParams.get('cooldown') === '1';
+    const restartedView = url.searchParams.get('restarted') === '1';
     const passSerial = url.searchParams.get('p')?.trim() || '';
+    const android = isAndroid(req);
 
     if (!code) return new Response('Not found', { status: 404 });
 
@@ -90,7 +206,16 @@ Deno.serve(async (req) => {
 
     if (!cafe) return html(errorPage('This loyalty programme could not be found.'));
 
-    const brand = cafe as CafeBrand;
+    const { data: rewardTiers } = await supabase
+      .from('reward_tiers')
+      .select('stamp_count, reward')
+      .eq('cafe_id', cafe.id)
+      .order('stamp_count');
+
+    const brand = {
+      ...(cafe as CafeBrand),
+      reward_tiers: (rewardTiers ?? []) as CafeBrand['reward_tiers'],
+    };
 
     await normalizeCafeBillingState({
       id: String(cafe.id),
@@ -119,9 +244,9 @@ Deno.serve(async (req) => {
         if (serial) {
           return await handleSaveCustomerPost(form, cafe as Cafe, brand, tapUrl, isAndroid(req));
         }
-        return await handleRestorePostForm(form, cafe as Cafe, brand, tapUrl);
+        return await handleRestorePostForm(form, cafe as Cafe, brand, tapUrl, isAndroid(req));
       }
-      return await handleRestorePost(req, cafe as Cafe, brand, tapUrl);
+      return await handleRestorePost(req, cafe as Cafe, brand, tapUrl, isAndroid(req));
     }
 
     if (restore) {
@@ -136,31 +261,102 @@ Deno.serve(async (req) => {
         .eq('serial_number', passSerial)
         .maybeSingle();
 
+      if (join) {
+        if (!pass) {
+          return html(errorPage('Card not found. Tap Join to start again.'));
+        }
+        return html(customerForm(brand, pass.serial_number, code, tapUrl), passCookie(String(cafe.id), pass.serial_number));
+      }
+
       if (pass) {
         const cookie = passCookie(String(cafe.id), pass.serial_number);
 
+        if (stampedView) {
+          const count = Number(url.searchParams.get('n') ?? pass.stamp_count);
+          const pending = pass.pending_milestone_reward
+            ? String(pass.pending_milestone_reward)
+            : null;
+          return html(
+            stampedPage(brand, count, Boolean(pending) || pass.status === 'redeemed', pass.serial_number, pending),
+            cookie,
+          );
+        }
+
+        if (restartedView) {
+          const count = Number(url.searchParams.get('n') ?? pass.stamp_count);
+          return html(rewardRestartPage(brand, count, pass.serial_number), cookie);
+        }
+
+        if (rewardView) {
+          const pending = pass.pending_milestone_reward
+            ? String(pass.pending_milestone_reward)
+            : null;
+          return html(
+            redeemReadyPage(
+              brand,
+              pass.serial_number,
+              pending ?? undefined,
+            ),
+            appendCookie(cookie, redeemSeenCookie(String(cafe.id))),
+          );
+        }
+
+        if (cooldownView) {
+          const pending = pass.pending_milestone_reward
+            ? String(pass.pending_milestone_reward)
+            : null;
+          if (pending || pass.status === 'redeemed') {
+            return html(redeemReadyPage(brand, pass.serial_number, pending ?? undefined), cookie);
+          }
+          return html(alreadyStampedPage(brand, Number(pass.stamp_count), pass.serial_number), cookie);
+        }
+
         if (thanks) {
-          return html(thanksJoinedPage(brand, Number(pass.stamp_count)), cookie);
+          await markWalletAdded(pass.serial_number);
+          return html(
+            thanksJoinedPage(
+              brand,
+              Number(pass.stamp_count),
+              pass.serial_number,
+              `${tapUrl}?setup=1&p=${encodeURIComponent(pass.serial_number)}`,
+            ),
+            cookie,
+          );
+        }
+
+        // Always show Add to Wallet on setup (re-add after phone wipe / restore).
+        if (setup) {
+          return walletSetupPage(brand, pass.serial_number, Number(pass.stamp_count), tapUrl, String(cafe.id), android);
         }
 
         if (welcome) {
-          const links = passLinks(pass.serial_number, tapUrl);
-          const hasWallet = Boolean(pass.push_token);
-          return html(welcomePage(
-            brand,
-            pass.serial_number,
-            Number(pass.stamp_count),
-            links.apple,
-            links.google,
-            links.thanks,
-            hasWallet,
-          ), cookie);
+          return html(welcomePage(brand, Number(pass.stamp_count), pass.serial_number), cookie);
         }
 
-        return new Response(null, {
-          status: 302,
-          headers: { Location: tapUrl, 'Set-Cookie': cookie },
-        });
+        const ack = await maybeShowRedeemAck(pass, brand, String(cafe.id), pass.serial_number);
+        if (ack) return ack;
+
+        if (pass.status === 'redeemed' && !attemptStamp) {
+          return html(redeemReadyPage(brand, pass.serial_number), cookie);
+        }
+
+        if (!attemptStamp) {
+          return await viewPassStatus(cafe as Cafe, brand, pass, pass.serial_number);
+        }
+
+        return await stampExistingPass(
+          cafe as Cafe,
+          brand,
+          pass,
+          pass.serial_number,
+          tapUrl,
+          confirmed,
+          isAndroid(req),
+        );
+      }
+
+      if (thanks) {
+        return html(errorPage('Card not found. Tap Join to start again.'));
       }
     }
 
@@ -178,25 +374,32 @@ Deno.serve(async (req) => {
 
       if (pass) {
         if (thanks) {
-          return html(thanksJoinedPage(brand, Number(pass.stamp_count)), passCookie(String(cafe.id), existingSerial));
+          await markWalletAdded(existingSerial);
+          return html(
+            thanksJoinedPage(
+              brand,
+              Number(pass.stamp_count),
+              existingSerial,
+              `${tapUrl}?setup=1&p=${encodeURIComponent(existingSerial)}`,
+            ),
+            passCookie(String(cafe.id), existingSerial),
+          );
+        }
+
+        if (setup) {
+          return walletSetupPage(brand, existingSerial, Number(pass.stamp_count), tapUrl, String(cafe.id), android);
         }
 
         if (welcome) {
-          const links = passLinks(existingSerial, tapUrl);
-          const hasWallet = Boolean(pass.push_token);
-          return html(welcomePage(
-            brand,
-            existingSerial,
-            Number(pass.stamp_count),
-            links.apple,
-            links.google,
-            links.thanks,
-            hasWallet,
-          ), passCookie(String(cafe.id), existingSerial));
+          return html(welcomePage(brand, Number(pass.stamp_count), existingSerial), passCookie(String(cafe.id), existingSerial));
         }
 
+        const ack = await maybeShowRedeemAck(pass, brand, String(cafe.id), existingSerial);
+        if (ack) return ack;
+
+        // Match ?p= behaviour: wait for staff to redeem; don't auto-restart on every visit.
         if (pass.status === 'redeemed') {
-          return html(redeemReadyPage(brand), passCookie(String(cafe.id), existingSerial));
+          return html(redeemReadyPage(brand, existingSerial), passCookie(String(cafe.id), existingSerial));
         }
 
         return await stampExistingPass(
@@ -211,47 +414,30 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (welcome || thanks) {
+    if (thanks && !existingSerial && !passSerial) {
       return html(joinLandingPage(brand, tapUrl));
     }
 
-    if (!isNew) {
-      return html(joinLandingPage(brand, tapUrl));
-    }
-
-    // Never create a second card if this device already has one for this cafe
-    if (existingSerial) {
-      const { data: existingPass } = await supabase
-        .from('passes')
-        .select('*')
-        .eq('serial_number', existingSerial)
-        .maybeSingle();
-      if (existingPass) {
-        const links = passLinks(existingSerial, tapUrl);
-        return html(
-          welcomePage(
-            brand,
-            existingSerial,
-            Number(existingPass.stamp_count),
-            links.apple,
-            links.google,
-            links.thanks,
-          ),
-          passCookie(String(cafe.id), existingSerial),
+    if (!existingSerial && !passSerial) {
+      if (isNew) {
+        return await createNewPass(
+          cafe as Cafe,
+          brand,
+          String(cafe.id),
+          code,
+          cookieKey,
+          tapUrl,
+          confirmed,
+          isAndroid(req),
+          req,
         );
       }
+
+      // No cookie / pass → Join. Fingerprint only blocks farming on explicit Join (?new=1).
+      return html(joinLandingPage(brand, tapUrl));
     }
 
-    return await createNewPass(
-      cafe as Cafe,
-      brand,
-      String(cafe.id),
-      code,
-      cookieKey,
-      tapUrl,
-      confirmed,
-      isAndroid(req),
-    );
+    return html(joinLandingPage(brand, tapUrl));
   } catch (err) {
     console.error('Tap error:', err);
     return html(errorPage('Something went wrong. Please tap again.'));
@@ -274,6 +460,26 @@ async function handleSaveCustomerPost(
     return html(errorPage('Missing loyalty card. Please tap again.'));
   }
 
+  // Same email should not create / keep multiple welcome-stamp cards.
+  if (customerEmail) {
+    const { data: existingByEmail } = await supabase
+      .from('passes')
+      .select('serial_number')
+      .eq('cafe_id', cafe.id)
+      .ilike('customer_email', customerEmail)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (existingByEmail?.serial_number && existingByEmail.serial_number !== serial) {
+      await supabase.from('passes').update({
+        ...(customerName ? { customer_name: customerName } : {}),
+        ...(birthday ? { birthday } : {}),
+        customer_email: customerEmail,
+      }).eq('serial_number', existingByEmail.serial_number);
+      return redirectToWalletSetup(tapUrl, existingByEmail.serial_number, String(cafe.id));
+    }
+  }
+
   const updates: Record<string, string | null> = {};
   if (customerName) updates.customer_name = customerName;
   if (customerEmail) updates.customer_email = customerEmail;
@@ -282,19 +488,7 @@ async function handleSaveCustomerPost(
     await supabase.from('passes').update(updates).eq('serial_number', serial);
   }
 
-  const { data: pass } = await supabase
-    .from('passes')
-    .select('*')
-    .eq('serial_number', serial)
-    .single();
-
-  const count = Number(pass?.stamp_count ?? 1);
-  const links = passLinks(serial, tapUrl);
-
-  return html(
-    welcomePage(brand, serial, count, links.apple, links.google, links.thanks),
-    passCookie(String(cafe.id), serial),
-  );
+  return redirectToWalletSetup(tapUrl, serial, String(cafe.id));
 }
 
 async function handleRestorePostForm(
@@ -302,32 +496,13 @@ async function handleRestorePostForm(
   cafe: Cafe,
   brand: CafeBrand,
   tapUrl: string,
+  preferGoogle = false,
 ): Promise<Response> {
   const email = String(form.get('customer_email') ?? '').trim().toLowerCase();
   if (!email) {
     return html(restoreCardFormPage(brand, tapUrl));
   }
-
-  const { data: pass } = await supabase
-    .from('passes')
-    .select('*')
-    .eq('cafe_id', cafe.id)
-    .ilike('customer_email', email)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (!pass) {
-    return html(restoreNotFoundPage(brand, tapUrl, email));
-  }
-
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: `${tapUrl}?welcome=1`,
-      'Set-Cookie': passCookie(String(cafe.id), pass.serial_number),
-    },
-  });
+  return restorePassesForEmail(cafe, brand, tapUrl, email, preferGoogle);
 }
 
 async function handleRestorePost(
@@ -335,6 +510,7 @@ async function handleRestorePost(
   cafe: Cafe,
   brand: CafeBrand,
   tapUrl: string,
+  preferGoogle = false,
 ): Promise<Response> {
   const contentType = req.headers.get('content-type') ?? '';
   let email = '';
@@ -350,29 +526,91 @@ async function handleRestorePost(
   if (!email) {
     return html(restoreCardFormPage(brand, tapUrl));
   }
+  return restorePassesForEmail(cafe, brand, tapUrl, email, preferGoogle);
+}
 
-  const { data: pass } = await supabase
+async function restorePassesForEmail(
+  cafe: Cafe,
+  brand: CafeBrand,
+  tapUrl: string,
+  email: string,
+  preferGoogle: boolean,
+): Promise<Response> {
+  const cafeId = String(cafe.id);
+
+  const { data: passes } = await supabase
     .from('passes')
-    .select('*')
-    .eq('cafe_id', cafe.id)
+    .select('serial_number, stamp_count, status, member_code, cafe_id, created_at, cafes(id, name, stamp_goal)')
     .ilike('customer_email', email)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order('created_at', { ascending: false });
 
-  if (!pass) {
+  const rows = (passes ?? []).filter((p) => p.serial_number);
+  if (!rows.length) {
     return html(restoreNotFoundPage(brand, tapUrl, email));
   }
 
-  const cookie = passCookie(String(cafe.id), pass.serial_number);
-
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: `${tapUrl}?welcome=1`,
-      'Set-Cookie': cookie,
-    },
+  type CafeEmbed = { id: string; name: string; stamp_goal: number } | null;
+  const cards = rows.map((p) => {
+    const cafeRow = (Array.isArray(p.cafes) ? p.cafes[0] : p.cafes) as CafeEmbed;
+    const serial = String(p.serial_number);
+    const links = passLinks(serial, tapUrl);
+    const isCurrent = String(p.cafe_id) === cafeId;
+    return {
+      serial,
+      cafeId: String(p.cafe_id),
+      cafeName: cafeRow?.name ? String(cafeRow.name) : 'Loyalty card',
+      stampCount: Number(p.stamp_count) || 0,
+      stampGoal: Number(cafeRow?.stamp_goal) || Number(cafe.stamp_goal) || 10,
+      memberCode: p.member_code ? String(p.member_code) : null,
+      isCurrentCafe: isCurrent,
+      appleUrl: links.apple,
+      googleUrl: links.google,
+      useHereUrl: isCurrent ? walletSetupUrl(tapUrl, serial) : undefined,
+    };
   });
+
+  cards.sort((a, b) => Number(b.isCurrentCafe) - Number(a.isCurrentCafe));
+  const primary = cards.find((c) => c.isCurrentCafe) ?? cards[0];
+
+  // One card only → straight to Add to Wallet for that serial.
+  if (cards.length === 1) {
+    return redirectToWalletSetup(tapUrl, primary.serial, cafeId);
+  }
+
+  return html(
+    restoreCardsPage(brand, email, cards, preferGoogle),
+    primary.isCurrentCafe ? passCookie(cafeId, primary.serial) : undefined,
+  );
+}
+
+async function viewPassStatus(
+  cafe: Cafe,
+  brand: CafeBrand,
+  pass: Record<string, unknown>,
+  serial: string,
+): Promise<Response> {
+  const cafeId = String(cafe.id);
+  await ensureMemberCode(pass, cafeId);
+  const cookie = passCookie(cafeId, serial);
+  const count = Number(pass.stamp_count);
+  const pending = pass.pending_milestone_reward
+    ? String(pass.pending_milestone_reward)
+    : null;
+
+  if (pass.status === 'redeemed') {
+    return html(redeemReadyPage(brand, serial), cookie);
+  }
+
+  if (pending) {
+    return html(redeemReadyPage(brand, serial, pending), cookie);
+  }
+
+  const stampedToday = await hasStampedToday(String(pass.id));
+  if (customerStampLimitsActive(cafe) && stampedToday) {
+    return html(alreadyStampedPage(brand, count, serial), cookie);
+  }
+
+  return html(welcomePage(brand, count, serial), cookie);
 }
 
 async function stampExistingPass(
@@ -384,10 +622,29 @@ async function stampExistingPass(
   confirmed: boolean,
   android: boolean,
 ): Promise<Response> {
-  const cookie = passCookie(String(cafe.id), serial);
+  const cafeId = String(cafe.id);
+  await ensureMemberCode(pass, cafeId);
+
+  const cookie = passCookie(cafeId, serial);
+
+  const ack = await maybeShowRedeemAck(pass, brand, String(cafe.id), serial);
+  if (ack) return ack;
 
   if (pass.status === 'redeemed') {
-    return html(redeemReadyPage(brand), cookie);
+    const restart = await applyRedeemRestartAndStamp(pass, cafe);
+    if (!restart.ok) {
+      return html(redeemReadyPage(brand, serial), cookie);
+    }
+
+    return redirectToPassResult(
+      tapUrl,
+      serial,
+      cafeId,
+      'restarted',
+      cookie,
+      undefined,
+      restart.stampCount ?? 1,
+    );
   }
 
   const minSpend = minimumSpendAmount(cafe);
@@ -399,18 +656,57 @@ async function stampExistingPass(
 
   if (!result.ok) {
     if (result.error === 'redeem_pending') {
-      return html(redeemReadyPage(brand), cookie);
+      return html(
+        redeemReadyPage(brand, serial, result.milestoneReward ?? undefined),
+        cookie,
+      );
     }
     if (result.error === 'cooldown') {
-      return html(alreadyStampedPage(brand, Number(pass.stamp_count)), cookie);
+      return redirectToPassResult(tapUrl, serial, cafeId, 'cooldown', cookie);
     }
     return html(stampErrorPage(brand));
   }
 
-  return html(
-    stampedPage(brand, result.stampCount ?? 0, result.rewardJustUnlocked ?? false),
+  if (result.rewardJustUnlocked || result.milestoneReward) {
+    if (result.isRedeemed) {
+      return redirectToPassResult(
+        tapUrl,
+        serial,
+        cafeId,
+        'reward',
+        cookie,
+        redeemSeenCookie(cafeId),
+      );
+    }
+    return html(
+      redeemReadyPage(brand, serial, result.milestoneReward ?? undefined),
+      cookie,
+    );
+  }
+
+  return redirectToPassResult(
+    tapUrl,
+    serial,
+    cafeId,
+    'stamped',
     cookie,
+    undefined,
+    result.stampCount,
   );
+}
+
+async function joinFingerprint(req: Request, cafeId: string): Promise<string> {
+  const ip = req.headers.get('cf-connecting-ip')
+    || req.headers.get('x-real-ip')
+    || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || 'unknown';
+  const ua = (req.headers.get('user-agent') || '').slice(0, 160);
+  const raw = `${cafeId}|${ip}|${ua}`;
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+    .slice(0, 48);
 }
 
 async function createNewPass(
@@ -422,6 +718,7 @@ async function createNewPass(
   tapUrl: string,
   confirmed: boolean,
   android: boolean,
+  req: Request,
 ): Promise<Response> {
   const minSpend = minimumSpendAmount(cafe);
   if (minSpend != null) {
@@ -435,8 +732,67 @@ async function createNewPass(
     }
   }
 
+  // Block stamp farming by clearing Safari site data and joining again from the same phone.
+  const fingerprint = await joinFingerprint(req, cafeId);
+  const { data: guard } = await supabase
+    .from('pass_join_guards')
+    .select('pass_serial, created_at')
+    .eq('cafe_id', cafeId)
+    .eq('fingerprint', fingerprint)
+    .maybeSingle();
+
+  if (guard?.pass_serial) {
+    const { data: existing } = await supabase
+      .from('passes')
+      .select('*')
+      .eq('serial_number', guard.pass_serial)
+      .eq('cafe_id', cafeId)
+      .maybeSingle();
+    if (existing) {
+      const deletedFromWallet = !existing.wallet_added_at
+        && !existing.push_token
+        && !existing.device_id;
+      const now = new Date().toISOString();
+
+      // Deleted Wallet pass → new serial so Apple treats Add as a fresh card (not the stale one).
+      if (deletedFromWallet) {
+        const newSerial = crypto.randomUUID();
+        const newAuth = crypto.randomUUID().replace(/-/g, '');
+        const { error: reissueError } = await supabase.from('passes').update({
+          serial_number: newSerial,
+          auth_token: newAuth,
+          updated_at: now,
+          wallet_added_at: null,
+          push_token: null,
+          device_id: null,
+        }).eq('id', existing.id);
+
+        if (!reissueError) {
+          await supabase.from('pass_join_guards').upsert({
+            cafe_id: cafeId,
+            fingerprint,
+            pass_serial: newSerial,
+            created_at: now,
+          });
+          return redirectToWalletSetup(tapUrl, newSerial, cafeId, true);
+        }
+      }
+
+      await supabase.from('passes').update({ updated_at: now }).eq('id', existing.id);
+      return redirectToWalletSetup(tapUrl, existing.serial_number, cafeId);
+    }
+  }
+
   const serial = crypto.randomUUID();
   const authToken = crypto.randomUUID().replace(/-/g, '');
+  const now = new Date().toISOString();
+  const memberCode = await generateUniqueMemberCode(cafeId);
+  const stampsToAdd = isDoubleStampWindow(
+    cafe.double_stamp_hours as Parameters<typeof isDoubleStampWindow>[0],
+  ) ? 2 : 1;
+  const stampGoal = Number(cafe.stamp_goal) || 10;
+  const stampCount = Math.min(stampsToAdd, stampGoal);
+  const status = stampCount >= stampGoal ? 'redeemed' : 'active';
 
   const { data: newPass, error: passError } = await supabase
     .from('passes')
@@ -444,10 +800,12 @@ async function createNewPass(
       cafe_id: cafeId,
       serial_number: serial,
       auth_token: authToken,
-      stamp_count: 1,
-      status: 'active',
-      last_stamp_at: null,
-      lifetime_stamps: 1,
+      member_code: memberCode,
+      stamp_count: stampCount,
+      status,
+      last_stamp_at: now,
+      updated_at: now,
+      lifetime_stamps: stampCount,
     })
     .select()
     .single();
@@ -456,17 +814,26 @@ async function createNewPass(
     throw new Error(passError?.message ?? 'Failed to create pass');
   }
 
-  await supabase.from('stamps').insert({ pass_id: newPass.id, cafe_id: cafeId });
-
-  const cookie = passCookie(cafeId, serial);
-  const links = passLinks(serial, tapUrl);
+  await supabase.from('stamps').insert(
+    Array.from({ length: stampsToAdd }, () => ({ pass_id: newPass.id, cafe_id: cafeId })),
+  );
+  await supabase.from('pass_join_guards').upsert({
+    cafe_id: cafeId,
+    fingerprint,
+    pass_serial: serial,
+    created_at: now,
+  });
 
   if (cafe.collect_customer_details) {
-    return html(customerForm(brand, serial, chipCode, tapUrl), cookie);
+    const joinUrl = `${tapUrl}?join=1&p=${encodeURIComponent(serial)}`;
+    return new Response(null, {
+      status: 303,
+      headers: {
+        Location: joinUrl,
+        'Set-Cookie': newPassCookie(cafeId, serial),
+      },
+    });
   }
 
-  return html(
-    welcomePage(brand, serial, 1, links.apple, links.google, links.thanks),
-    cookie,
-  );
+  return redirectToWalletSetup(tapUrl, serial, cafeId, true);
 }

@@ -8,9 +8,11 @@ export interface BaristaPass {
   id: string;
   serial_number: string;
   customer_name: string | null;
+  member_code: string | null;
   stamp_count: number;
   status: string;
   last_stamp_at: string | null;
+  pending_milestone_reward?: string | null;
 }
 
 export interface BaristaData {
@@ -40,8 +42,14 @@ export function useBaristaData(cafeId: string | undefined) {
       const res = await fetch(`${supabaseUrl}/functions/v1/barista/${cafeId}`, {
         headers: publicEdgeHeaders(),
       });
-      if (!res.ok) throw new Error('Failed to load barista data');
-      const json = await res.json();
+      const text = await res.text();
+      let json: BaristaData;
+      try {
+        json = JSON.parse(text) as BaristaData;
+      } catch {
+        throw new Error(res.ok ? 'Invalid server response' : `Failed to load barista data (${res.status})`);
+      }
+      if (!res.ok) throw new Error((json as { error?: string }).error ?? 'Failed to load barista data');
       setData(json);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load');

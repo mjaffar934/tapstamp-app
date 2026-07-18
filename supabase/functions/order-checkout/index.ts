@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
       return redirectToOrder(plan, message);
     }
 
-    if (!result.checkoutUrl) {
+    if (!result.checkoutUrl && !result.accountReady) {
       if (contentType.includes('application/json')) {
         return json({ ok: false, error: 'Payment could not be started' }, 500, req);
       }
@@ -72,7 +72,21 @@ Deno.serve(async (req) => {
     }
 
     if (contentType.includes('application/json')) {
+      if (result.accountReady) {
+        return json({
+          ok: true,
+          accountReady: true,
+          email: result.email,
+          plan: result.plan,
+        }, 200, req);
+      }
       return json({ ok: true, checkoutUrl: result.checkoutUrl }, 200, req);
+    }
+
+    if (result.accountReady) {
+      const email = encodeURIComponent(result.email ?? '');
+      const planParam = result.plan ?? plan;
+      return Response.redirect(`${WEBSITE}/order/success?signup=1&email=${email}&plan=${planParam}`, 303);
     }
 
     return Response.redirect(result.checkoutUrl, 303);

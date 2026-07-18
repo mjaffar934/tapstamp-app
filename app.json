@@ -41,7 +41,8 @@
         {
           "cameraPermission": "Allow TapStamp to scan customer wallet QR codes in barista mode."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true

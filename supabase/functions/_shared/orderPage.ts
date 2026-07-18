@@ -1,4 +1,4 @@
-import { PLANS, HARDWARE_PRICE_GBP, parsePlanId, type PlanId } from './plans.ts';
+import { PLANS, parsePlanId, type PlanId } from './plans.ts';
 
 const BG = '#FAF8F5';
 const TEXT = '#1A1814';
@@ -57,16 +57,15 @@ function shell(content: string): string {
     function updateSummary() {
       var plan = document.querySelector('input[name=plan]:checked');
       if (!plan) return;
-      var hw = document.getElementById('hw-price');
       var sub = document.getElementById('sub-line');
       var trial = document.getElementById('trial-line');
-      if (!hw) return;
-      hw.textContent = '£${HARDWARE_PRICE_GBP}';
       var prices = { starter: null, pro: 25, multi: 59 };
       var p = prices[plan.value];
-      if (sub) sub.style.display = p ? 'flex' : 'none';
-      if (sub && p) sub.querySelector('span:last-child').textContent = '£' + p + '/mo after trial';
-      if (trial) trial.textContent = '14-day free trial starts when you go live in the app — not today.';
+      if (sub) {
+        sub.style.display = 'flex';
+        sub.querySelector('span:last-child').textContent = p ? '£' + p + '/mo' : 'Free';
+      }
+      if (trial) trial.textContent = '14-day free trial starts when you go live — not at signup.';
     }
     updateSummary();
   </script>
@@ -82,7 +81,7 @@ function planOptions(selected: PlanId): string {
       <label class="plan">
         <input type="radio" name="plan" value="${id}" ${id === selected ? 'checked' : ''}>
         <div class="plan-title">${p.name}</div>
-        <div class="plan-price">Kit £${p.hardwareGbp} · ${monthly}</div>
+        <div class="plan-price">Free stamp · ${monthly}</div>
         <div class="plan-price" style="margin-top:0.25rem">${p.tagline}</div>
       </label>`;
   }).join('');
@@ -99,7 +98,7 @@ export function orderFormPage(
     <a href="${websiteUrl}" class="back">&larr; Back to TapStamp</a>
     <p class="eyebrow">Digital loyalty &middot; No app needed for customers</p>
     <h1>Order your TapStamp</h1>
-    <p class="lead">Step 1 of 2 — your details. Next you'll pay <strong>£${HARDWARE_PRICE_GBP}</strong> for your loyalty stamp. Your 14-day software trial starts when you go live in the app.</p>
+    <p class="lead">Create your owner account. Your loyalty stamp is <strong>included free</strong>. Software billing starts after your 14-day trial at go-live.</p>
 
     <div class="card">
       <form method="POST"${action ? ` action="${action}"` : ''}>
@@ -107,10 +106,9 @@ export function orderFormPage(
         <div class="plans">${planOptions(selectedPlan)}</div>
 
         <div class="price-box">
-          <div class="price-row"><span>Loyalty stamp</span><span id="hw-price">£${HARDWARE_PRICE_GBP}</span></div>
-          <div class="price-row" id="sub-line" style="display:${plan.monthlyGbp ? 'flex' : 'none'}"><span>Software</span><span>£${plan.monthlyGbp ?? 0}/mo after trial</span></div>
-          <div class="price-total price-row"><span>Due today</span><span>£${HARDWARE_PRICE_GBP}</span></div>
-          <p class="note" id="trial-line" style="margin-top:0.75rem;margin-bottom:0">14-day free trial starts when you go live in the app — not today.</p>
+          <div class="price-row" id="sub-line" style="display:flex"><span>Software (after trial)</span><span>${plan.monthlyGbp == null ? 'Free' : `£${plan.monthlyGbp}/mo`}</span></div>
+          <div class="price-total price-row"><span>Due today</span><span>£0</span></div>
+          <p class="note" id="trial-line" style="margin-top:0.75rem;margin-bottom:0">14-day free trial starts when you go live — not at signup.</p>
         </div>
 
         <p class="step-label" style="margin-top:1rem">Your account</p>
@@ -148,7 +146,7 @@ export function orderSuccessPage(
   const p = PLANS[plan];
   const afterTrial =
     p.monthlyGbp == null
-      ? 'Your Starter plan stays free forever — up to 50 unique customers per month after your trial.'
+      ? 'Your Starter plan stays free forever — up to 50 unique customers per calendar month after your trial (resets on the 1st).'
       : `After your trial, your ${p.name} plan is £${p.monthlyGbp}/month.`;
 
   return shell(`

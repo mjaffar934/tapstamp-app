@@ -34,10 +34,10 @@ export function StarterUsageBanner({ count, isLoading }: StarterUsageBannerProps
           </Text>
           <Text variant="caption" muted>
             {atLimit
-              ? 'New customer sign-ups are paused until next month.'
+              ? '50 unique customers reached this month — new sign-ups pause until the 1st.'
               : nearLimit
                 ? `${remaining} spot${remaining === 1 ? '' : 's'} left this month on Starter.`
-                : 'Counts unique customers who stamped this month — resets on the 1st.'}
+                : 'Unique customers who stamped this month — each person counts once, resets on the 1st.'}
           </Text>
         </View>
       </View>

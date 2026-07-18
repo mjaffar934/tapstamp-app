@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { SUPABASE_URL, supabase } from '../_shared/client.ts';
 import { ensureCafeStaffCode, startGoLiveTrial } from '../_shared/createOrder.ts';
 import { generateStaffCode } from '../_shared/staffCode.ts';
+import { ensureUniqueSlug } from '../_shared/cafeSlug.ts';
 import { json, slugFromEmail } from '../_shared/utils.ts';
 
 import { TAPSTAMP_BG, TAPSTAMP_FG, TAPSTAMP_LABEL } from '../_shared/brand.ts';
@@ -48,7 +49,7 @@ Deno.serve(async (req) => {
     const { data: existing } = await supabase
       .from('cafes')
       .select('id')
-      .eq('email', email)
+      .or(`owner_id.eq.${user.id},email.eq.${email},owner_email.eq.${email}`)
       .maybeSingle();
 
     let cafeId = existing?.id as string | undefined;
@@ -62,17 +63,23 @@ Deno.serve(async (req) => {
 
       const plan = biz?.plan_selected ?? 'starter';
 
+      const slug = await ensureUniqueSlug(
+        supabase,
+        slugFromEmail(email, `cafe-${user.id.slice(0, 8)}`),
+      );
+
       const { data: created, error: createError } = await supabase
         .from('cafes')
         .insert({
           name: body.name ?? 'My Cafe',
           email,
-          slug: slugFromEmail(email, `cafe-${user.id.slice(0, 8)}`),
+          owner_id: user.id,
+          slug,
           biz_type: body.biz_type ?? 'cafe',
-          pass_template: 'classic',
-          background_color: TAPSTAMP_BG,
-          foreground_color: TAPSTAMP_FG,
-          label_color: TAPSTAMP_LABEL,
+          pass_template: body.pass_template ?? 'classic',
+          background_color: body.background_color ?? TAPSTAMP_BG,
+          foreground_color: body.foreground_color ?? TAPSTAMP_FG,
+          label_color: body.label_color ?? TAPSTAMP_LABEL,
           show_customer_name_on_pass: body.show_customer_name_on_pass ?? true,
           reward: body.reward ?? 'Free coffee',
           stamp_goal: body.stamp_goal ?? 10,
@@ -92,12 +99,17 @@ Deno.serve(async (req) => {
       cafeId = created.id;
     } else {
       await supabase.from('cafes').update({
+        owner_id: user.id,
         name: body.name,
         biz_type: body.biz_type,
         show_customer_name_on_pass: body.show_customer_name_on_pass,
         ...(body.reward != null ? { reward: body.reward } : {}),
         ...(body.stamp_goal != null ? { stamp_goal: body.stamp_goal } : {}),
         ...(body.minimum_spend !== undefined ? { minimum_spend: body.minimum_spend } : {}),
+        ...(body.background_color ? { background_color: body.background_color } : {}),
+        ...(body.foreground_color ? { foreground_color: body.foreground_color } : {}),
+        ...(body.label_color ? { label_color: body.label_color } : {}),
+        ...(body.pass_template ? { pass_template: body.pass_template } : {}),
       }).eq('id', cafeId);
     }
 

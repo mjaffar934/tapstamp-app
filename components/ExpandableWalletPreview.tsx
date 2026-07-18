@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { LayoutAnimation, Platform, Pressable, UIManager, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
-import { WalletPreviewPair, type WalletPreviewProps } from '@/components/onboarding/WalletPassPreview';
+import { WalletPassCard, type WalletPreviewProps } from '@/components/onboarding/WalletPassPreview';
 import { colors, radius, spacing } from '@/constants/theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -15,8 +15,8 @@ interface ExpandableWalletPreviewProps extends WalletPreviewProps {
 }
 
 export function ExpandableWalletPreview({
-  title = 'Wallet preview',
-  defaultExpanded = false,
+  title = 'Wallet pass',
+  defaultExpanded = true,
   ...preview
 }: ExpandableWalletPreviewProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -32,7 +32,7 @@ export function ExpandableWalletPreview({
         <View style={styles.headerText}>
           <Text variant="h3">{title}</Text>
           <Text variant="caption" muted>
-            {expanded ? 'Tap to collapse' : 'Tap to preview Apple & Google Wallet'}
+            {expanded ? 'Tap to collapse' : 'Tap to preview your wallet pass'}
           </Text>
         </View>
         <Ionicons
@@ -44,7 +44,10 @@ export function ExpandableWalletPreview({
 
       {expanded ? (
         <View style={styles.preview}>
-          <WalletPreviewPair {...preview} />
+          <WalletPassCard {...preview} />
+          <Text variant="caption" muted style={styles.hint}>
+            Preview of your customer Wallet pass
+          </Text>
         </View>
       ) : (
         <Pressable onPress={toggle} style={styles.collapsedRow}>
@@ -81,7 +84,10 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.borderLight,
+    alignItems: 'center',
+    gap: spacing.sm,
   },
+  hint: { textAlign: 'center' },
   collapsedRow: {
     flexDirection: 'row',
     alignItems: 'center',

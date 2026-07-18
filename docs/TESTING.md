@@ -7,7 +7,7 @@ Run after Stripe secrets are set and website changes are deployed.
 - [ ] Stripe test mode keys in Supabase secrets (see `docs/STRIPE_SETUP.md`)
 - [ ] Webhook endpoint configured with all subscription events
 - [ ] Customer Portal activated in Stripe
-- [ ] **Website deployed** from `website/` folder (see `docs/HOSTING.md`) — not Railway
+- [ ] **Website deployed** on Railway (root `Dockerfile` copies `website/` + `railway/`) — redeploy after editing `website/`
 - [ ] **Custom domain for NFC tap URLs** (optional until chips go live) — see `docs/STRIPE_SETUP.md`
 - [ ] Expo app running (`npx expo start -c`)
 - [ ] Test card: `4242 4242 4242 4242`

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, Alert, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTapStampAlert } from '@/contexts/AlertContext';
 import { subscribeToDeepLinks } from '@/lib/authLinking';
 import { activateStamp } from '@/lib/api';
 import { Screen } from '@/components/ui/Screen';
@@ -15,10 +16,11 @@ import { colors, radius, spacing } from '@/constants/theme';
 type ActivateState = 'idle' | 'listening' | 'activating' | 'done';
 
 export default function ActivateScreen() {
-  const { signOut, refreshBusiness } = useAuth();
+  const { signOut, refreshBusiness, business } = useAuth();
   const [state, setState] = useState<ActivateState>('idle');
   const [manualCode, setManualCode] = useState('');
   const activatingRef = useRef(false);
+  const alert = useTapStampAlert();
 
   const runActivation = async (code: string) => {
     const normalized = code.trim().toUpperCase();
@@ -31,13 +33,17 @@ export default function ActivateScreen() {
     if (result.error) {
       activatingRef.current = false;
       setState('listening');
-      Alert.alert('Could not activate', result.error);
+      alert('Could not activate', result.error);
       return;
     }
 
     await refreshBusiness();
     setState('done');
-    router.replace('/(onboarding)/welcome');
+
+    const destination = business?.onboarding_status === 'complete'
+      ? '/(app)/(tabs)/home'
+      : '/(onboarding)/welcome';
+    router.replace(destination);
   };
 
   useEffect(() => {

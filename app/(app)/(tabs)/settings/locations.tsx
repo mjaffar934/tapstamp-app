@@ -58,7 +58,7 @@ export default function LocationsScreen() {
 
   return (
     <Screen>
-      <BackHeader />
+      <BackHeader onBack={() => router.replace('/(app)/(tabs)/settings')} />
       <ScreenHeader
         compact
         title="Location"

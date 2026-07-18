@@ -3,66 +3,72 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#FAF8F5">
+  <meta name="theme-color" content="#141210">
   <title>Order TapStamp</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/assets/styles.css">
+  <link rel="stylesheet" href="/assets/styles.css?v=4">
 </head>
-<body>
+<body class="order-page">
   <div class="narrow">
     <a href="/" class="back">← Back to TapStamp</a>
-    <p class="eyebrow">Digital loyalty · No app needed for customers</p>
-    <h1 style="font-family:var(--font-display);font-size:2.25rem;font-weight:500;margin-bottom:0.75rem">Order your stamp</h1>
-    <p class="lead">Step 1 of 2 — your details. Next you'll pay <strong>£35</strong> for your loyalty stamp. Your 14-day software trial starts when you go live in the app.</p>
+    <p class="eyebrow">Order</p>
+    <h1 class="order-title">Start your programme</h1>
+    <p class="order-lead">Create your owner account. Your loyalty stamp is <strong>included free</strong>. Software billing starts after your 14-day trial at go-live.</p>
 
     <div id="alert-error" class="alert hidden"></div>
-    <div id="alert-canceled" class="alert alert-info hidden">Payment not completed — your account is saved. Try again below or sign in to the owner app to pay.</div>
+    <div id="alert-canceled" class="alert alert-info hidden">Card setup not completed — your account is saved. Try again below or sign in to the owner app.</div>
 
-    <div class="card">
+    <div class="card order-card">
       <form id="order-form">
-        <p class="step-label">Choose your plan</p>
-        <div class="plans">
-          <label class="plan">
+        <p class="step-label">Software plan</p>
+        <div class="plans plans-premium">
+          <label class="plan plan-premium">
             <input type="radio" name="plan" value="starter">
-            <div class="plan-title">Starter</div>
-            <div class="plan-price">Kit £35 · Free after trial</div>
-            <div class="plan-price">Free after trial — up to 50 customers per month</div>
+            <div class="plan-premium-top">
+              <span class="plan-title">Starter</span>
+              <span class="plan-software-price">Free</span>
+            </div>
+            <p class="plan-premium-sub">after trial · 50 customers/month · free stamp</p>
           </label>
-          <label class="plan">
+          <label class="plan plan-premium">
             <input type="radio" name="plan" value="pro">
-            <div class="plan-title">Pro</div>
-            <div class="plan-price">Kit £35 · £25/mo after trial</div>
-            <div class="plan-price">Unlimited customers — £25/mo after trial</div>
+            <div class="plan-premium-top">
+              <span class="plan-title">Pro</span>
+              <span class="plan-software-price">£25<span class="plan-software-period">/mo</span></span>
+            </div>
+            <p class="plan-premium-sub">after trial · unlimited customers · free stamp</p>
           </label>
-          <label class="plan">
+          <label class="plan plan-premium">
             <input type="radio" name="plan" value="multi">
-            <div class="plan-title">Multi-site</div>
-            <div class="plan-price">Kit £35 · £59/mo after trial</div>
-            <div class="plan-price">Up to 5 locations — £59/mo after trial</div>
+            <div class="plan-premium-top">
+              <span class="plan-title">Multi-site</span>
+              <span class="plan-software-price">£59<span class="plan-software-period">/mo</span></span>
+            </div>
+            <p class="plan-premium-sub">after trial · up to 5 locations · free stamp</p>
           </label>
         </div>
 
-        <div class="price-box">
-          <div class="price-row"><span>Loyalty stamp</span><span>£35</span></div>
-          <div class="price-row" id="sub-line" style="display:none"><span>Software</span><span></span></div>
-          <div class="price-total price-row"><span>Due today</span><span>£35</span></div>
-          <p class="note" style="margin-top:0.75rem;margin-bottom:0">14-day free trial starts when you go live in the app — not today.</p>
+        <div class="price-box price-box-premium">
+          <div class="price-row price-row-muted" id="sub-line"><span>Software (after trial)</span><span id="sub-amount">Free</span></div>
+          <div class="price-total price-row"><span>Due today</span><span id="due-today">£0</span></div>
+          <p class="note note-tight" id="trial-line">14-day software trial starts when you go live — not at signup.</p>
+          <p class="note note-tight hidden" id="card-line">Pro and Multi-site require a card on file — you are not charged until after your trial.</p>
         </div>
 
-        <p class="step-label" style="margin-top:1rem">Your account</p>
+        <p class="step-label">Your account</p>
         <label for="owner_name">Your name</label>
         <input id="owner_name" name="owner_name" required placeholder="Alex Morgan" autocomplete="name">
         <label for="business_name">Business name</label>
-        <input id="business_name" name="business_name" required placeholder="Blue Bottle Coffee">
+        <input id="business_name" name="business_name" required placeholder="Corner">
         <label for="email">Email</label>
         <input id="email" name="email" type="email" required placeholder="owner@cafe.com" autocomplete="email">
-        <label for="password">Password (for owner app)</label>
+        <label for="password">Password (owner app)</label>
         <input id="password" name="password" type="password" required minlength="8" placeholder="Min. 8 characters" autocomplete="new-password">
 
-        <p class="step-label" style="margin-top:0.5rem">Shipping address</p>
+        <p class="step-label">Shipping</p>
         <label for="shipping_address_line1">Address</label>
         <input id="shipping_address_line1" name="shipping_address_line1" required placeholder="123 High Street">
         <label for="city">City</label>
@@ -72,13 +78,12 @@
         <label for="shipping_phone">Phone (optional)</label>
         <input id="shipping_phone" name="shipping_phone" type="tel" placeholder="07…">
 
-        <button class="btn btn-block" type="submit" id="submit-btn">Continue to payment →</button>
+        <button class="btn btn-block" type="submit" id="submit-btn">Create account →</button>
       </form>
-      <p class="note">Customers never need an app — they tap your stamp and add their card to Apple Wallet or Google Wallet.</p>
-      <p class="note" style="margin-top:0.75rem">After payment, sign in to the owner app with the email and password above to track your stamp and go live.</p>
+      <p class="note">Customers tap your stamp and add their card to Apple Wallet or Google Wallet — no app download.</p>
     </div>
   </div>
-  <script src="/assets/config.js"></script>
-  <script src="/assets/order.js"></script>
+  <script src="/assets/config.js?v=4"></script>
+  <script src="/assets/order.js?v=4"></script>
 </body>
 </html>

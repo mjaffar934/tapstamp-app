@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
-import { Image, Pressable, View, StyleSheet, Switch, ActivityIndicator, Alert } from 'react-native';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Image, Pressable, View, StyleSheet, Switch, ActivityIndicator } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTapStampAlert } from '@/contexts/AlertContext';
 import { useOwnerCafe } from '@/hooks/useOwnerCafe';
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import { uploadCafeLogo } from '@/lib/api';
 import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -12,7 +15,7 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { ExpandableWalletPreview } from '@/components/ExpandableWalletPreview';
-import { TAPSTAMP_BRAND } from '@/constants/tapstampBrand';
+import { resolveCafePassColors } from '@/lib/passTemplates';
 import { colors, radius, spacing } from '@/constants/theme';
 
 function parseAmount(value: string): number | null {
@@ -28,18 +31,54 @@ function formatAmount(value: number | null): string {
 
 const SATURDAY_DOUBLE = [{ day: 6, start: '00:00', end: '23:59' }];
 
+interface CardFormState {
+  minSpendEnabled: boolean;
+  amountText: string;
+  showCustomerName: boolean;
+  collectDetails: boolean;
+  collectNameOnly: boolean;
+  collectBirthday: boolean;
+  reward: string;
+  stampGoal: string;
+  cooldownHours: string;
+  doubleStampSaturday: boolean;
+  welcomeMessage: string;
+  stampMessage: string;
+  rewardMessage: string;
+}
+
+function formFromCafe(cafe: NonNullable<ReturnType<typeof useOwnerCafe>['cafe']>): CardFormState {
+  return {
+    minSpendEnabled: cafe.minimum_spend != null && cafe.minimum_spend > 0,
+    amountText: cafe.minimum_spend ? formatAmount(Number(cafe.minimum_spend)) : '',
+    showCustomerName: (cafe.collect_customer_details ?? false) && (cafe.show_customer_name_on_pass ?? true),
+    collectDetails: cafe.collect_customer_details ?? false,
+    collectNameOnly: cafe.collect_name_only ?? false,
+    collectBirthday: cafe.collect_birthday ?? false,
+    reward: cafe.reward ?? 'Free coffee',
+    stampGoal: String(cafe.stamp_goal ?? 10),
+    cooldownHours: cafe.stamp_cooldown_hours ? String(cafe.stamp_cooldown_hours) : '',
+    doubleStampSaturday: (cafe.double_stamp_hours?.length ?? 0) > 0,
+    welcomeMessage: cafe.welcome_message ?? '',
+    stampMessage: cafe.stamp_message ?? '',
+    rewardMessage: cafe.reward_message ?? '',
+  };
+}
+
 export default function CardSettingsScreen() {
   const { business } = useAuth();
   const { cafe, isLoading, isSaving, error, saveMinimumSpend, saveCardPreferences, updateCafe, refetch } =
     useOwnerCafe();
+  const alert = useTapStampAlert();
   const [minSpendEnabled, setMinSpendEnabled] = useState(false);
   const [amountText, setAmountText] = useState('');
   const [showCustomerName, setShowCustomerName] = useState(true);
   const [collectDetails, setCollectDetails] = useState(false);
+  const [collectNameOnly, setCollectNameOnly] = useState(false);
   const [collectBirthday, setCollectBirthday] = useState(false);
   const [reward, setReward] = useState('');
   const [stampGoal, setStampGoal] = useState('10');
-  const [cooldownHours, setCooldownHours] = useState('4');
+  const [cooldownHours, setCooldownHours] = useState('');
   const [doubleStampSaturday, setDoubleStampSaturday] = useState(false);
   const [welcomeMessage, setWelcomeMessage] = useState('');
   const [stampMessage, setStampMessage] = useState('');
@@ -47,30 +86,131 @@ export default function CardSettingsScreen() {
   const [logoUri, setLogoUri] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [savedForm, setSavedForm] = useState<CardFormState | null>(null);
 
   useEffect(() => {
-    if (cafe) {
-      setMinSpendEnabled(cafe.minimum_spend != null && cafe.minimum_spend > 0);
-      setAmountText(cafe.minimum_spend ? formatAmount(Number(cafe.minimum_spend)) : '');
-      setShowCustomerName(cafe.show_customer_name_on_pass ?? true);
-      setCollectDetails(cafe.collect_customer_details ?? false);
-      setCollectBirthday(cafe.collect_birthday ?? false);
-      setReward(cafe.reward ?? 'Free coffee');
-      setStampGoal(String(cafe.stamp_goal ?? 10));
-      setCooldownHours(String(cafe.stamp_cooldown_hours ?? 4));
-      setDoubleStampSaturday((cafe.double_stamp_hours?.length ?? 0) > 0);
-      setWelcomeMessage(cafe.welcome_message ?? '');
-      setStampMessage(cafe.stamp_message ?? '');
-      setRewardMessage(cafe.reward_message ?? '');
-      setLogoUri(cafe.logo_url);
-    }
+    if (!cafe) return;
+    const form = formFromCafe(cafe);
+    setMinSpendEnabled(form.minSpendEnabled);
+    setAmountText(form.amountText);
+    setShowCustomerName(form.showCustomerName);
+    setCollectDetails(form.collectDetails);
+    setCollectNameOnly(form.collectNameOnly);
+    setCollectBirthday(form.collectBirthday);
+    setReward(form.reward);
+    setStampGoal(form.stampGoal);
+    setCooldownHours(form.cooldownHours);
+    setDoubleStampSaturday(form.doubleStampSaturday);
+    setWelcomeMessage(form.welcomeMessage);
+    setStampMessage(form.stampMessage);
+    setRewardMessage(form.rewardMessage);
+    setLogoUri(cafe.logo_url);
+    setSavedForm(form);
+    setSaved(false);
   }, [cafe]);
+
+  const currentForm = useMemo<CardFormState>(
+    () => ({
+      minSpendEnabled,
+      amountText,
+      showCustomerName,
+      collectDetails,
+      collectNameOnly,
+      collectBirthday,
+      reward,
+      stampGoal,
+      cooldownHours,
+      doubleStampSaturday,
+      welcomeMessage,
+      stampMessage,
+      rewardMessage,
+    }),
+    [
+      minSpendEnabled,
+      amountText,
+      showCustomerName,
+      collectDetails,
+      collectNameOnly,
+      collectBirthday,
+      reward,
+      stampGoal,
+      cooldownHours,
+      doubleStampSaturday,
+      welcomeMessage,
+      stampMessage,
+      rewardMessage,
+    ],
+  );
+
+  const isDirty = savedForm != null && JSON.stringify(currentForm) !== JSON.stringify(savedForm);
+
+  const handleSave = useCallback(async (): Promise<boolean> => {
+    setSaved(false);
+    const amount = parseAmount(amountText);
+    const spendResult = await saveMinimumSpend(minSpendEnabled, amount);
+    if (spendResult.error) return false;
+
+    const prefsResult = await saveCardPreferences({
+      show_customer_name_on_pass: collectDetails && showCustomerName,
+      collect_customer_details: collectDetails,
+      collect_name_only: collectDetails && collectNameOnly,
+      collect_birthday: collectDetails && !collectNameOnly && collectBirthday,
+    });
+    if (prefsResult.error) return false;
+
+    const goal = parseInt(stampGoal, 10);
+    const cooldown = parseInt(cooldownHours, 10);
+    const rewardResult = await updateCafe({
+      reward: reward.trim() || 'Free coffee',
+      stamp_goal: goal > 0 ? goal : 10,
+      stamp_cooldown_hours: cooldownHours.trim() === '' || !Number.isFinite(cooldown) || cooldown <= 0 ? 0 : cooldown,
+      double_stamp_hours: doubleStampSaturday ? SATURDAY_DOUBLE : [],
+      welcome_message: welcomeMessage.trim() || null,
+      stamp_message: stampMessage.trim() || null,
+      reward_message: rewardMessage.trim() || null,
+    });
+    if (rewardResult.error) return false;
+
+    setSavedForm(currentForm);
+    setSaved(true);
+    return true;
+  }, [
+    amountText,
+    collectBirthday,
+    collectDetails,
+    collectNameOnly,
+    cooldownHours,
+    currentForm,
+    doubleStampSaturday,
+    minSpendEnabled,
+    reward,
+    rewardMessage,
+    saveCardPreferences,
+    saveMinimumSpend,
+    showCustomerName,
+    stampGoal,
+    stampMessage,
+    updateCafe,
+    welcomeMessage,
+  ]);
+
+  const onSaveFromUi = async () => {
+    const ok = await handleSave();
+    if (ok) {
+      alert('Saved', 'Your card settings have been updated.');
+    }
+  };
+
+  const { confirmLeave } = useUnsavedChangesGuard({
+    isDirty,
+    onSave: handleSave,
+  });
 
   const pickLogo = async () => {
     if (!cafe?.id) return;
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permission needed', 'Allow photo access to upload your logo.');
+      alert('Permission needed', 'Allow photo access to upload your logo.');
       return;
     }
 
@@ -88,42 +228,12 @@ export default function CardSettingsScreen() {
     setUploadingLogo(false);
 
     if (upload.error) {
-      Alert.alert('Upload failed', upload.error);
+      alert('Upload failed', upload.error);
       return;
     }
 
     setLogoUri(upload.url ?? result.assets[0].uri);
     await refetch();
-  };
-
-  const handleSave = async () => {
-    setSaved(false);
-    const amount = parseAmount(amountText);
-    const spendResult = await saveMinimumSpend(minSpendEnabled, amount);
-    if (spendResult.error) return;
-
-    const prefsResult = await saveCardPreferences({
-      show_customer_name_on_pass: showCustomerName,
-      collect_customer_details: collectDetails,
-      collect_birthday: collectBirthday,
-    });
-    if (prefsResult.error) return;
-
-    const goal = parseInt(stampGoal, 10);
-    const cooldown = parseInt(cooldownHours, 10);
-    const rewardResult = await updateCafe({
-      reward: reward.trim() || 'Free coffee',
-      stamp_goal: goal > 0 ? goal : 10,
-      stamp_cooldown_hours: cooldown > 0 ? cooldown : 4,
-      double_stamp_hours: doubleStampSaturday ? SATURDAY_DOUBLE : [],
-      welcome_message: welcomeMessage.trim() || null,
-      stamp_message: stampMessage.trim() || null,
-      reward_message: rewardMessage.trim() || null,
-    });
-    if (!rewardResult.error) {
-      setSaved(true);
-      Alert.alert('Saved', 'Your card settings have been updated.');
-    }
   };
 
   if (isLoading) {
@@ -137,10 +247,11 @@ export default function CardSettingsScreen() {
   }
 
   const goalNum = parseInt(stampGoal, 10) || 10;
+  const passColors = resolveCafePassColors(cafe);
 
   return (
     <Screen>
-      <BackHeader />
+      <BackHeader onBack={() => confirmLeave(() => { if (router.canGoBack()) router.back(); })} />
       <ScreenHeader
         compact
         title="Card settings"
@@ -155,17 +266,32 @@ export default function CardSettingsScreen() {
         </Card>
       ) : (
         <>
+          {isDirty ? (
+            <View style={styles.unsavedBanner}>
+              <Text variant="caption" color={colors.accentDark}>
+                You have unsaved changes — tap Save before leaving
+              </Text>
+            </View>
+          ) : null}
+
           <ExpandableWalletPreview
             businessName={business?.name ?? cafe.name}
-            backgroundColor={TAPSTAMP_BRAND.backgroundColor}
-            foregroundColor={TAPSTAMP_BRAND.foregroundColor}
-            labelColor={TAPSTAMP_BRAND.labelColor}
+            backgroundColor={passColors.backgroundColor}
+            foregroundColor={passColors.foregroundColor}
+            labelColor={passColors.labelColor}
             logoUri={logoUri}
             stampGoal={goalNum}
-            stampsFilled={Math.min(3, goalNum)}
+            stampsFilled={Math.min(2, goalNum)}
             reward={reward.trim() || 'Free coffee'}
-            showCustomerName={showCustomerName}
+            showCustomerName={showCustomerName && collectDetails}
             customerName="Alex"
+          />
+
+          <Button
+            title="Customise pass design"
+            variant="outline"
+            onPress={() => router.push('/(app)/(tabs)/settings/pass-design')}
+            style={{ marginBottom: spacing.md }}
           />
 
           <Card style={styles.section}>
@@ -198,8 +324,11 @@ export default function CardSettingsScreen() {
               value={cooldownHours}
               onChangeText={setCooldownHours}
               keyboardType="number-pad"
-              placeholder="4"
+              placeholder="Leave blank for no cooldown"
             />
+            <Text variant="caption" muted>
+              Customers can collect at most one stamp per day. Extra hours add wait time after that.
+            </Text>
             <View style={styles.row}>
               <View style={styles.rowText}>
                 <Text variant="h3">Double stamps on Saturday</Text>
@@ -217,26 +346,58 @@ export default function CardSettingsScreen() {
           <Card style={styles.section}>
             <View style={styles.row}>
               <View style={styles.rowText}>
-                <Text variant="h3">Show customer name</Text>
-                <Text variant="caption" muted>Display member name on the wallet pass header</Text>
-              </View>
-              <Switch
-                value={showCustomerName}
-                onValueChange={setShowCustomerName}
-                trackColor={{ false: colors.border, true: colors.accentMuted }}
-                thumbColor={showCustomerName ? colors.accent : colors.surface}
-              />
-            </View>
-            <View style={styles.row}>
-              <View style={styles.rowText}>
                 <Text variant="h3">Collect customer details</Text>
-                <Text variant="caption" muted>Ask for name and email before adding to wallet</Text>
+                <Text variant="caption" muted>Ask customers for details before adding to wallet</Text>
               </View>
               <Switch
                 value={collectDetails}
-                onValueChange={setCollectDetails}
+                onValueChange={(value) => {
+                  setCollectDetails(value);
+                  if (!value) {
+                    setShowCustomerName(false);
+                    setCollectNameOnly(false);
+                    setCollectBirthday(false);
+                  }
+                }}
                 trackColor={{ false: colors.border, true: colors.accentMuted }}
                 thumbColor={collectDetails ? colors.accent : colors.surface}
+              />
+            </View>
+            {collectDetails ? (
+              <View style={styles.row}>
+                <View style={styles.rowText}>
+                  <Text variant="h3">Name only</Text>
+                  <Text variant="caption" muted>Just ask for first name — no email or birthday</Text>
+                </View>
+                <Switch
+                  value={collectNameOnly}
+                  onValueChange={(value) => {
+                    setCollectNameOnly(value);
+                    if (value) setCollectBirthday(false);
+                  }}
+                  trackColor={{ false: colors.border, true: colors.accentMuted }}
+                  thumbColor={collectNameOnly ? colors.accent : colors.surface}
+                />
+              </View>
+            ) : null}
+            <View style={styles.row}>
+              <View style={styles.rowText}>
+                <Text variant="h3">Show customer name</Text>
+                <Text variant="caption" muted>
+                  {collectDetails
+                    ? 'Display member name on the wallet pass'
+                    : 'Turn on customer details first to show names on passes'}
+                </Text>
+              </View>
+              <Switch
+                value={showCustomerName && collectDetails}
+                onValueChange={(value) => {
+                  if (!collectDetails) return;
+                  setShowCustomerName(value);
+                }}
+                disabled={!collectDetails}
+                trackColor={{ false: colors.border, true: colors.accentMuted }}
+                thumbColor={showCustomerName && collectDetails ? colors.accent : colors.surface}
               />
             </View>
             <View style={styles.row}>
@@ -247,6 +408,7 @@ export default function CardSettingsScreen() {
               <Switch
                 value={collectBirthday}
                 onValueChange={setCollectBirthday}
+                disabled={!collectDetails || collectNameOnly}
                 trackColor={{ false: colors.border, true: colors.accentMuted }}
                 thumbColor={collectBirthday ? colors.accent : colors.surface}
               />
@@ -262,11 +424,14 @@ export default function CardSettingsScreen() {
               placeholder="Thanks for joining!"
             />
             <Input
-              label="Stamp message"
+              label="Thanks message"
               value={stampMessage}
               onChangeText={setStampMessage}
-              placeholder="See you again soon"
+              placeholder="Thanks for visiting — see you again soon!"
             />
+            <Text variant="caption" muted>
+              Shown on the thanks page after customers join and add their card to Wallet
+            </Text>
             <Input
               label="Reward message"
               value={rewardMessage}
@@ -302,8 +467,14 @@ export default function CardSettingsScreen() {
           </Card>
 
           {error ? <Text variant="caption" color={colors.error}>{error}</Text> : null}
-          {saved ? <Text variant="caption" color={colors.success}>Settings saved</Text> : null}
-          <Button title="Save changes" onPress={handleSave} loading={isSaving} />
+          {saved ? (
+            <View style={styles.savedBanner}>
+              <Text variant="body" color={colors.success} style={styles.savedText}>
+                Settings saved
+              </Text>
+            </View>
+          ) : null}
+          <Button title="Save changes" onPress={onSaveFromUi} loading={isSaving} />
         </>
       )}
     </Screen>
@@ -315,23 +486,26 @@ const styles = StyleSheet.create({
   section: { gap: spacing.md, marginBottom: spacing.lg },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   rowText: { flex: 1, gap: spacing.xs },
-  paletteGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  paletteCard: {
-    width: '47%',
-    padding: spacing.sm,
+  unsavedBanner: {
+    backgroundColor: colors.accentMuted,
     borderRadius: radius.md,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.xs,
+    borderColor: colors.accent,
   },
-  paletteCardActive: { borderColor: colors.accent, backgroundColor: colors.accentMuted },
-  paletteSwatches: { flexDirection: 'row', gap: 6 },
-  colorDot: {
-    width: 18,
-    height: 18,
-    borderRadius: radius.full,
+  savedBanner: {
+    backgroundColor: 'rgba(74, 124, 89, 0.12)',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.success,
+    alignItems: 'center',
+  },
+  savedText: {
+    fontWeight: '600',
+    fontSize: 16,
   },
   logoBox: {
     minHeight: 56,

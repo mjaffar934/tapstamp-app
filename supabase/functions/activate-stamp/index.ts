@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { startGoLiveTrial } from '../_shared/createOrder.ts';
 import { generateStaffCode } from '../_shared/staffCode.ts';
 import { SUPABASE_URL, supabase } from '../_shared/client.ts';
+import { ensureUniqueSlug } from '../_shared/cafeSlug.ts';
 import { json, slugFromEmail } from '../_shared/utils.ts';
 
 Deno.serve(async (req) => {
@@ -47,7 +48,24 @@ Deno.serve(async (req) => {
       return json({ error: 'No business record found' }, 404);
     }
 
-    if (business.onboarding_status === 'complete') {
+    const { data: ownerCafe } = await supabase
+      .from('cafes')
+      .select('id')
+      .or(`email.eq.${email},owner_email.eq.${email}`)
+      .maybeSingle();
+
+    let hasLinkedChip = false;
+    if (ownerCafe?.id) {
+      const { data: linkedChip } = await supabase
+        .from('chips')
+        .select('id')
+        .eq('cafe_id', ownerCafe.id)
+        .limit(1)
+        .maybeSingle();
+      hasLinkedChip = Boolean(linkedChip);
+    }
+
+    if (business.onboarding_status === 'complete' && hasLinkedChip) {
       return json({ error: 'Account already activated' }, 400);
     }
 
@@ -62,13 +80,13 @@ Deno.serve(async (req) => {
     }
 
     if (chip.cafe_id) {
-      const { data: ownerCafe } = await supabase
+      const { data: ownerCafeMatch } = await supabase
         .from('cafes')
         .select('id')
-        .eq('email', email)
+        .or(`email.eq.${email},owner_email.eq.${email}`)
         .maybeSingle();
 
-      if (ownerCafe?.id === chip.cafe_id) {
+      if (ownerCafeMatch?.id === chip.cafe_id) {
         if (business.onboarding_status === 'pending_activation') {
           await supabase.from('businesses').update({
             email,
@@ -92,18 +110,25 @@ Deno.serve(async (req) => {
     const { data: existingCafe } = await supabase
       .from('cafes')
       .select('id')
-      .eq('email', email)
+      .or(`email.eq.${email},owner_email.eq.${email}`)
       .maybeSingle();
 
     if (existingCafe?.id) {
       cafeId = existingCafe.id as string;
+      await supabase.from('cafes').update({ owner_id: user.id }).eq('id', cafeId);
     } else {
+      const slug = await ensureUniqueSlug(
+        supabase,
+        slugFromEmail(email, `cafe-${user.id.slice(0, 8)}`),
+      );
+
       const { data: created, error: createError } = await supabase
         .from('cafes')
         .insert({
           name: business.name ?? 'My Business',
           email,
-          slug: slugFromEmail(email, `cafe-${user.id.slice(0, 8)}`),
+          owner_id: user.id,
+          slug,
           biz_type: 'cafe',
           plan,
           trial_ends_at: null,
@@ -126,7 +151,7 @@ Deno.serve(async (req) => {
 
     await supabase.from('businesses').update({
       email,
-      onboarding_status: 'ordered',
+      onboarding_status: business.onboarding_status === 'complete' ? 'complete' : 'ordered',
     }).eq('owner_id', user.id);
 
     return json({

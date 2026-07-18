@@ -1,6 +1,7 @@
-import { View, StyleSheet, Linking, ActivityIndicator, Alert } from 'react-native';
+import { View, StyleSheet, Linking, ActivityIndicator } from 'react-native';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTapStampAlert } from '@/contexts/AlertContext';
 import { useOwnerCafe } from '@/hooks/useOwnerCafe';
 import { useMonthlyUsage } from '@/hooks/useMonthlyUsage';
 import { openBillingPortal } from '@/lib/api';
@@ -12,7 +13,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { StarterUsageBanner } from '@/components/StarterUsageBanner';
 import { PLANS, STARTER_MONTHLY_CUSTOMER_LIMIT } from '@/constants/plans';
-import { SUPPORT_EMAIL } from '@/constants/config';
+import { SUPPORT_EMAIL, orderSignupUrl } from '@/constants/config';
 import { parsePlanId } from '@/constants/plans';
 import { shouldEnforceStarterLimit } from '@/lib/planUtils';
 import { colors, spacing } from '@/constants/theme';
@@ -22,6 +23,7 @@ export default function BillingScreen() {
   const { cafe, isLoading } = useOwnerCafe();
   const { uniqueCustomers, isLoading: usageLoading } = useMonthlyUsage(cafe?.id);
   const [portalLoading, setPortalLoading] = useState(false);
+  const alert = useTapStampAlert();
 
   const planId = parsePlanId(cafe?.plan ?? business?.plan_selected ?? undefined);
   const plan = PLANS[planId];
@@ -34,7 +36,7 @@ export default function BillingScreen() {
     setPortalLoading(false);
 
     if (result.error || !result.portalUrl) {
-      Alert.alert('Billing', result.error ?? 'Could not open billing portal');
+      alert('Billing', result.error ?? 'Could not open billing portal');
       return;
     }
 
@@ -45,7 +47,7 @@ export default function BillingScreen() {
     const url = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('TapStamp plan')}`;
     const canOpen = await Linking.canOpenURL(url);
     if (!canOpen) {
-      Alert.alert('Contact us', SUPPORT_EMAIL);
+      alert('Contact us', SUPPORT_EMAIL);
       return;
     }
     await Linking.openURL(url);
@@ -77,7 +79,7 @@ export default function BillingScreen() {
             <Text variant="h2">{plan.name}</Text>
             {planId === 'starter' ? (
               <Text variant="bodySmall" muted>
-                Free · up to {STARTER_MONTHLY_CUSTOMER_LIMIT} customers/month
+                Free · up to {STARTER_MONTHLY_CUSTOMER_LIMIT} unique customers/month (resets on the 1st)
               </Text>
             ) : (
               <Text variant="bodySmall" muted>{plan.tagline.replace(/after trial/gi, '').trim() || plan.tagline}</Text>
@@ -102,7 +104,22 @@ export default function BillingScreen() {
               loading={portalLoading}
               style={styles.cta}
             />
-          ) : null}
+          ) : (
+            <Card style={styles.card}>
+              <Text variant="bodySmall" muted>
+                Billing portal unlocks after you complete a plan order on tapstamp.co (creates your Stripe account).
+                Dev/test accounts created in-app won&apos;t have this until checkout.
+              </Text>
+              {orderSignupUrl('pro') ? (
+                <Button
+                  title="Upgrade on tapstamp.co"
+                  variant="outline"
+                  onPress={() => Linking.openURL(orderSignupUrl('pro'))}
+                  style={styles.cta}
+                />
+              ) : null}
+            </Card>
+          )}
 
           <Button title="Contact TapStamp" variant="outline" onPress={contactSupport} style={styles.cta} />
         </>

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { View, StyleSheet, Alert, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTapStampAlert } from '@/contexts/AlertContext';
 import { useOwnerCafe } from '@/hooks/useOwnerCafe';
 import { adminCreateClient } from '@/lib/api';
 import { ADMIN_PLAN_OPTIONS, ADMIN_SECRET, planLabel } from '@/constants/adminAuth';
@@ -24,19 +25,20 @@ export default function CreateClientScreen() {
   const [businessName, setBusinessName] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [plan, setPlan] = useState<PlanId>('starter');
+  const alert = useTapStampAlert();
   const [loading, setLoading] = useState(false);
 
   const submit = async () => {
     if (!ADMIN_SECRET) {
-      Alert.alert('Not configured', 'Add EXPO_PUBLIC_ADMIN_SECRET to .env (must match Supabase ADMIN_SECRET).');
+      alert('Not configured', 'Add EXPO_PUBLIC_ADMIN_SECRET to .env (must match Supabase ADMIN_SECRET).');
       return;
     }
     if (!email.trim() || !password || password.length < 8) {
-      Alert.alert('Missing details', 'Email and password (min 8 characters) are required.');
+      alert('Missing details', 'Email and password (min 8 characters) are required.');
       return;
     }
     if (!businessName.trim()) {
-      Alert.alert('Missing details', 'Business name is required.');
+      alert('Missing details', 'Business name is required.');
       return;
     }
 
@@ -52,13 +54,13 @@ export default function CreateClientScreen() {
     setLoading(false);
 
     if (result.error) {
-      Alert.alert('Could not create client', result.error);
+      alert('Could not create client', result.error);
       return;
     }
 
     await refetch();
 
-    Alert.alert(
+    alert(
       result.updated ? 'Client updated' : 'Client created',
       `${businessName.trim()} can sign in as ${email.trim().toLowerCase()}.\n\nPlan: ${planLabel(plan)}\n\nThey activate by tapping their TapStamp, then finish card setup in the app.`,
       [{ text: 'Done', onPress: () => router.back() }],

@@ -1,5 +1,6 @@
 import { supabase } from '../_shared/client.ts';
 import { buildPkpass } from '../_shared/pkpass.ts';
+import { ensureMemberCode } from '../_shared/memberCode.ts';
 import { lastPathSegment } from '../_shared/utils.ts';
 
 Deno.serve(async (req) => {
@@ -41,6 +42,15 @@ Deno.serve(async (req) => {
       .eq('cafe_id', pass.cafe_id)
       .order('stamp_count');
 
+    const now = new Date().toISOString();
+    await supabase
+      .from('passes')
+      .update({
+        updated_at: now,
+        ...(!pass.wallet_added_at ? { wallet_added_at: now } : {}),
+      })
+      .eq('serial_number', serial);
+
     const pkpass = await buildPkpass({
       cafe,
       serialNumber: pass.serial_number,
@@ -48,8 +58,10 @@ Deno.serve(async (req) => {
       stampCount: pass.stamp_count,
       status: pass.status,
       customerName: pass.customer_name,
+      memberCode: await ensureMemberCode(pass, String(pass.cafe_id)),
       lifetimeStamps: pass.lifetime_stamps,
       tiers: tiers ?? [],
+      pendingMilestoneReward: pass.pending_milestone_reward ?? null,
     });
 
     return new Response(pkpass, {
@@ -57,6 +69,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/vnd.apple.pkpass',
         'Content-Disposition': `attachment; filename="${serial}.pkpass"`,
         'Cache-Control': 'no-store',
+        'Last-Modified': new Date(now).toUTCString(),
       },
     });
   } catch (err) {

@@ -471,6 +471,12 @@ entrypoint = "./functions/campaign/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/campaign/*.html" ]
 
+[functions.ai-pass-design]
+enabled = true
+verify_jwt = false
+import_map = "./functions/ai-pass-design/deno.json"
+entrypoint = "./functions/ai-pass-design/index.ts"
+
 [functions.tiers]
 enabled = true
 verify_jwt = false

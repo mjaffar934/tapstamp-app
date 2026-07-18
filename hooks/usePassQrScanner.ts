@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useTapStampAlert } from '@/contexts/AlertContext';
 
 /** Extract a pass serial from wallet QR content (raw UUID or encoded URL). */
 export function parsePassSerialFromQr(data: string): string | null {
@@ -21,7 +22,6 @@ export function parsePassSerialFromQr(data: string): string | null {
         return part.toLowerCase();
       }
     }
-    // Tap / pass URLs — last segment may be chip code, not a pass serial
     if (parts.some((p) => p === 'tap' || p === 'pass' || p === 'wallet')) {
       return null;
     }
@@ -36,28 +36,45 @@ export function parsePassSerialFromQr(data: string): string | null {
   return null;
 }
 
-interface UsePassQrScannerOptions {
-  onSerial: (serial: string) => void;
+/** Short member codes shown on the pass (usually 4 digits). */
+export function parseMemberCodeFromQr(data: string): string | null {
+  const trimmed = data.trim();
+  if (/^\d{4,8}$/.test(trimmed)) return trimmed;
+  const labeled = trimmed.match(/(?:member|code)[#:\s]*(\d{4,8})/i);
+  return labeled?.[1] ?? null;
 }
 
-export function usePassQrScanner({ onSerial }: UsePassQrScannerOptions) {
+interface UsePassQrScannerOptions {
+  onSerial: (serial: string) => void;
+  onMemberCode?: (code: string) => void;
+}
+
+export function usePassQrScanner({ onSerial, onMemberCode }: UsePassQrScannerOptions) {
   const [permission, requestPermission] = useCameraPermissions();
-  const handlerRef = useRef(onSerial);
-  handlerRef.current = onSerial;
+  const serialRef = useRef(onSerial);
+  const codeRef = useRef(onMemberCode);
+  const alert = useTapStampAlert();
+  serialRef.current = onSerial;
+  codeRef.current = onMemberCode;
 
   useEffect(() => {
     if (!CameraView.onModernBarcodeScanned) return undefined;
 
     const subscription = CameraView.onModernBarcodeScanned(({ data }) => {
       const serial = parsePassSerialFromQr(data);
-      if (!serial) {
-        Alert.alert(
-          'Not a customer pass',
-          'Scan the QR on the customer\'s Google Wallet loyalty pass. Your cafe tap-link QR won\'t work here.',
-        );
+      if (serial) {
+        serialRef.current(serial);
         return;
       }
-      handlerRef.current(serial);
+      const code = parseMemberCodeFromQr(data);
+      if (code && codeRef.current) {
+        codeRef.current(code);
+        return;
+      }
+      alert(
+        'Not a customer pass',
+        'Scan the QR on the customer\'s Wallet pass, or search by their member code.',
+      );
     });
 
     return () => subscription.remove();
@@ -67,7 +84,7 @@ export function usePassQrScanner({ onSerial }: UsePassQrScannerOptions) {
     if (!permission?.granted) {
       const result = await requestPermission();
       if (!result.granted) {
-        Alert.alert(
+        alert(
           'Camera needed',
           'Allow camera access to scan a customer\'s wallet pass QR code.',
         );
@@ -84,11 +101,11 @@ export function usePassQrScanner({ onSerial }: UsePassQrScannerOptions) {
       }
     }
 
-    Alert.alert(
+    alert(
       'Scanner unavailable',
       Platform.OS === 'web'
         ? 'QR scanning is not supported in the browser.'
-        : 'Rebuild the app with expo-camera, or paste the pass serial below.',
+        : 'Rebuild the app with expo-camera, or search by member code below.',
     );
   }, [permission?.granted, requestPermission]);
 

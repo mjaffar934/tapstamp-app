@@ -14,6 +14,7 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textMuted,
+        freezeOnBlur: true,
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.borderLight,

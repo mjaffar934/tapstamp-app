@@ -31,13 +31,33 @@
     });
   });
 
+  function isPaidPlan(planId) {
+    return planId === 'pro' || planId === 'multi';
+  }
+
   function updateSummary() {
     var selected = document.querySelector('input[name=plan]:checked');
     if (!selected) return;
     var p = cfg.PLANS[selected.value];
     var sub = document.getElementById('sub-line');
-    if (sub) sub.style.display = p.monthly ? 'flex' : 'none';
-    if (sub && p.monthly) sub.querySelector('span:last-child').textContent = '£' + p.monthly + '/mo after trial';
+    var subAmount = document.getElementById('sub-amount');
+    var dueToday = document.getElementById('due-today');
+    var cardLine = document.getElementById('card-line');
+    var btn = document.getElementById('submit-btn');
+
+    if (subAmount) {
+      subAmount.textContent = p.monthly == null ? 'Free' : '£' + p.monthly + '/mo';
+    }
+    if (dueToday) dueToday.textContent = '£0';
+    if (sub) sub.style.display = 'flex';
+    if (cardLine) {
+      cardLine.classList.toggle('hidden', !isPaidPlan(selected.value));
+    }
+    if (btn) {
+      btn.textContent = isPaidPlan(selected.value)
+        ? 'Continue to card setup →'
+        : 'Create account →';
+    }
   }
   updateSummary();
 
@@ -66,8 +86,9 @@
       return;
     }
 
+    var paid = isPaidPlan(body.plan);
     btn.disabled = true;
-    btn.textContent = 'Creating checkout…';
+    btn.textContent = paid ? 'Starting card setup…' : 'Creating account…';
 
     try {
       var res = await fetch(cfg.CHECKOUT_API, {
@@ -76,18 +97,22 @@
         body: JSON.stringify(body),
       });
       var data = await res.json();
+      if (data.accountReady && data.email) {
+        location.href = '/order/success?signup=1&email=' + encodeURIComponent(data.email) + '&plan=' + encodeURIComponent(data.plan || body.plan);
+        return;
+      }
       if (data.checkoutUrl) {
         location.href = data.checkoutUrl;
         return;
       }
-      errEl.textContent = data.message || data.error || 'Could not start checkout';
+      errEl.textContent = data.message || data.error || 'Could not complete signup';
       errEl.classList.remove('hidden');
     } catch (err) {
       errEl.textContent = 'Network error — try again';
       errEl.classList.remove('hidden');
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Continue to payment →';
+      updateSummary();
     }
   });
 })();

@@ -3,8 +3,10 @@ import { supabase } from './supabase';
 /** Owner app + webhooks — always Supabase (JSON APIs) */
 const supabaseApiBase = process.env.EXPO_PUBLIC_SUPABASE_URL?.replace(/\/$/, '');
 
-/** Customer-facing tap/pass URLs — Supabase project URL or custom domain */
+/** Customer-facing tap/pass URLs — tapstamp.co preferred */
 const publicTapBase = (
+  process.env.EXPO_PUBLIC_TAP_BASE_URL ??
+  process.env.EXPO_PUBLIC_ORDER_WEBSITE_URL ??
   process.env.EXPO_PUBLIC_FUNCTIONS_URL ??
   process.env.EXPO_PUBLIC_SUPABASE_URL
 )?.replace(/\/$/, '');
@@ -16,7 +18,11 @@ function supabaseFn(path: string): string {
 
 function publicPath(segment: string): string {
   if (!publicTapBase) return '';
-  return `${publicTapBase}/functions/v1${segment}`;
+  const path = segment.startsWith('/') ? segment : `/${segment}`;
+  if (!publicTapBase.includes('supabase.co')) {
+    return `${publicTapBase}${path}`;
+  }
+  return `${publicTapBase}/functions/v1${path}`;
 }
 
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
@@ -40,6 +46,21 @@ export function publicEdgeHeaders(contentType = 'application/json'): Record<stri
   const headers: Record<string, string> = { 'Content-Type': contentType };
   if (supabaseAnonKey) headers.apikey = supabaseAnonKey;
   return headers;
+}
+
+async function parseJsonResponse<T extends Record<string, unknown>>(
+  res: Response,
+  fallbackError: string,
+): Promise<T & { error?: string }> {
+  const text = await res.text();
+  if (!text.trim()) {
+    return { error: res.ok ? fallbackError : `${fallbackError} (${res.status})` } as T & { error?: string };
+  }
+  try {
+    return JSON.parse(text) as T & { error?: string };
+  } catch {
+    return { error: res.ok ? 'Invalid server response' : `${fallbackError} (${res.status})` };
+  }
 }
 
 export async function callBaristaAction(
@@ -69,7 +90,11 @@ export async function callBaristaAction(
     body: JSON.stringify(body),
   });
 
-  const data = await res.json();
+  const data = await parseJsonResponse<{
+    success?: boolean;
+    stampCount?: number;
+    minimumSpend?: number;
+  }>(res, 'Action failed');
   if (!res.ok) return { error: data.error ?? 'Action failed', ...data };
   return data;
 }
@@ -95,15 +120,17 @@ export async function lookupBaristaPass(
   serial: string,
   options?: { staffMode?: boolean },
 ): Promise<{ error?: string; pass?: import('@/hooks/useBaristaData').BaristaPass }> {
-  const normalized = serial.trim().toLowerCase();
-  if (!normalized) return { error: 'Enter a pass serial' };
+  const normalized = serial.trim();
+  if (!normalized) return { error: 'Enter a name, code, or pass serial' };
 
-  if (!options?.staffMode) {
+  const isMemberCode = /^\d{4}$/.test(normalized);
+
+  if (!options?.staffMode && !isMemberCode) {
     const { data, error } = await supabase
       .from('passes')
-      .select('id, serial_number, customer_name, stamp_count, status, last_stamp_at')
+      .select('id, serial_number, customer_name, member_code, stamp_count, status, last_stamp_at')
       .eq('cafe_id', cafeId)
-      .ilike('serial_number', normalized)
+      .ilike('serial_number', normalized.toLowerCase())
       .maybeSingle();
 
     if (error) return { error: error.message };
@@ -112,11 +139,17 @@ export async function lookupBaristaPass(
 
   if (!supabaseApiBase) return { error: 'Supabase not configured' };
 
+  const lookupParam = isMemberCode
+    ? `code=${encodeURIComponent(normalized)}`
+    : `serial=${encodeURIComponent(normalized.toLowerCase())}`;
   const res = await fetch(
-    `${supabaseFn(`/barista/${cafeId}`)}?serial=${encodeURIComponent(normalized)}`,
+    `${supabaseFn(`/barista/${cafeId}`)}?${lookupParam}`,
     { headers: publicEdgeHeaders() },
   );
-  const data = await res.json();
+  const data = await parseJsonResponse<{ pass?: import('@/hooks/useBaristaData').BaristaPass }>(
+    res,
+    'Lookup failed',
+  );
   if (!res.ok) return { error: data.error ?? 'Lookup failed' };
   if (!data.pass) return { error: 'No pass found for this cafe. Customer must tap your stamp first.' };
   return { pass: data.pass };
@@ -125,23 +158,29 @@ export async function lookupBaristaPass(
 export async function sendCampaign(
   cafeId: string,
   message: string,
-): Promise<{ error?: string; sent?: number }> {
+  schedule?: { startsAt?: string | null; endsAt?: string | null },
+): Promise<{ error?: string; cleared?: boolean; sent?: number }> {
   if (!supabaseApiBase) return { error: 'Supabase not configured' };
 
   const res = await fetch(`${supabaseFn(`/campaign/${cafeId}`)}`, {
     method: 'POST',
     headers: await authHeaders(),
-    body: JSON.stringify({ message: message.trim() }),
+    body: JSON.stringify({
+      message: message.trim(),
+      starts_at: schedule?.startsAt ?? null,
+      ends_at: schedule?.endsAt ?? null,
+    }),
   });
 
-  const data = await res.json();
+  const data = await parseJsonResponse<{ cleared?: boolean; sent?: number }>(res, 'Send failed');
   if (!res.ok) return { error: data.error ?? 'Send failed' };
-  return { sent: data.sent ?? 0 };
+  return data;
 }
 
 export interface ProvisionCafePayload {
   name?: string;
   biz_type?: string;
+  pass_template?: string;
   background_color?: string;
   foreground_color?: string;
   label_color?: string;
@@ -291,19 +330,129 @@ export async function adminCreateClient(
   return data;
 }
 
+import { File } from 'expo-file-system';
+
+function logoContentType(uri: string): string {
+  const lower = uri.toLowerCase();
+  if (lower.includes('.png')) return 'image/png';
+  if (lower.includes('.webp')) return 'image/webp';
+  return 'image/jpeg';
+}
+
 export async function uploadCafeLogo(cafeId: string, logoUri: string): Promise<{ error?: string; url?: string }> {
   if (!supabaseApiBase) return { error: 'Supabase not configured' };
 
-  const blob = await fetch(logoUri).then((res) => res.blob());
+  const contentType = logoContentType(logoUri);
+  const file = new File(logoUri);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+
   const res = await fetch(supabaseFn(`/upload-logo/${cafeId}`), {
     method: 'POST',
-    headers: await authHeaders(blob.type || 'image/png'),
-    body: blob,
+    headers: await authHeaders(contentType),
+    body: bytes,
   });
 
   const data = await res.json();
   if (!res.ok) return { error: data.error ?? 'Upload failed' };
   return { url: data.url };
+}
+
+export async function uploadCafeStrip(cafeId: string, stripUri: string): Promise<{ error?: string; url?: string }> {
+  if (!supabaseApiBase) return { error: 'Supabase not configured' };
+
+  const contentType = logoContentType(stripUri);
+  const file = new File(stripUri);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+
+  const res = await fetch(supabaseFn(`/upload-logo/${cafeId}?kind=strip`), {
+    method: 'POST',
+    headers: await authHeaders(contentType),
+    body: bytes,
+  });
+
+  const data = await res.json();
+  if (!res.ok) return { error: data.error ?? 'Upload failed' };
+  return { url: data.url };
+}
+
+export async function designPassWithAi(
+  cafeId?: string | null,
+  options?: {
+    bizType?: string | null;
+    apply?: boolean;
+    quiz?: {
+      program_mode?: string;
+      reward?: string;
+      stamp_goal?: number;
+      levels?: Array<{ stamp_count: number; reward: string }>;
+      visit_frequency?: string;
+      goal_priority?: string;
+      business_name?: string;
+      sells?: string;
+      brand_colour?: string;
+      vibe?: string;
+    };
+    /** Prefer cafe.pass_design_quiz when regenerating after onboarding lock */
+    useLockedQuiz?: boolean;
+  },
+): Promise<{
+  error?: string;
+  suggestion?: {
+    pass_template: 'classic';
+    background_color: string;
+    foreground_color: string;
+    label_color: string;
+    welcome_message: string;
+    stamp_message: string;
+    reward_message: string;
+    reward?: string;
+    stamp_goal?: number;
+    levels?: Array<{ stamp_count: number; reward: string }>;
+    rationale: string;
+  };
+  applied?: boolean;
+  source?: 'ai' | 'fallback';
+  fallback_reason?: string | null;
+}> {
+  if (!supabaseApiBase) return { error: 'Supabase not configured' };
+
+  try {
+    const path = cafeId ? `/ai-pass-design/${cafeId}` : '/ai-pass-design';
+    const res = await fetch(supabaseFn(path), {
+      method: 'POST',
+      headers: await authHeaders(),
+      body: JSON.stringify({
+        biz_type: options?.bizType ?? undefined,
+        apply: options?.apply === true,
+        quiz: options?.quiz ?? undefined,
+        use_locked_quiz: options?.useLockedQuiz === true,
+      }),
+    });
+
+    const data = await parseJsonResponse<{
+      suggestion?: {
+        pass_template: 'classic';
+        background_color: string;
+        foreground_color: string;
+        label_color: string;
+        welcome_message: string;
+        stamp_message: string;
+        reward_message: string;
+        reward?: string;
+        stamp_goal?: number;
+        levels?: Array<{ stamp_count: number; reward: string }>;
+        rationale: string;
+      };
+      applied?: boolean;
+      source?: 'ai' | 'fallback';
+      fallback_reason?: string | null;
+    }>(res, 'AI design failed');
+
+    if (!res.ok) return { error: data.error ?? 'AI design failed' };
+    return data;
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'AI design failed' };
+  }
 }
 
 export async function openBillingPortal(): Promise<{ error?: string; portalUrl?: string }> {
@@ -369,7 +518,6 @@ export async function createOrder(payload: {
 export function tapUrl(chipCode: string): string {
   return publicPath(`/tap/${chipCode}`);
 }
-
 export function chipLinkUrl(chipCode: string): string {
   return `tapstamp://link-chip/${chipCode}`;
 }

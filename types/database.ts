@@ -192,7 +192,17 @@ export interface Database {
       chips: TableDef<Chip, Partial<Chip>, Partial<Chip>>;
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      owner_dashboard_stats: {
+        Args: { p_cafe_id: string };
+        Returns: {
+          total_customers: number;
+          new_customers_this_month: number;
+          stamps_this_week: number;
+          redemptions_this_week: number;
+        };
+      };
+    };
     Enums: Record<string, never>;
   };
 }

@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
+import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { BackHeader } from '@/components/ui/BackHeader';
 import { OnboardingStepHeader } from '@/components/onboarding/OnboardingStepHeader';
@@ -21,6 +22,15 @@ const TYPES = [
 
 export default function BizTypeScreen() {
   const [selected, setSelected] = useState('cafe');
+  const [customType, setCustomType] = useState('');
+
+  const continueNext = async () => {
+    const bizType = selected === 'other'
+      ? (customType.trim() || 'other')
+      : selected;
+    await saveOnboardingDraft({ bizType });
+    router.push('/(onboarding)/logo-upload');
+  };
 
   return (
     <Screen>
@@ -28,7 +38,7 @@ export default function BizTypeScreen() {
       <OnboardingStepHeader
         step={1}
         title="What do you run?"
-        subtitle="We'll tailor your loyalty card to your business."
+        subtitle="Pick the closest match — you can fine-tune your card in the next steps."
       />
 
       <View style={styles.grid}>
@@ -53,12 +63,20 @@ export default function BizTypeScreen() {
         })}
       </View>
 
+      {selected === 'other' ? (
+        <Input
+          label="Your business type"
+          value={customType}
+          onChangeText={setCustomType}
+          placeholder="e.g. Barbershop, nail salon, gym"
+          autoCapitalize="words"
+        />
+      ) : null}
+
       <Button
         title="Continue"
-        onPress={async () => {
-          await saveOnboardingDraft({ bizType: selected });
-          router.push('/(onboarding)/logo-upload');
-        }}
+        onPress={() => void continueNext()}
+        disabled={selected === 'other' && !customType.trim()}
         style={styles.cta}
       />
     </Screen>
