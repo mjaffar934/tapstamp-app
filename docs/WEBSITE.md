@@ -98,7 +98,7 @@ Until Stripe secrets are configured, orders will fail at checkout with a server 
 
 ## Contact
 
-- Billing / upgrade: `hello@tapstamp.co`
+- Billing / upgrade: `support@tapstamp.com`
 - Support: same
 
 ## FAQ snippets (optional page)

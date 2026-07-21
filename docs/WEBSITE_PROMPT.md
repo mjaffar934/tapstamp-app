@@ -41,7 +41,7 @@ Detect the site's stack from the repo (Next.js static export, Astro, plain HTML,
 | Pro order | `https://tapstamp.co/order?plan=pro` |
 | Multi-site order | `https://tapstamp.co/order?plan=multi` |
 | Marketing home | `https://tapstamp.co/` |
-| Contact | `hello@tapstamp.co` |
+| Contact | `support@tapstamp.com` |
 
 > **Why not host the form on Supabase?** Supabase rewrites HTML to `text/plain` on `*.supabase.co`. The order form must live on tapstamp.co. The backend API handles account creation and Stripe redirect.
 

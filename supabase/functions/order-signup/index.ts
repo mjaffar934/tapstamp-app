@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
       if (!result.ok || !result.email) {
         return html(orderErrorPage(
           WEBSITE,
-          result.error ?? 'Could not confirm payment. Contact hello@tapstamp.co if you were charged.',
+          result.error ?? 'Could not confirm payment. Contact support@tapstamp.com if you were charged.',
           plan,
         ));
       }

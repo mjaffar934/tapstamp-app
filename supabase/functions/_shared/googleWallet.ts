@@ -218,7 +218,7 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
         id: 'support',
       },
       {
-        uri: 'mailto:hello@tapstamp.co',
+        uri: 'mailto:support@tapstamp.com',
         description: 'Email TapStamp',
         id: 'email',
       },

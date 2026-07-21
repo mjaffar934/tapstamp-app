@@ -8,7 +8,8 @@ Use this in Google Pay & Wallet Console → Business profile → Customer suppor
 
 **https://tapstamp.co/support**
 
-Email: `hello@tapstamp.co`
+Email: `support@tapstamp.com`  
+Setup / inbox access: see `docs/EMAIL.md`
 
 ## Why Add to Google Wallet fails today
 

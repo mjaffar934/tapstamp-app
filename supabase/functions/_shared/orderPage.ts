@@ -166,7 +166,7 @@ export function orderSuccessPage(
         <li>When your stamp arrives, customise your card and tap it on the counter to go live</li>
         <li>Your 14-day free trial starts at go-live — ${afterTrial}</li>
       </ol>
-      <p class="note" style="margin-top:1.25rem">Questions? <a href="mailto:hello@tapstamp.co">hello@tapstamp.co</a></p>
+      <p class="note" style="margin-top:1.25rem">Questions? <a href="mailto:support@tapstamp.com">support@tapstamp.com</a></p>
     </div>
     <p class="note" style="margin-top:1.5rem"><a href="${websiteUrl}">Return to tapstamp.co</a></p>
   `);
