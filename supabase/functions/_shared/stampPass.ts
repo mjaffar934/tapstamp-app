@@ -367,7 +367,7 @@ async function notifyPass(
       .order('stamp_count')
     : { data: [] as Array<{ stamp_count: number; reward: string }> };
 
-  await pushPassUpdate(freshPass?.push_token as string | null | undefined);
+  await pushPassUpdate(freshPass?.push_token as string | null | undefined, serial);
   await updateGoogleWalletObject({
     cafe,
     serialNumber: serial,

@@ -1,5 +1,6 @@
 import { create, getNumericDate } from 'https://deno.land/x/djwt@v2.8/mod.ts';
 import { pemToDer } from './pkcs7.ts';
+import { supabase } from './client.ts';
 
 const PASS_TYPE_ID = Deno.env.get('PASS_TYPE_ID') || 'pass.com.tapstamp.loyalty';
 const APNS_HOST = Deno.env.get('APNS_PRODUCTION') === 'false'
@@ -77,7 +78,7 @@ async function getTokenJwt(): Promise<string | undefined> {
   }
 }
 
-async function sendApns(pushToken: string): Promise<boolean> {
+async function sendApns(pushToken: string): Promise<'ok' | 'gone' | 'fail'> {
   const url = `https://${APNS_HOST}/3/device/${pushToken}`;
   const headers: Record<string, string> = {
     'apns-topic': PASS_TYPE_ID,
@@ -94,9 +95,10 @@ async function sendApns(pushToken: string): Promise<boolean> {
       body: '{}',
       client: certClient,
     });
-    if (res.ok || res.status === 410) return true;
+    if (res.ok) return 'ok';
+    if (res.status === 410) return 'gone';
     console.error('APNs cert push failed:', res.status, await res.text().catch(() => ''));
-    return false;
+    return 'fail';
   }
 
   const jwt = await getTokenJwt();
@@ -106,13 +108,14 @@ async function sendApns(pushToken: string): Promise<boolean> {
       headers: { ...headers, authorization: `bearer ${jwt}` },
       body: '{}',
     });
-    if (res.ok || res.status === 410) return true;
+    if (res.ok) return 'ok';
+    if (res.status === 410) return 'gone';
     console.error('APNs token push failed:', res.status, await res.text().catch(() => ''));
-    return false;
+    return 'fail';
   }
 
   console.warn('APNs not configured — set PASS_CERT/PASS_KEY or APN_KEY/APN_KEY_ID/APPLE_TEAM_ID');
-  return false;
+  return 'fail';
 }
 
 async function pushViaRailway(pushToken: string): Promise<boolean> {
@@ -135,7 +138,10 @@ async function pushViaRailway(pushToken: string): Promise<boolean> {
 }
 
 /** Sends a silent PassKit update push so Wallet re-fetches the pass. */
-export async function pushPassUpdate(pushToken: string | null | undefined): Promise<void> {
+export async function pushPassUpdate(
+  pushToken: string | null | undefined,
+  serialNumber?: string | null,
+): Promise<void> {
   if (!pushToken) {
     console.warn('Wallet push skipped: no push_token on pass (device not registered with PassKit)');
     return;
@@ -147,7 +153,20 @@ export async function pushPassUpdate(pushToken: string | null | undefined): Prom
   ]);
 
   const railwayOk = railway.status === 'fulfilled' && railway.value === true;
-  const directOk = direct.status === 'fulfilled' && direct.value === true;
+  const directResult = direct.status === 'fulfilled' ? direct.value : 'fail';
+  const directOk = directResult === 'ok';
+
+  if (directResult === 'gone' && serialNumber) {
+    try {
+      await supabase.from('passes').update({
+        push_token: null,
+        device_id: null,
+      }).eq('serial_number', serialNumber);
+      console.warn('Cleared stale push_token after APNs 410:', serialNumber);
+    } catch (err) {
+      console.error('Failed to clear stale push_token:', err);
+    }
+  }
 
   if (!railwayOk && !directOk) {
     console.error('All APNs push paths failed for token', pushToken.slice(0, 12));

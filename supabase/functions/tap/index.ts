@@ -4,7 +4,7 @@ import { countUniqueMonthlyCustomers } from '../_shared/usage.ts';
 import { normalizeCafeBillingState } from '../_shared/subscription.ts';
 import { applyStampToPass, applyRedeemRestartAndStamp, hasStampedToday, customerStampLimitsActive } from '../_shared/stampPass.ts';
 import { generateUniqueMemberCode, ensureMemberCode } from '../_shared/memberCode.ts';
-import { isGoogleWalletConfigured } from '../_shared/googleWallet.ts';
+import { isGoogleWalletConfigured, isGoogleWalletPublic } from '../_shared/googleWallet.ts';
 import { isDoubleStampWindow } from '../_shared/utils.ts';
 import { upgradeStarterAtCustomerLimit } from '../_shared/subscription.ts';
 import {
@@ -29,6 +29,7 @@ import {
   redeemReadyPage,
   rewardRedeemedPage,
   rewardRestartPage,
+  lostWalletPage,
   type CafeBrand,
 } from '../_shared/html.ts';
 
@@ -92,7 +93,7 @@ async function maybeShowRedeemAck(
   const count = Number(pass.stamp_count) || 0;
   const continued = count > 0;
   return html(
-    rewardRedeemedPage(brand, count, memberCode, continued),
+    rewardRedeemedPage(brand, count, memberCode, continued, serial),
     passCookie(cafeId, serial),
   );
 }
@@ -107,10 +108,11 @@ function isAndroid(req: Request): boolean {
   return /android/i.test(req.headers.get('user-agent') || '');
 }
 
-function walletSetupUrl(tapUrl: string, serial: string): string {
+function walletSetupUrl(tapUrl: string, serial: string, fromLost = false): string {
   const u = new URL(tapUrl);
   u.searchParams.set('setup', '1');
   u.searchParams.set('p', serial);
+  if (fromLost) u.searchParams.set('lost', '1');
   return u.toString();
 }
 
@@ -162,10 +164,22 @@ function walletSetupPage(
   tapUrl: string,
   cafeId: string,
   preferGoogle = false,
+  fromLostWallet = false,
 ): Response {
   const links = passLinks(serial, tapUrl);
   return html(
-    addToWalletPage(brand, count, links.apple, links.google, links.thanks, serial, cafeId, preferGoogle),
+    addToWalletPage(
+      brand,
+      count,
+      links.apple,
+      links.google,
+      links.thanks,
+      serial,
+      cafeId,
+      preferGoogle,
+      fromLostWallet,
+      Boolean(links.google) && !isGoogleWalletPublic(),
+    ),
     passCookie(cafeId, serial),
   );
 }
@@ -188,6 +202,7 @@ Deno.serve(async (req) => {
     const rewardView = url.searchParams.get('reward') === '1';
     const cooldownView = url.searchParams.get('cooldown') === '1';
     const restartedView = url.searchParams.get('restarted') === '1';
+    const lostWallet = url.searchParams.get('lost') === '1';
     const passSerial = url.searchParams.get('p')?.trim() || '';
     const android = isAndroid(req);
 
@@ -328,9 +343,28 @@ Deno.serve(async (req) => {
           );
         }
 
+        if (lostWallet && !setup) {
+          return html(
+            lostWalletPage(
+              brand,
+              pass.serial_number,
+              walletSetupUrl(tapUrl, pass.serial_number, true),
+            ),
+            cookie,
+          );
+        }
+
         // Always show Add to Wallet on setup (re-add after phone wipe / restore).
         if (setup) {
-          return walletSetupPage(brand, pass.serial_number, Number(pass.stamp_count), tapUrl, String(cafe.id), android);
+          return walletSetupPage(
+            brand,
+            pass.serial_number,
+            Number(pass.stamp_count),
+            tapUrl,
+            String(cafe.id),
+            android,
+            lostWallet,
+          );
         }
 
         if (welcome) {
@@ -390,8 +424,27 @@ Deno.serve(async (req) => {
           );
         }
 
+        if (lostWallet && !setup) {
+          return html(
+            lostWalletPage(
+              brand,
+              existingSerial,
+              walletSetupUrl(tapUrl, existingSerial, true),
+            ),
+            passCookie(String(cafe.id), existingSerial),
+          );
+        }
+
         if (setup) {
-          return walletSetupPage(brand, existingSerial, Number(pass.stamp_count), tapUrl, String(cafe.id), android);
+          return walletSetupPage(
+            brand,
+            existingSerial,
+            Number(pass.stamp_count),
+            tapUrl,
+            String(cafe.id),
+            android,
+            lostWallet,
+          );
         }
 
         if (welcome) {

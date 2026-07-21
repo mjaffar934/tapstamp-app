@@ -73,14 +73,24 @@ async function servePass(serial: string, req: Request): Promise<Response> {
     memberCode: await ensureMemberCode(pass, String(pass.cafe_id)),
     lifetimeStamps: pass.lifetime_stamps,
     tiers: tiers ?? [],
+    pendingMilestoneReward: pass.pending_milestone_reward ?? null,
   });
 
   const lastModified = pass.updated_at ?? pass.last_stamp_at ?? pass.created_at ?? new Date().toISOString();
+  const lastModifiedDate = new Date(lastModified);
+  const ifModifiedSince = req.headers.get('If-Modified-Since');
+  if (ifModifiedSince) {
+    const since = new Date(ifModifiedSince).getTime();
+    if (Number.isFinite(since) && lastModifiedDate.getTime() <= since) {
+      return new Response(null, { status: 304 });
+    }
+  }
 
   return new Response(pkpass, {
     headers: {
       'Content-Type': 'application/vnd.apple.pkpass',
-      'Last-Modified': new Date(lastModified).toUTCString(),
+      'Last-Modified': lastModifiedDate.toUTCString(),
+      'Cache-Control': 'no-store',
     },
   });
 }
@@ -165,7 +175,11 @@ Deno.serve(async (req) => {
 
       await supabase
         .from('passes')
-        .update({ push_token: pushToken, device_id: deviceId })
+        .update({
+          push_token: pushToken,
+          device_id: deviceId,
+          wallet_added_at: new Date().toISOString(),
+        })
         .eq('serial_number', serialNumber);
 
       console.log('PassKit registered:', serialNumber, 'device', deviceId.slice(0, 8));

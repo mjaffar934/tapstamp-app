@@ -1,6 +1,7 @@
 import { supabase } from '../_shared/client.ts';
 import {
   buildGoogleWalletSaveUrl,
+  googleWalletDiag,
   isGoogleWalletConfigured,
 } from '../_shared/googleWallet.ts';
 import { json, lastPathSegment } from '../_shared/utils.ts';
@@ -11,6 +12,12 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const url = new URL(req.url);
+
+    if (url.searchParams.get('diag') === '1') {
+      return json(googleWalletDiag());
+    }
+
     if (!isGoogleWalletConfigured()) {
       return json({
         error: 'Google Wallet not configured',
@@ -18,9 +25,8 @@ Deno.serve(async (req) => {
       }, 501);
     }
 
-    const url = new URL(req.url);
     const serial = lastPathSegment(url);
-    if (!serial) {
+    if (!serial || serial === 'google-wallet') {
       return json({ error: 'Serial number required' }, 400);
     }
 
@@ -50,7 +56,7 @@ Deno.serve(async (req) => {
       .eq('cafe_id', pass.cafe_id)
       .order('stamp_count');
 
-    const saveUrl = buildGoogleWalletSaveUrl({
+    const saveUrl = await buildGoogleWalletSaveUrl({
       cafe,
       serialNumber: pass.serial_number,
       stampCount: pass.stamp_count,
@@ -63,7 +69,7 @@ Deno.serve(async (req) => {
 
     const format = url.searchParams.get('format');
     if (format === 'json') {
-      return json({ saveUrl });
+      return json({ saveUrl, diag: googleWalletDiag() });
     }
 
     return new Response(null, {

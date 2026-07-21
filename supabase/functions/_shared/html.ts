@@ -219,6 +219,11 @@ function walletButtons(
   return `<div class="wallet-add">${apple}${google}</div>`;
 }
 
+function lostWalletCta(serial?: string): string {
+  if (!serial) return '';
+  return `<a href="?lost=1&p=${encodeURIComponent(serial)}" class="link-btn">Lost your digital wallet?</a>`;
+}
+
 function walletDoneLink(thanksUrl: string) {
   return `<a href="${thanksUrl}" class="link-btn wallet-add-btn">I&apos;ve added my card</a>`;
 }
@@ -303,13 +308,13 @@ export function alreadyStampedPage(
   if (reward) {
     return shell(
       cafe,
-      `<div class="card">${getLogo(cafe)}<p class="eyebrow">Reward unlocked</p><h1>Your next visit&apos;s on us</h1><p>You&apos;ve earned a reward of <strong>${rewardText(reward)}</strong>. Show your Wallet pass at the counter to claim it.</p><div class="reward-pill">${rewardText(reward)}</div>${getStamps(cafe, stampCount)}<p class="muted" style="font-size:0.75rem;margin-top:0.75rem">Your Wallet pass updates automatically.</p></div>`,
+      `<div class="card">${getLogo(cafe)}<p class="eyebrow">Reward unlocked</p><h1>Your next visit&apos;s on us</h1><p>You&apos;ve earned a reward of <strong>${rewardText(reward)}</strong>. Show your Wallet pass at the counter to claim it.</p><div class="reward-pill">${rewardText(reward)}</div>${getStamps(cafe, stampCount)}<p class="muted" style="font-size:0.75rem;margin-top:0.75rem">Your Wallet pass updates automatically.</p>${lostWalletCta(serial)}</div>`,
       extra,
     );
   }
   return shell(
     cafe,
-    `<div class="card">${getLogo(cafe)}<p class="eyebrow">You&apos;re stamped</p><h1>See you soon</h1><p>You&apos;re all set for this visit — come back next time for your next stamp.</p>${getStamps(cafe, stampCount)}${progressRewardLine(cafe, stampCount)}<p class="muted" style="font-size:0.75rem;margin-top:0.75rem">Your Wallet pass updates automatically.</p></div>`,
+    `<div class="card">${getLogo(cafe)}<p class="eyebrow">You&apos;re stamped</p><h1>See you soon</h1><p>You&apos;re all set for this visit — come back next time for your next stamp.</p>${getStamps(cafe, stampCount)}${progressRewardLine(cafe, stampCount)}<p class="muted" style="font-size:0.75rem;margin-top:0.75rem">Your Wallet pass updates automatically.</p>${lostWalletCta(serial)}</div>`,
     extra,
   );
 }
@@ -333,12 +338,30 @@ export function addToWalletPage(
   serial: string,
   cafeId: string,
   preferGoogle = false,
+  fromLostWallet = false,
+  googleDemoMode = false,
 ) {
   const tagline = cafe.welcome_message?.trim() || 'Add your loyalty card to Wallet';
+  const warn = fromLostWallet
+    ? `<div class="promo-card" style="margin-bottom:1rem"><p class="promo-text">Check Apple Wallet or Google Wallet first. If this card is already there, don&apos;t add it again — it updates when you stamp.</p></div>`
+    : '';
+  const googleNote = googleDemoMode && googlePassUrl
+    ? `<div class="promo-card" style="margin-bottom:1rem"><p class="promo-text">Google Wallet is in test mode. Add only works for Google accounts listed as testers in the Google Wallet Console — or after publishing access is approved.</p></div>`
+    : '';
   return shell(
     cafe,
-    `<div class="card">${getLogo(cafe)}<h1>${escapeHtml(cafe.name)}</h1><p class="tagline">${escapeHtml(tagline)}</p>${getStamps(cafe, count)}${progressRewardLine(cafe, count)}${walletButtons(applePassUrl, googlePassUrl, { preferGoogle })}${walletDoneLink(thanksUrl)}</div>`,
+    `<div class="card">${getLogo(cafe)}<h1>${escapeHtml(cafe.name)}</h1><p class="tagline">${escapeHtml(tagline)}</p>${warn}${googleNote}${getStamps(cafe, count)}${progressRewardLine(cafe, count)}${walletButtons(applePassUrl, googlePassUrl, { preferGoogle })}${walletDoneLink(thanksUrl)}</div>`,
     walletBootstrapScript(cafeId, serial) + walletReturnScript(thanksUrl, cafeId),
+  );
+}
+
+/** Intermediate page before re-adding a pass after phone wipe / lost Wallet. */
+export function lostWalletPage(cafe: CafeBrand, serial: string, setupUrl: string) {
+  const extra = passPersistScripts(cafe.id, serial);
+  return shell(
+    cafe,
+    `<div class="card">${getLogo(cafe)}<p class="eyebrow">Digital wallet</p><h1>Lost your card?</h1><p>Open <strong>Apple Wallet</strong> or <strong>Google Wallet</strong> and check whether ${escapeHtml(cafe.name)} is already there.</p><p class="muted">If you still have it, you don&apos;t need to add it again — stamps update automatically.</p><a href="${escapeHtml(setupUrl)}" class="btn">I checked — add my card</a><a href="?p=${encodeURIComponent(serial)}&welcome=1" class="link-btn">Go back</a></div>`,
+    extra,
   );
 }
 
@@ -381,7 +404,7 @@ export function restoreCardsPage(
 
 export function welcomePage(cafe: CafeBrand, count: number, serial?: string) {
   const extra = serial ? passPersistScripts(cafe.id, serial) : '';
-  return shell(cafe, `<div class="card">${getLogo(cafe)}<h1>Welcome back</h1><p class="tagline">${escapeHtml(cafe.name)}</p>${getStamps(cafe, count)}${progressRewardLine(cafe, count)}<p class="muted" style="font-size:0.75rem">Tap your phone on the loyalty stamp at the counter to collect your next stamp.</p></div>`, extra);
+  return shell(cafe, `<div class="card">${getLogo(cafe)}<h1>Welcome back</h1><p class="tagline">${escapeHtml(cafe.name)}</p>${getStamps(cafe, count)}${progressRewardLine(cafe, count)}<p class="muted" style="font-size:0.75rem">Tap your phone on the loyalty stamp at the counter to collect your next stamp.</p>${lostWalletCta(serial)}</div>`, extra);
 }
 
 export function thanksJoinedPage(cafe: CafeBrand, count: number, serial?: string, setupUrl?: string) {
@@ -398,7 +421,7 @@ export function thanksJoinedPage(cafe: CafeBrand, count: number, serial?: string
   );
   return shell(
     cafe,
-    `<div class="card">${getLogo(cafe)}<p class="eyebrow">You&apos;re in</p><h1>${escapeHtml(heading)}</h1><p>${escapeHtml(subtext)}</p>${getStamps(cafe, count)}${progressRewardLine(cafe, count)}<p class="muted" style="font-size:0.75rem;margin-top:0.75rem">On your next visit, tap your phone on the loyalty stamp at the counter.</p>${backLine}</div>`,
+    `<div class="card">${getLogo(cafe)}<p class="eyebrow">You&apos;re in</p><h1>${escapeHtml(heading)}</h1><p>${escapeHtml(subtext)}</p>${getStamps(cafe, count)}${progressRewardLine(cafe, count)}<p class="muted" style="font-size:0.75rem;margin-top:0.75rem">On your next visit, tap your phone on the loyalty stamp at the counter.</p>${backLine}${lostWalletCta(serial)}</div>`,
     serial ? extra : markWalletAddedScript(cafe.id),
   );
 }
@@ -416,11 +439,11 @@ export function stampedPage(cafe: CafeBrand, count: number, _rewardJustUnlocked 
     });
     return shell(
       cafe,
-      `<div class="card">${getLogo(cafe)}<p class="eyebrow">Reward unlocked</p><h1>Your next visit&apos;s on us</h1><p>You&apos;ve earned a reward of <strong>${rewardText(String(reward))}</strong>.</p><div class="reward-pill">Redeem now</div><p class="muted" style="margin-top:-0.35rem;margin-bottom:0.75rem">${rewardText(String(reward))}</p><p class="muted reward-line"><strong>${segment.filled}</strong> of ${segment.total}</p>${getStamps(cafe, segment.filled, segment.total)}<p class="muted" style="font-size:0.75rem;margin-top:0.75rem">Show your Wallet pass at the counter to claim it.</p></div>`,
+      `<div class="card">${getLogo(cafe)}<p class="eyebrow">Reward unlocked</p><h1>Your next visit&apos;s on us</h1><p>You&apos;ve earned a reward of <strong>${rewardText(String(reward))}</strong>.</p><div class="reward-pill">Redeem now</div><p class="muted" style="margin-top:-0.35rem;margin-bottom:0.75rem">${rewardText(String(reward))}</p><p class="muted reward-line"><strong>${segment.filled}</strong> of ${segment.total}</p>${getStamps(cafe, segment.filled, segment.total)}<p class="muted" style="font-size:0.75rem;margin-top:0.75rem">Show your Wallet pass at the counter to claim it.</p>${lostWalletCta(serial)}</div>`,
       extra,
     );
   }
-  return shell(cafe, `<div class="card">${getLogo(cafe)}<p class="eyebrow">Stamp added</p><h1>${escapeHtml(cafe.stamp_message || 'Thanks for visiting!')}</h1><p>${escapeHtml(cafe.name)}</p>${getStamps(cafe, count)}${progressRewardLine(cafe, count)}<p class="muted" style="font-size:0.75rem">Your Wallet pass updates automatically.</p></div>`, extra);
+  return shell(cafe, `<div class="card">${getLogo(cafe)}<p class="eyebrow">Stamp added</p><h1>${escapeHtml(cafe.stamp_message || 'Thanks for visiting!')}</h1><p>${escapeHtml(cafe.name)}</p>${getStamps(cafe, count)}${progressRewardLine(cafe, count)}<p class="muted" style="font-size:0.75rem">Your Wallet pass updates automatically.</p>${lostWalletCta(serial)}</div>`, extra);
 }
 
 /** Mid-milestone or final reward ready — names the specific reward. */
@@ -447,7 +470,7 @@ export function redeemReadyPage(
   const extra = serial ? passPersistScripts(cafe.id, serial) : '';
   return shell(
     cafe,
-    `<div class="card">${getLogo(cafe)}<p class="eyebrow">Reward unlocked</p><h1>Your next visit&apos;s on us</h1><p>You&apos;ve earned a reward of <strong>${rewardText(reward)}</strong>.</p><div class="reward-pill">Redeem now</div><p class="muted" style="margin-top:-0.35rem;margin-bottom:0.75rem">${rewardText(reward)}</p><p class="muted reward-line"><strong>${segment.filled}</strong> of ${segment.total}</p>${getStamps(cafe, segment.filled, segment.total)}<p class="muted"><strong class="reward-line">Show your Wallet pass</strong> at the counter to claim it. Staff will tap Redeem reward in the app.</p>${keepLine}</div>`,
+    `<div class="card">${getLogo(cafe)}<p class="eyebrow">Reward unlocked</p><h1>Your next visit&apos;s on us</h1><p>You&apos;ve earned a reward of <strong>${rewardText(reward)}</strong>.</p><div class="reward-pill">Redeem now</div><p class="muted" style="margin-top:-0.35rem;margin-bottom:0.75rem">${rewardText(reward)}</p><p class="muted reward-line"><strong>${segment.filled}</strong> of ${segment.total}</p>${getStamps(cafe, segment.filled, segment.total)}<p class="muted"><strong class="reward-line">Show your Wallet pass</strong> at the counter to claim it. Staff will tap Redeem reward in the app.</p>${keepLine}${lostWalletCta(serial)}</div>`,
     extra,
   );
 }
@@ -466,7 +489,7 @@ export function rewardRestartPage(cafe: CafeBrand, count: number, serial?: strin
   const extra = serial ? passPersistScripts(cafe.id, serial) : '';
   return shell(
     cafe,
-    `<div class="card">${getLogo(cafe)}<p class="eyebrow">Well done</p><h1>You're collecting again</h1><p>If you haven&apos;t already, make sure to claim your <strong>${rewardText(cafe.reward)}</strong> at the counter.</p>${getStamps(cafe, count)}${progressRewardLine(cafe, count)}<p class="muted" style="font-size:0.75rem">Your Wallet pass updates automatically.</p></div>`,
+    `<div class="card">${getLogo(cafe)}<p class="eyebrow">Well done</p><h1>You're collecting again</h1><p>If you haven&apos;t already, make sure to claim your <strong>${rewardText(cafe.reward)}</strong> at the counter.</p>${getStamps(cafe, count)}${progressRewardLine(cafe, count)}<p class="muted" style="font-size:0.75rem">Your Wallet pass updates automatically.</p>${lostWalletCta(serial)}</div>`,
     extra,
   );
 }
@@ -476,6 +499,7 @@ export function rewardRedeemedPage(
   count: number,
   memberCode?: string,
   continued = false,
+  serial?: string,
 ) {
   const codeLine = memberCode
     ? `<p class="muted" style="font-size:0.8rem;margin-top:0.5rem">Your member code: <strong>${escapeHtml(memberCode)}</strong></p>`
@@ -483,12 +507,12 @@ export function rewardRedeemedPage(
   if (continued) {
     return shell(
       cafe,
-      `<div class="card">${getLogo(cafe)}<p class="eyebrow">Reward redeemed</p><h1>${escapeHtml(cafe.reward_message || 'Enjoy your reward!')}</h1><p>Your stamps carry on — you&apos;re still on <strong>${count}</strong>. Next tap adds stamp ${count + 1}.</p>${getStamps(cafe, count)}${progressRewardLine(cafe, count)}<p class="muted" style="font-size:0.75rem">Your Wallet pass is updated.</p>${codeLine}</div>`,
+      `<div class="card">${getLogo(cafe)}<p class="eyebrow">Reward redeemed</p><h1>${escapeHtml(cafe.reward_message || 'Enjoy your reward!')}</h1><p>Your stamps carry on — you&apos;re still on <strong>${count}</strong>. Next tap adds stamp ${count + 1}.</p>${getStamps(cafe, count)}${progressRewardLine(cafe, count)}<p class="muted" style="font-size:0.75rem">Your Wallet pass is updated.</p>${codeLine}${lostWalletCta(serial)}</div>`,
     );
   }
   return shell(
     cafe,
-    `<div class="card">${getLogo(cafe)}<p class="eyebrow">Reward redeemed</p><h1>${escapeHtml(cafe.reward_message || 'Enjoy your reward!')}</h1><p>Your card has been reset — start collecting again.</p>${getStamps(cafe, count)}<p class="muted reward-line"><strong>0</strong> of ${cafe.stamp_goal} stamps · ${rewardText(cafe.reward)}</p><p class="muted" style="font-size:0.75rem">Your Wallet pass is updated. Tap again on your next visit for your next stamp.</p>${codeLine}</div>`,
+    `<div class="card">${getLogo(cafe)}<p class="eyebrow">Reward redeemed</p><h1>${escapeHtml(cafe.reward_message || 'Enjoy your reward!')}</h1><p>Your card has been reset — start collecting again.</p>${getStamps(cafe, count)}<p class="muted reward-line"><strong>0</strong> of ${cafe.stamp_goal} stamps · ${rewardText(cafe.reward)}</p><p class="muted" style="font-size:0.75rem">Your Wallet pass is updated. Tap again on your next visit for your next stamp.</p>${codeLine}${lostWalletCta(serial)}</div>`,
   );
 }
 

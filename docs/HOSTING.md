@@ -59,7 +59,9 @@ Optional after Google publishing access:
 supabase secrets set GOOGLE_WALLET_REVIEW_STATUS=APPROVED --project-ref biootanbxmqfserzgnxe
 ```
 
-Until then, leave unset (`UNDER_REVIEW` / demo). Only Google Wallet Console test accounts can save passes.
+Until then, leave unset (`underReview` / demo). Only Google Wallet Console test accounts can save passes.
+
+See `docs/GOOGLE_WALLET.md` for tester setup and publishing access.
 
 ### Stripe / orders
 

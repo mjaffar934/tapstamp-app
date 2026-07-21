@@ -183,6 +183,10 @@ app.post('/save-customer', (req, res) => {
   proxyToSupabase(req, res, '/save-customer', { followRedirect: false });
 });
 
+app.get('/google-wallet', (req, res) => {
+  proxyToSupabase(req, res, '/google-wallet/', { followRedirect: false });
+});
+
 app.get('/google-wallet/:serial', (req, res) => {
   proxyToSupabase(req, res, `/google-wallet/${req.params.serial}`, { followRedirect: false });
 });
