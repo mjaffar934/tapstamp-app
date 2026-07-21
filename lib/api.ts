@@ -473,6 +473,30 @@ export async function openBillingPortal(setup = false): Promise<{ error?: string
   return { portalUrl: data.portalUrl };
 }
 
+/** Saves cafe settings via edge function so Wallet passes sync after reward/name changes. */
+export async function updateCafeSettings(
+  cafeId: string,
+  updates: Record<string, unknown>,
+): Promise<{ error?: string }> {
+  if (!supabaseApiBase) return { error: 'Supabase not configured' };
+
+  const res = await fetch(supabaseFn(`/settings/${cafeId}`), {
+    method: 'POST',
+    headers: {
+      ...(await authHeaders()),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(updates),
+  });
+
+  const data = await parseJsonResponse<{ error?: string; success?: boolean }>(
+    res,
+    'Could not save settings',
+  );
+  if (!res.ok || data.error) return { error: data.error ?? 'Could not save settings' };
+  return {};
+}
+
 export async function resumeCheckout(): Promise<{ error?: string; checkoutUrl?: string }> {
   if (!supabaseApiBase) return { error: 'Supabase not configured' };
 

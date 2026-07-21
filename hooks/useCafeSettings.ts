@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { updateCafeSettings } from '@/lib/api';
 
 export interface DoubleStampWindow {
   day: number;
@@ -165,16 +166,13 @@ export function useCafeSettings({ userId, userEmail }: CafeLookup) {
     setIsSaving(true);
     setError(null);
 
-    const { error: updateError } = await supabase
-      .from('cafes')
-      .update(updates as never)
-      .eq('id', cafe.id);
+    const result = await updateCafeSettings(cafe.id, updates as Record<string, unknown>);
 
     setIsSaving(false);
 
-    if (updateError) {
-      setError(updateError.message);
-      return { error: updateError.message };
+    if (result.error) {
+      setError(result.error);
+      return { error: result.error };
     }
 
     setCafe((prev) => (prev ? { ...prev, ...updates } : prev));
