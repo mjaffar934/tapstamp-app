@@ -2,6 +2,14 @@
 
 Secrets are already on Supabase (`GOOGLE_WALLET_*`). Until Google grants **publishing access**, only **test accounts** can save cards.
 
+## Customer support URL (required for business profile)
+
+Use this in Google Pay & Wallet Console → Business profile → Customer support / Help desk:
+
+**https://tapstamp.co/support**
+
+Email: `hello@tapstamp.co`
+
 ## Why Add to Google Wallet fails today
 
 Your issuer is in **demo mode**. Non-tester Google accounts see a generic error / can’t save. That is Google’s rule, not a TapStamp bug.

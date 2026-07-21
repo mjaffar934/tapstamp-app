@@ -245,6 +245,11 @@ app.get('/order/success', (_req, res) => {
   res.sendFile(path.join(WEBSITE_ROOT, 'order', 'success', 'index.html'));
 });
 
+app.get('/support', (_req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.sendFile(path.join(WEBSITE_ROOT, 'support', 'index.html'));
+});
+
 /** Static marketing site — must be last so API routes above take priority */
 app.use(
   express.static(WEBSITE_ROOT, {

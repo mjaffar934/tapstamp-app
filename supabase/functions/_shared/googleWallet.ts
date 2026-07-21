@@ -210,6 +210,21 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
   }
   if (modules.length) loyaltyObject.textModulesData = modules;
 
+  loyaltyObject.linksModuleData = {
+    uris: [
+      {
+        uri: 'https://tapstamp.co/support',
+        description: 'Customer support',
+        id: 'support',
+      },
+      {
+        uri: 'mailto:hello@tapstamp.co',
+        description: 'Email TapStamp',
+        id: 'email',
+      },
+    ],
+  };
+
   return { loyaltyClass, loyaltyObject, config };
 }
 

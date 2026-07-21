@@ -200,6 +200,11 @@ function buildPassJson(input: PassInput): string {
         label: 'HOW IT WORKS',
         value: howItWorks,
       },
+      {
+        key: 'support',
+        label: 'SUPPORT',
+        value: 'https://tapstamp.co/support',
+      },
     ],
   };
 
