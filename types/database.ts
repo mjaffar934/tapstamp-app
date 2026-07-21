@@ -29,6 +29,8 @@ export interface Business {
   shipping_phone: string | null;
   stripe_customer_id?: string | null;
   stripe_subscription_id?: string | null;
+  billing_card_added_at?: string | null;
+  expo_push_token?: string | null;
   subscription_status: SubscriptionStatus;
   stripe_checkout_session_id?: string | null;
   created_at: string;

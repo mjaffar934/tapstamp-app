@@ -308,5 +308,8 @@ export async function upgradeStarterAtCustomerLimit(cafe: {
   });
 
   await syncSubscriptionRecord(subscription);
+  await supabase.from('businesses').update({
+    billing_card_added_at: new Date().toISOString(),
+  }).eq('id', biz.id).is('billing_card_added_at', null);
   return 'upgraded';
 }

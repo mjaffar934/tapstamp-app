@@ -54,6 +54,7 @@ Enable these events:
 - `customer.subscription.created`
 - `customer.subscription.updated`
 - `customer.subscription.deleted`
+- `invoice.payment_failed` (owner push: card declined)
 
 ## Stripe Customer Portal
 

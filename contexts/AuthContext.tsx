@@ -14,6 +14,7 @@ import { subscribeToDeepLinks } from '@/lib/authLinking';
 import { ownerSignup, provisionCafe } from '@/lib/api';
 import { bootstrapDevAccount } from '@/lib/devBootstrap';
 import { clearStaffSession } from '@/lib/staffSession';
+import { registerOwnerPushToken } from '@/lib/ownerPush';
 import type { Business } from '@/types/database';
 
 interface AuthContextValue {
@@ -91,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         fetchBusiness(currentSession.user.id).then(async (biz) => {
           if (currentSession.user) {
             await ensureCafeLinked(currentSession.user, biz ?? null);
+            void registerOwnerPushToken(currentSession.user.id);
           }
         }).finally(() => setIsLoading(false));
       } else {
@@ -105,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         fetchBusiness(nextSession.user.id)
           .then((biz) => {
             if (nextSession.user) {
+              void registerOwnerPushToken(nextSession.user.id);
               return ensureCafeLinked(nextSession.user, biz);
             }
           })
@@ -135,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const biz = await fetchBusiness(data.user.id);
         if (data.user) {
           await ensureCafeLinked(data.user, biz);
+          void registerOwnerPushToken(data.user.id);
         }
       } finally {
         setBusinessLoading(false);

@@ -35,7 +35,22 @@ export default function BillingScreen() {
   const planId = parsePlanId(cafe?.plan ?? business?.plan_selected ?? undefined);
   const plan = PLANS[planId];
   const starterLimited = shouldEnforceStarterLimit(cafe?.plan, cafe?.trial_ends_at);
+  const hasCard = Boolean(business?.billing_card_added_at);
   const hasStripeCustomer = Boolean(business?.stripe_customer_id);
+  const subStatus = business?.subscription_status ?? cafe?.subscription_status ?? 'none';
+
+  const billingStatus = (() => {
+    if (cafe?.status === 'suspended' || subStatus === 'canceled') {
+      return { label: 'Suspended', color: colors.error };
+    }
+    if (subStatus === 'past_due') {
+      return { label: 'Payment failed — update card', color: colors.error };
+    }
+    if (!hasCard) {
+      return { label: 'Inactive until card added', color: colors.warning };
+    }
+    return { label: 'Active', color: colors.success };
+  })();
 
   const openBilling = async (setup = false) => {
     setPortalLoading(true);
@@ -102,7 +117,7 @@ export default function BillingScreen() {
             <StarterUsageBanner
               count={uniqueCustomers}
               isLoading={usageLoading}
-              billingReady={hasStripeCustomer}
+              billingReady={hasCard}
               onSetupBilling={() => void openBilling(true)}
               setupLoading={portalLoading}
             />
@@ -110,12 +125,17 @@ export default function BillingScreen() {
 
           <Card style={styles.card}>
             <Text variant="caption" muted>STATUS</Text>
-            <Text variant="body" color={cafe.status === 'suspended' ? colors.error : colors.success}>
-              {cafe.status === 'suspended' ? 'Suspended' : 'Active'}
+            <Text variant="body" color={billingStatus.color}>
+              {billingStatus.label}
             </Text>
+            {!hasCard ? (
+              <Text variant="caption" muted>
+                Add a card below. Billing stays inactive until then.
+              </Text>
+            ) : null}
           </Card>
 
-          {!hasStripeCustomer && planId === 'starter' ? (
+          {!hasCard ? (
             <Card style={styles.card}>
               <Text variant="bodySmall">
                 Add a card in Stripe now. At {STARTER_MONTHLY_CUSTOMER_LIMIT} unique customers this month we create a Pro subscription and charge £25/mo on that card — no manual step.
@@ -138,7 +158,7 @@ export default function BillingScreen() {
                 loading={portalLoading}
                 style={styles.cta}
               />
-              {planId === 'starter' ? (
+              {hasStripeCustomer ? (
                 <Button
                   title="Update payment method"
                   variant="outline"

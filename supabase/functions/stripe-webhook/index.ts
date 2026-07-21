@@ -1,7 +1,51 @@
 import { markBusinessPaid } from '../_shared/createOrder.ts';
 import { constructStripeEvent } from '../_shared/stripe.ts';
 import { syncSubscriptionRecord } from '../_shared/subscription.ts';
+import { notifyOwnerCardDeclined } from '../_shared/ownerPush.ts';
+import { supabase } from '../_shared/client.ts';
 import type Stripe from 'https://esm.sh/stripe@17.7.0?target=denonext';
+
+async function findBusinessByCustomer(customerId: string | null | undefined) {
+  if (!customerId) return null;
+  const { data } = await supabase
+    .from('businesses')
+    .select('id, name, expo_push_token, stripe_customer_id')
+    .eq('stripe_customer_id', customerId)
+    .maybeSingle();
+  return data;
+}
+
+async function handlePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
+  const customerId = typeof invoice.customer === 'string'
+    ? invoice.customer
+    : invoice.customer?.id ?? null;
+
+  const { data: business } = await supabase
+    .from('businesses')
+    .select('id, name, owner_id, expo_push_token')
+    .eq('stripe_customer_id', customerId ?? '')
+    .maybeSingle();
+
+  if (!business) {
+    console.warn('Payment failed: no business for customer', customerId);
+    return;
+  }
+
+  await supabase.from('businesses').update({
+    subscription_status: 'past_due',
+  }).eq('id', business.id);
+
+  if (business.owner_id) {
+    await supabase.from('cafes').update({
+      subscription_status: 'past_due',
+    }).eq('owner_id', business.owner_id);
+  }
+
+  await notifyOwnerCardDeclined({
+    expoPushToken: business.expo_push_token,
+    businessName: business.name,
+  });
+}
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
@@ -23,7 +67,6 @@ Deno.serve(async (req) => {
         const businessId = session.metadata?.business_id;
         if (!businessId) break;
 
-        // Setup mode (save card) or paid hardware checkout.
         if (
           session.mode === 'setup'
           || session.payment_status === 'paid'
@@ -38,6 +81,21 @@ Deno.serve(async (req) => {
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
         await syncSubscriptionRecord(subscription);
+
+        // Card successfully charged / subscription healthy → mark billing ready.
+        if (subscription.status === 'active' || subscription.status === 'trialing') {
+          const businessId = subscription.metadata?.business_id;
+          if (businessId) {
+            await supabase.from('businesses').update({
+              billing_card_added_at: new Date().toISOString(),
+            }).eq('id', businessId).is('billing_card_added_at', null);
+          }
+        }
+        break;
+      }
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object as Stripe.Invoice;
+        await handlePaymentFailed(invoice);
         break;
       }
       default:

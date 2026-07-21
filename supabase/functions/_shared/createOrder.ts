@@ -306,11 +306,51 @@ export async function markBusinessPaid(
     ? session.customer
     : session.customer?.id ?? null;
 
-  await supabase.from('businesses').update({
-    order_status: 'paid',
+  const isSetup = session.mode === 'setup';
+  const patch: Record<string, unknown> = {
     stripe_customer_id: customerId,
     stripe_checkout_session_id: session.id,
-  }).eq('id', businessId);
+  };
+
+  // Hardware / plan checkout marks the order paid. Setup-only saves a card for Starter.
+  if (!isSetup) {
+    patch.order_status = 'paid';
+  } else {
+    patch.billing_card_added_at = new Date().toISOString();
+  }
+
+  // Setup sessions that also settle a payment (rare) still count as paid.
+  if (isSetup && (session.payment_status === 'paid' || session.payment_status === 'no_payment_required')) {
+    // keep billing_card_added_at; do not force order_status unless already pending
+  }
+
+  await supabase.from('businesses').update(patch).eq('id', businessId);
+
+  if (isSetup && customerId) {
+    try {
+      const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+      if (stripeKey) {
+        const Stripe = (await import('https://esm.sh/stripe@17.7.0?target=denonext')).default;
+        const stripe = new Stripe(stripeKey, { apiVersion: '2024-11-20.acacia' });
+        const setupIntentId = typeof session.setup_intent === 'string'
+          ? session.setup_intent
+          : session.setup_intent?.id ?? null;
+        if (setupIntentId) {
+          const si = await stripe.setupIntents.retrieve(setupIntentId);
+          const pm = typeof si.payment_method === 'string'
+            ? si.payment_method
+            : si.payment_method?.id ?? null;
+          if (pm) {
+            await stripe.customers.update(customerId, {
+              invoice_settings: { default_payment_method: pm },
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to set default payment method after setup:', err);
+    }
+  }
 }
 
 export async function markBusinessPaidFree(businessId: string): Promise<void> {
