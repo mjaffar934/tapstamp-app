@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
 
     const portalUrl = await createBillingPortalSession(
       business.stripe_customer_id,
-      WEBSITE,
+      `${WEBSITE}/support`,
     );
 
     return json({ portalUrl });

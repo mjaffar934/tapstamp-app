@@ -1,4 +1,4 @@
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, spacing } from '@/constants/theme';
 import { Text } from './Text';
@@ -27,14 +27,19 @@ function formatActivityTime(iso: string) {
 
 interface ActivityItemProps {
   event: LoyaltyActivity;
+  onPress?: (event: LoyaltyActivity) => void;
 }
 
-export function ActivityItem({ event }: ActivityItemProps) {
+export function ActivityItem({ event, onPress }: ActivityItemProps) {
   const isStamp = event.type === 'stamp';
   const customerName = event.customerName ?? 'Customer';
+  const meta = [
+    event.memberCode ? `#${event.memberCode}` : null,
+    event.stampCount != null ? `${event.stampCount} stamps` : null,
+  ].filter(Boolean).join(' · ');
 
-  return (
-    <View style={styles.row}>
+  const content = (
+    <>
       <View style={[styles.icon, isStamp ? styles.earn : styles.redeem]}>
         <Ionicons
           name={isStamp ? 'cafe-outline' : 'gift-outline'}
@@ -50,10 +55,29 @@ export function ActivityItem({ event }: ActivityItemProps) {
         </Text>
         <Text variant="caption" muted>
           {formatActivityTime(event.created_at)}
+          {meta ? ` · ${meta}` : ''}
         </Text>
       </View>
-    </View>
+      {onPress ? (
+        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+      ) : null}
+    </>
   );
+
+  if (onPress) {
+    return (
+      <Pressable
+        onPress={() => onPress(event)}
+        style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${customerName} details`}
+      >
+        {content}
+      </Pressable>
+    );
+  }
+
+  return <View style={styles.row}>{content}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -62,6 +86,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     paddingVertical: spacing.sm,
+  },
+  pressed: {
+    opacity: 0.7,
   },
   icon: {
     width: 40,

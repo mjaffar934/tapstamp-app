@@ -4,6 +4,7 @@ import {
   googleWalletDiag,
   isGoogleWalletConfigured,
 } from '../_shared/googleWallet.ts';
+import { ensureMemberCode } from '../_shared/memberCode.ts';
 import { json, lastPathSegment } from '../_shared/utils.ts';
 
 Deno.serve(async (req) => {
@@ -56,12 +57,15 @@ Deno.serve(async (req) => {
       .eq('cafe_id', pass.cafe_id)
       .order('stamp_count');
 
+    const memberCode = await ensureMemberCode(pass, String(pass.cafe_id));
+
     const saveUrl = await buildGoogleWalletSaveUrl({
       cafe,
       serialNumber: pass.serial_number,
       stampCount: pass.stamp_count,
       status: pass.status,
       customerName: pass.customer_name,
+      memberCode,
       lifetimeStamps: pass.lifetime_stamps,
       tiers: tiers ?? [],
       pendingMilestoneReward: pass.pending_milestone_reward ?? null,

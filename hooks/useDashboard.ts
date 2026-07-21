@@ -127,36 +127,59 @@ async function fetchRecentActivity(cafeId: string): Promise<LoyaltyActivity[]> {
     ]),
   ];
 
-  const nameByPassId = new Map<string, string | null>();
+  const nameByPassId = new Map<string, {
+    name: string | null;
+    memberCode: string | null;
+    stampCount: number | null;
+  }>();
   if (passIds.length > 0) {
     const { data: passes, error: passError } = await supabase
       .from('passes')
-      .select('id, customer_name')
+      .select('id, customer_name, member_code, stamp_count')
       .in('id', passIds);
 
     if (passError) throw new Error(passError.message);
 
     for (const pass of passes ?? []) {
-      nameByPassId.set(
-        (pass as { id: string; customer_name: string | null }).id,
-        (pass as { id: string; customer_name: string | null }).customer_name,
-      );
+      const row = pass as {
+        id: string;
+        customer_name: string | null;
+        member_code: string | null;
+        stamp_count: number | null;
+      };
+      nameByPassId.set(row.id, {
+        name: row.customer_name,
+        memberCode: row.member_code,
+        stampCount: row.stamp_count,
+      });
     }
   }
 
   return [
-    ...stampRows.map((row) => ({
-      id: `stamp-${row.id}`,
-      type: 'stamp' as const,
-      customerName: nameByPassId.get(row.pass_id) ?? null,
-      created_at: row.created_at,
-    })),
-    ...redeemRows.map((row) => ({
-      id: `redeem-${row.id}`,
-      type: 'redeem' as const,
-      customerName: nameByPassId.get(row.pass_id) ?? null,
-      created_at: row.created_at,
-    })),
+    ...stampRows.map((row) => {
+      const pass = nameByPassId.get(row.pass_id);
+      return {
+        id: `stamp-${row.id}`,
+        type: 'stamp' as const,
+        customerName: pass?.name ?? null,
+        created_at: row.created_at,
+        passId: row.pass_id,
+        memberCode: pass?.memberCode ?? null,
+        stampCount: pass?.stampCount ?? null,
+      };
+    }),
+    ...redeemRows.map((row) => {
+      const pass = nameByPassId.get(row.pass_id);
+      return {
+        id: `redeem-${row.id}`,
+        type: 'redeem' as const,
+        customerName: pass?.name ?? null,
+        created_at: row.created_at,
+        passId: row.pass_id,
+        memberCode: pass?.memberCode ?? null,
+        stampCount: pass?.stampCount ?? null,
+      };
+    }),
   ]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 8);

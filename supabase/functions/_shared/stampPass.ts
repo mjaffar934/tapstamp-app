@@ -1,6 +1,7 @@
 import { supabase } from './client.ts';
 import { pushPassUpdate } from './apns.ts';
 import { updateGoogleWalletObject } from './googleWallet.ts';
+import { ensureMemberCode } from './memberCode.ts';
 import { calendarDayKey, isDoubleStampWindow } from './utils.ts';
 
 export interface StampResult {
@@ -354,7 +355,7 @@ async function notifyPass(
 ): Promise<void> {
   const { data: freshPass } = await supabase
     .from('passes')
-    .select('push_token, customer_name, lifetime_stamps, cafe_id, pending_milestone_reward')
+    .select('push_token, customer_name, lifetime_stamps, cafe_id, pending_milestone_reward, member_code, serial_number')
     .eq('serial_number', serial)
     .maybeSingle();
 
@@ -367,6 +368,10 @@ async function notifyPass(
       .order('stamp_count')
     : { data: [] as Array<{ stamp_count: number; reward: string }> };
 
+  const memberCode = cafeId && freshPass
+    ? await ensureMemberCode(freshPass as Record<string, unknown>, cafeId)
+    : null;
+
   await pushPassUpdate(freshPass?.push_token as string | null | undefined, serial);
   await updateGoogleWalletObject({
     cafe,
@@ -374,6 +379,7 @@ async function notifyPass(
     stampCount,
     status,
     customerName: (freshPass?.customer_name as string | null) ?? null,
+    memberCode,
     lifetimeStamps: Number(freshPass?.lifetime_stamps) || stampCount,
     tiers: tiers ?? [],
     pendingMilestoneReward: (freshPass?.pending_milestone_reward as string | null) ?? null,

@@ -142,6 +142,9 @@ export interface LoyaltyActivity {
   type: 'stamp' | 'redeem';
   customerName: string | null;
   created_at: string;
+  passId: string;
+  memberCode: string | null;
+  stampCount: number | null;
 }
 
 type TableDef<Row, Insert = Partial<Row>, Update = Partial<Row>> = {

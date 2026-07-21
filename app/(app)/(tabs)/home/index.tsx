@@ -159,7 +159,14 @@ export default function HomeScreen() {
           ) : (
             <View style={styles.activityList}>
               {recentActivity.map((event) => (
-                <ActivityItem key={event.id} event={event} />
+                <ActivityItem
+                  key={event.id}
+                  event={event}
+                  onPress={(item) => {
+                    if (!item.passId) return;
+                    router.push(`/(app)/(tabs)/customers/${item.passId}`);
+                  }}
+                />
               ))}
             </View>
           )}

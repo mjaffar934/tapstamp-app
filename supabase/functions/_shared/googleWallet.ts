@@ -9,6 +9,7 @@ export interface GoogleWalletPassInput {
   stampCount: number;
   status: string;
   customerName?: string | null;
+  memberCode?: string | null;
   lifetimeStamps?: number | null;
   tiers?: Array<{ stamp_count: number; reward: string }>;
   pendingMilestoneReward?: string | null;
@@ -112,7 +113,7 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
   const config = walletConfig();
   if (!config) throw new Error('Google Wallet not configured');
 
-  const { cafe, serialNumber, stampCount, status, customerName, lifetimeStamps, tiers, pendingMilestoneReward } = input;
+  const { cafe, serialNumber, stampCount, status, customerName, memberCode, lifetimeStamps, tiers, pendingMilestoneReward } = input;
   const cafeId = String(cafe.id);
   const cafeName = String(cafe.name || 'TapStamp');
   const stampGoal = Number(cafe.stamp_goal) || 10;
@@ -168,13 +169,14 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
     return `${stampCount} / ${stampGoal}`;
   })();
   const redeemReady = isRedeemed || isComplete || rewardCopy.label === 'REDEEM' || pending;
-  const memberShort = serialNumber.replace(/-/g, '').slice(0, 8).toUpperCase();
+  // Same 4-digit cafe member code shown in the owner/staff app.
+  const code = (memberCode?.trim() || '').replace(/\D/g, '').slice(0, 4);
 
   const loyaltyObject: Record<string, unknown> = {
     id: objectId(config.issuerId, serialNumber),
     classId: classId(config.issuerId, cafeId),
     state: isRedeemed ? 'COMPLETED' : 'ACTIVE',
-    accountId: memberShort,
+    accountId: code || serialNumber.replace(/-/g, '').slice(0, 8).toUpperCase(),
     accountName: cafeName,
     loyaltyPoints: {
       label: hasLevels ? 'TO NEXT' : 'STAMPS',
@@ -184,11 +186,11 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
       label: redeemReady ? 'REDEEM NOW' : (hasLevels ? 'NEXT REWARD' : rewardCopy.label),
       balance: { string: rewardCopy.value },
     },
-    // TEXT_ONLY keeps a staff-readable code without a giant QR crowding the stamps.
+    // TEXT_ONLY shows the 4-digit member code (matches app lookup).
     barcode: {
       type: 'TEXT_ONLY',
-      value: serialNumber,
-      alternateText: memberShort,
+      value: code || serialNumber,
+      alternateText: code || undefined,
     },
     heroImage: {
       sourceUri: { uri: stripUrl },
@@ -340,7 +342,7 @@ export async function updateGoogleWalletObject(input: GoogleWalletPassInput): Pr
   const res = await fetch(
     `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${resourceId}`,
     {
-      method: 'PATCH',
+      method: 'PUT',
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',

@@ -254,14 +254,14 @@ function buildPassJson(input: PassInput): string {
         format: 'PKBarcodeFormatQR',
         message: barcodeMessage,
         messageEncoding: 'iso-8859-1',
-        altText: memberCode ? `Member ${memberCode}` : undefined,
+        altText: memberCode || undefined,
       },
     ],
     barcode: {
       format: 'PKBarcodeFormatQR',
       message: barcodeMessage,
       messageEncoding: 'iso-8859-1',
-      altText: memberCode ? `Member ${memberCode}` : undefined,
+      altText: memberCode || undefined,
     },
     storeCard,
   };
