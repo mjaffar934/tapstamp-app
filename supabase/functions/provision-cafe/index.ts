@@ -83,6 +83,7 @@ Deno.serve(async (req) => {
           show_customer_name_on_pass: body.show_customer_name_on_pass ?? true,
           reward: body.reward ?? 'Free coffee',
           stamp_goal: body.stamp_goal ?? 10,
+          stamp_cooldown_hours: 4,
           minimum_spend: body.minimum_spend ?? null,
           plan,
           trial_ends_at: null,

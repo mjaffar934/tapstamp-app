@@ -1,5 +1,6 @@
 import { supabase } from '../_shared/client.ts';
 import { requireCafeAuth } from '../_shared/auth.ts';
+import { syncCafeWalletPasses } from '../_shared/walletSync.ts';
 import { json, lastPathSegment } from '../_shared/utils.ts';
 
 Deno.serve(async (req) => {
@@ -50,6 +51,24 @@ Deno.serve(async (req) => {
 
     if (error) {
       return json({ error: error.message }, 500);
+    }
+
+    const walletFields = [
+      'reward',
+      'stamp_goal',
+      'show_customer_name_on_pass',
+      'welcome_message',
+      'stamp_message',
+      'reward_message',
+    ];
+    const needsWalletSync = walletFields.some((k) => k in updates);
+    if (needsWalletSync) {
+      const sync = syncCafeWalletPasses(cafeId).catch((err) =>
+        console.error('Post-settings wallet sync:', err),
+      );
+      const edge = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
+      if (edge?.waitUntil) edge.waitUntil(sync);
+      else await sync;
     }
 
     return json({ success: true });

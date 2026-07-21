@@ -130,7 +130,7 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
     redeemed: isRedeemed || pending,
   });
   // Centered strip for Google hero (Apple strip keeps a left gutter for the count).
-  const stripUrl = `${functionsUrl(`/wallet-strip/${serialNumber}`)}?layout=google&v=2`;
+  const stripUrl = `${functionsUrl(`/wallet-strip/${serialNumber}`)}?layout=google&v=3`;
   const rewardCopy = buildRewardFieldCopy({
     stampCount,
     stampGoal,
@@ -140,6 +140,10 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
     tiers: tiers ?? [],
     pendingMilestoneReward,
   });
+
+  const memberLabel = showName && customerName?.trim()
+    ? String(customerName).trim().split(/\s+/)[0]
+    : null;
 
   const loyaltyClass = {
     id: classId(config.issuerId, cafeId),
@@ -151,9 +155,8 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
       : undefined,
     hexBackgroundColor: rgbToHex(passColors.backgroundColor),
     localizedAccountNameLabel: {
-      defaultValue: { language: 'en', value: 'LOYALTY' },
+      defaultValue: { language: 'en', value: memberLabel ? 'MEMBER' : 'LOYALTY' },
     },
-    // No cardBarcodeSectionDetails — that was duplicating the stamp strip above the code.
   };
 
   const stampBalance = (() => {
@@ -177,7 +180,7 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
     classId: classId(config.issuerId, cafeId),
     state: isRedeemed ? 'COMPLETED' : 'ACTIVE',
     accountId: code || serialNumber.replace(/-/g, '').slice(0, 8).toUpperCase(),
-    accountName: cafeName,
+    accountName: memberLabel || cafeName,
     loyaltyPoints: {
       label: hasLevels ? 'TO NEXT' : 'STAMPS',
       balance: { string: stampBalance },
@@ -186,7 +189,6 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
       label: redeemReady ? 'REDEEM NOW' : (hasLevels ? 'NEXT REWARD' : rewardCopy.label),
       balance: { string: rewardCopy.value },
     },
-    // TEXT_ONLY shows the 4-digit member code (matches app lookup).
     barcode: {
       type: 'TEXT_ONLY',
       value: code || serialNumber,
@@ -198,11 +200,11 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
     },
   };
 
-  const modules: Array<{ header: string; body: string; id: string }> = [];
-  if (showName && customerName) {
-    modules.push({ header: 'MEMBER', body: String(customerName), id: 'member' });
+  if (showName && customerName?.trim()) {
+    loyaltyObject.textModulesData = [
+      { header: 'MEMBER', body: String(customerName).trim(), id: 'member' },
+    ];
   }
-  if (modules.length) loyaltyObject.textModulesData = modules;
 
   loyaltyObject.linksModuleData = {
     uris: [

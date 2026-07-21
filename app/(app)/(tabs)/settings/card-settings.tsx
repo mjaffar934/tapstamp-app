@@ -195,9 +195,34 @@ export default function CardSettingsScreen() {
   ]);
 
   const onSaveFromUi = async () => {
+    const cooldown = parseInt(cooldownHours, 10);
+    const noCooldown =
+      cooldownHours.trim() === '' || !Number.isFinite(cooldown) || cooldown <= 0;
+
+    if (noCooldown) {
+      alert(
+        'No cooldown',
+        'Saving with no cooldown means customers can stamp again as soon as the daily limit allows. Without a wait between visits, people can farm stamps quickly. We recommend at least 4 hours.',
+        [
+          { text: 'Go back', style: 'cancel' },
+          {
+            text: 'Save anyway',
+            style: 'destructive',
+            onPress: () => {
+              void (async () => {
+                const ok = await handleSave();
+                if (ok) alert('Saved', 'Your card settings have been updated. Wallet passes will refresh shortly.');
+              })();
+            },
+          },
+        ],
+      );
+      return;
+    }
+
     const ok = await handleSave();
     if (ok) {
-      alert('Saved', 'Your card settings have been updated.');
+      alert('Saved', 'Your card settings have been updated. Wallet passes will refresh shortly.');
     }
   };
 
@@ -324,10 +349,10 @@ export default function CardSettingsScreen() {
               value={cooldownHours}
               onChangeText={setCooldownHours}
               keyboardType="number-pad"
-              placeholder="Leave blank for no cooldown"
+              placeholder="4"
             />
             <Text variant="caption" muted>
-              Customers can collect at most one stamp per day. Extra hours add wait time after that.
+              Default is 4 hours. Leave blank for no extra wait — customers can still only stamp once per day.
             </Text>
             <View style={styles.row}>
               <View style={styles.rowText}>

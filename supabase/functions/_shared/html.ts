@@ -339,19 +339,15 @@ export function addToWalletPage(
   cafeId: string,
   preferGoogle = false,
   fromLostWallet = false,
-  googleDemoMode = false,
 ) {
   const tagline = cafe.welcome_message?.trim() || 'Add your loyalty card to Wallet';
   const warn = fromLostWallet
     ? `<div class="promo-card" style="margin-bottom:1rem"><p class="promo-text">Check Apple Wallet or Google Wallet first. If this card is already there, don&apos;t add it again — it updates when you stamp.</p></div>`
     : '';
-  const googleNote = googleDemoMode && googlePassUrl
-    ? `<div class="promo-card" style="margin-bottom:1rem"><p class="promo-text">Google Wallet is in test mode. Add only works for Google accounts listed as testers in the Google Wallet Console — or after publishing access is approved.</p></div>`
-    : '';
   return shell(
     cafe,
-    `<div class="card">${getLogo(cafe)}<h1>${escapeHtml(cafe.name)}</h1><p class="tagline">${escapeHtml(tagline)}</p>${warn}${googleNote}${getStamps(cafe, count)}${progressRewardLine(cafe, count)}${walletButtons(applePassUrl, googlePassUrl, { preferGoogle })}${walletDoneLink(thanksUrl)}</div>`,
-    walletBootstrapScript(cafeId, serial) + walletReturnScript(thanksUrl, cafeId),
+    `<div class="card">${getLogo(cafe)}<h1>${escapeHtml(cafe.name)}</h1><p class="tagline">${escapeHtml(tagline)}</p>${warn}${getStamps(cafe, count)}${progressRewardLine(cafe, count)}${walletButtons(applePassUrl, googlePassUrl, { preferGoogle })}${walletDoneLink(thanksUrl)}</div>`,
+    walletSetupGuardScript(cafeId, serial) + walletBootstrapScript(cafeId, serial) + walletReturnScript(thanksUrl, cafeId),
   );
 }
 

@@ -4,7 +4,7 @@ import { countUniqueMonthlyCustomers } from '../_shared/usage.ts';
 import { normalizeCafeBillingState } from '../_shared/subscription.ts';
 import { applyStampToPass, applyRedeemRestartAndStamp, hasStampedToday, customerStampLimitsActive } from '../_shared/stampPass.ts';
 import { generateUniqueMemberCode, ensureMemberCode } from '../_shared/memberCode.ts';
-import { isGoogleWalletConfigured, isGoogleWalletPublic } from '../_shared/googleWallet.ts';
+import { isGoogleWalletConfigured } from '../_shared/googleWallet.ts';
 import { isDoubleStampWindow } from '../_shared/utils.ts';
 import { upgradeStarterAtCustomerLimit } from '../_shared/subscription.ts';
 import {
@@ -178,7 +178,6 @@ function walletSetupPage(
       cafeId,
       preferGoogle,
       fromLostWallet,
-      Boolean(links.google) && !isGoogleWalletPublic(),
     ),
     passCookie(cafeId, serial),
   );
@@ -354,8 +353,12 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Always show Add to Wallet on setup (re-add after phone wipe / restore).
+        // Add to Wallet: first join, lost-wallet re-add, or restore.
+        // If they already added the card, skip setup and show welcome (cooldown handled later).
         if (setup) {
+          if (pass.wallet_added_at && !lostWallet) {
+            return html(welcomePage(brand, Number(pass.stamp_count), pass.serial_number), cookie);
+          }
           return walletSetupPage(
             brand,
             pass.serial_number,
@@ -436,6 +439,12 @@ Deno.serve(async (req) => {
         }
 
         if (setup) {
+          if (pass.wallet_added_at && !lostWallet) {
+            return html(
+              welcomePage(brand, Number(pass.stamp_count), existingSerial),
+              passCookie(String(cafe.id), existingSerial),
+            );
+          }
           return walletSetupPage(
             brand,
             existingSerial,
