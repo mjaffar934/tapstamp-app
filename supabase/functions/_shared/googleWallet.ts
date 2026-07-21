@@ -1,7 +1,7 @@
 import forge from 'https://esm.sh/node-forge@1.3.1';
 import { resolvePassColors } from './passTemplates.ts';
 import { functionsUrl, SUPABASE_URL } from './client.ts';
-import { buildStampDotsRow, buildRewardFieldCopy, formatRewardDisplay, stripSegmentProgress } from './walletDisplay.ts';
+import { buildRewardFieldCopy, formatRewardDisplay, stripSegmentProgress } from './walletDisplay.ts';
 
 export interface GoogleWalletPassInput {
   cafe: Record<string, unknown>;
@@ -128,10 +128,8 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
     complete: isComplete || pending,
     redeemed: isRedeemed || pending,
   });
-  const stampDots = hasLevels
-    ? buildStampDotsRow(segment.filled, segment.total, isRedeemed || isComplete || pending)
-    : buildStampDotsRow(stampCount, stampGoal, isRedeemed || isComplete);
-  const stripUrl = functionsUrl(`/wallet-strip/${serialNumber}`);
+  // Centered strip for Google hero (Apple strip keeps a left gutter for the count).
+  const stripUrl = `${functionsUrl(`/wallet-strip/${serialNumber}`)}?layout=google&v=2`;
   const rewardCopy = buildRewardFieldCopy({
     stampCount,
     stampGoal,
@@ -154,15 +152,7 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
     localizedAccountNameLabel: {
       defaultValue: { language: 'en', value: 'LOYALTY' },
     },
-    classTemplateInfo: {
-      cardBarcodeSectionDetails: {
-        firstTopDetail: {
-          fieldSelector: {
-            fields: [{ fieldPath: 'object.heroImage' }],
-          },
-        },
-      },
-    },
+    // No cardBarcodeSectionDetails — that was duplicating the stamp strip above the code.
   };
 
   const stampBalance = (() => {
@@ -178,12 +168,13 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
     return `${stampCount} / ${stampGoal}`;
   })();
   const redeemReady = isRedeemed || isComplete || rewardCopy.label === 'REDEEM' || pending;
+  const memberShort = serialNumber.replace(/-/g, '').slice(0, 8).toUpperCase();
 
   const loyaltyObject: Record<string, unknown> = {
     id: objectId(config.issuerId, serialNumber),
     classId: classId(config.issuerId, cafeId),
     state: isRedeemed ? 'COMPLETED' : 'ACTIVE',
-    accountId: serialNumber.replace(/-/g, '').slice(0, 20),
+    accountId: memberShort,
     accountName: cafeName,
     loyaltyPoints: {
       label: hasLevels ? 'TO NEXT' : 'STAMPS',
@@ -193,14 +184,15 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
       label: redeemReady ? 'REDEEM NOW' : (hasLevels ? 'NEXT REWARD' : rewardCopy.label),
       balance: { string: rewardCopy.value },
     },
+    // TEXT_ONLY keeps a staff-readable code without a giant QR crowding the stamps.
     barcode: {
-      type: 'QR_CODE',
+      type: 'TEXT_ONLY',
       value: serialNumber,
-      alternateText: serialNumber.slice(0, 8).toUpperCase(),
+      alternateText: memberShort,
     },
     heroImage: {
       sourceUri: { uri: stripUrl },
-      contentDescription: { defaultValue: { language: 'en', value: stampDots } },
+      contentDescription: { defaultValue: { language: 'en', value: `${stampBalance} stamps` } },
     },
   };
 
@@ -274,10 +266,11 @@ async function ensureLoyaltyClass(loyaltyClass: Record<string, unknown>): Promis
   );
 
   if (getRes.ok) {
-    const patchRes = await fetch(
+    // PUT replaces the class so old template fields (duplicate strip above barcode) are cleared.
+    const updateRes = await fetch(
       `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass/${id}`,
       {
-        method: 'PATCH',
+        method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -285,8 +278,8 @@ async function ensureLoyaltyClass(loyaltyClass: Record<string, unknown>): Promis
         body: JSON.stringify(loyaltyClass),
       },
     );
-    if (!patchRes.ok) {
-      console.error('Google Wallet class patch:', patchRes.status, await patchRes.text());
+    if (!updateRes.ok) {
+      console.error('Google Wallet class update:', updateRes.status, await updateRes.text());
     }
     return;
   }

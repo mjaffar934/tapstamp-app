@@ -50,14 +50,20 @@ Deno.serve(async (req) => {
       tiers ?? [],
       { complete: redeemVisual, redeemed: redeemVisual },
     );
+    const layout = new URL(req.url).searchParams.get('layout') === 'google' ? 'centered' : 'apple';
+    // Google hero banners look best closer to 1032×336; Apple strip stays 750×246.
+    const width = layout === 'centered' ? 1032 : 750;
+    const height = layout === 'centered' ? 336 : 246;
     const png = await buildStampStripPng(
-      750,
-      246,
+      width,
+      height,
       segment.filled,
       Math.max(1, segment.total),
       false,
       { background: colors.backgroundColor, foreground: colors.foregroundColor },
       false,
+      null,
+      layout,
     );
 
     return new Response(png, {

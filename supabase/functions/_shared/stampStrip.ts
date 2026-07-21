@@ -89,6 +89,8 @@ export async function buildStampStripPng(
   colors?: StampStripColors,
   isComplete = false,
   photoBase?: Image | null,
+  /** Apple leaves room for the count; Google hero should be full-width centered. */
+  layout: 'apple' | 'centered' = 'apple',
 ): Promise<Uint8Array> {
   const bgRgba = parseColorToRgba(colors?.background ?? TAPSTAMP_BG);
   const fgRgba = parseColorToRgba(colors?.foreground ?? TAPSTAMP_FG);
@@ -107,23 +109,25 @@ export async function buildStampStripPng(
     paintPremiumBackground(img, bgRgba, fgRgba);
   }
 
-  // Leave left side clear for Apple's primary stamp count.
+  const centered = layout === 'centered';
+
   if (isRedeemed || isComplete || goal < 1) {
     const glow = blendAlpha(bgRgba, fgRgba, 0.2);
-    const cx = Math.floor(width * 0.62);
-    const cy = Math.floor(height * 0.55);
-    drawFilledCircle(img, cx, cy, Math.max(18, Math.round(height * 0.18)), glow);
-    drawFilledCircle(img, cx, cy, Math.max(10, Math.round(height * 0.1)), fgRgba);
+    const cx = Math.floor(width * (centered ? 0.5 : 0.62));
+    const cy = Math.floor(height * 0.5);
+    drawFilledCircle(img, cx, cy, Math.max(18, Math.round(height * 0.22)), glow);
+    drawFilledCircle(img, cx, cy, Math.max(10, Math.round(height * 0.12)), fgRgba);
     return await img.encode();
   }
 
   const filled = stampCount;
   const dotCount = Math.max(goal, 1);
-  const leftGutter = Math.round(width * 0.34);
-  const usableW = width - leftGutter - Math.round(width * 0.06);
-  const gap = Math.max(5, Math.round(Math.min(usableW, height) * 0.03));
-  const maxDotR = Math.max(7, Math.round(Math.min(usableW, height) * 0.12));
-  const minDotR = 5;
+  const leftGutter = Math.round(width * (centered ? 0.08 : 0.34));
+  const rightPad = Math.round(width * (centered ? 0.08 : 0.06));
+  const usableW = width - leftGutter - rightPad;
+  const gap = Math.max(6, Math.round(Math.min(usableW, height) * (centered ? 0.045 : 0.03)));
+  const maxDotR = Math.max(8, Math.round(Math.min(usableW, height) * (centered ? 0.16 : 0.12)));
+  const minDotR = centered ? 8 : 5;
   let dotR = Math.floor((usableW - gap * (dotCount - 1)) / (dotCount * 2));
   dotR = Math.max(minDotR, Math.min(maxDotR, dotR));
 
