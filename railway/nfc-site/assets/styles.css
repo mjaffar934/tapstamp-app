@@ -819,10 +819,23 @@ label.radio-row span {
   font-size: 1.55rem;
 }
 .loyalty-upsell-copy {
-  margin: 0 0 1.15rem;
+  margin: 0 0 0.65rem;
   color: var(--muted);
   font-size: 0.95rem;
   line-height: 1.45;
+}
+.loyalty-upsell-honesty {
+  margin: 0 0 0.55rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.loyalty-upsell-offer {
+  margin: 0 0 1.15rem;
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 650;
+  line-height: 1.4;
 }
 .loyalty-upsell-actions {
   display: flex;

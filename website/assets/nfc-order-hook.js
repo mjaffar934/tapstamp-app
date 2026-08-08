@@ -28,7 +28,7 @@
       banner.id = 'nfc-upsell-banner';
       banner.className = 'alert alert-info';
       banner.innerHTML =
-        'You bought an NFC reviews/Instagram card — that order is separate. This form starts <strong>stamp loyalty</strong> (Wallet stamps for your customers). Card on file, £0 today.';
+        'You already bought an Instagram/Google NFC card — that order stands alone. This page starts stamp loyalty: Wallet cards for customers, one-tap stamps, visit tracking. Card on file, £0 today.';
       lead.parentNode.insertBefore(banner, lead.nextSibling);
     }
   }

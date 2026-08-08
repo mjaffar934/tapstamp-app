@@ -8,6 +8,10 @@
   var ok = document.getElementById('success');
   var err = document.getElementById('error');
   var trackedKey = 'nfc_purchase_' + (sessionId || '');
+  var viewKey = 'nfc_success_view_' + (sessionId || '');
+  /** Canonical E1 success CTA id for M2 (shipped after copy pack; Offer A planning name was v2). */
+  var CTA_ITEM_ID = 'nfc_success_cta_v3';
+  var UPSELL_CONTENT_TYPE = 'loyalty_upsell';
 
   function showError(msg) {
     loading.classList.add('hidden');
@@ -15,13 +19,33 @@
     document.getElementById('error-msg').textContent = msg;
   }
 
-  function buildLoyaltyUrl(data) {
+  function buildLoyaltyUrl(data, channel) {
     var orderBase = (cfg.LOYALTY_ORDER_URL || 'https://tapstamp.co/order').replace(/\/$/, '');
     var qs = new URLSearchParams({ from: 'nfc', plan: 'pro' });
     if (data.email) qs.set('email', data.email);
     if (data.businessName) qs.set('business_name', data.businessName);
     if (data.sku) qs.set('nfc_sku', String(data.sku).slice(0, 80));
+    if (channel) qs.set('nfc_channel', channel);
     return orderBase + '?' + qs.toString();
+  }
+
+  function trackSuccessView(data) {
+    try {
+      if (sessionStorage.getItem(viewKey)) return;
+      sessionStorage.setItem(viewKey, '1');
+    } catch (_) { /* continue */ }
+    analytics.event('nfc_success_view', {
+      transaction_id: sessionId,
+      content_type: UPSELL_CONTENT_TYPE,
+      item_id: CTA_ITEM_ID,
+      nfc_sku: data.sku || undefined,
+    });
+    analytics.event('view_promotion', {
+      promotion_id: UPSELL_CONTENT_TYPE,
+      promotion_name: CTA_ITEM_ID,
+      creative_name: 'nfc_success_panel',
+      transaction_id: sessionId,
+    });
   }
 
   if (!sessionId) {
@@ -38,7 +62,8 @@
       }
       if (cart) cart.clear();
 
-      var loyaltyUrl = buildLoyaltyUrl(result.data);
+      var loyaltyUrlCta = buildLoyaltyUrl(result.data, 'success_cta');
+      var loyaltyUrlCheckbox = buildLoyaltyUrl(result.data, 'checkout_checkbox');
 
       try {
         if (!sessionStorage.getItem(trackedKey)) {
@@ -59,13 +84,22 @@
       // Checkbox opt-in: after hardware payment, continue into /order with prefills
       if (result.data.startLoyalty) {
         analytics.event('select_content', {
-          content_type: 'loyalty_upsell',
+          content_type: UPSELL_CONTENT_TYPE,
           item_id: 'nfc_checkout_checkbox_redirect',
+          transaction_id: sessionId,
+          nfc_sku: result.data.sku || undefined,
+        });
+        analytics.event('nfc_loyalty_cta_click', {
+          content_type: UPSELL_CONTENT_TYPE,
+          item_id: 'nfc_checkout_checkbox_redirect',
+          transaction_id: sessionId,
+          nfc_channel: 'checkout_checkbox',
+          nfc_sku: result.data.sku || undefined,
         });
         if (loading) {
           loading.innerHTML = '<p style="color:var(--muted)">Payment confirmed — continuing to stamp loyalty…</p>';
         }
-        location.href = loyaltyUrl;
+        location.href = loyaltyUrlCheckbox;
         return;
       }
 
@@ -87,13 +121,35 @@
         }
       }
 
+      trackSuccessView(result.data);
+
       var loyaltyCta = document.getElementById('loyalty-upsell-cta');
       if (loyaltyCta) {
-        loyaltyCta.href = loyaltyUrl;
+        loyaltyCta.href = loyaltyUrlCta;
         loyaltyCta.addEventListener('click', function () {
           analytics.event('select_content', {
-            content_type: 'loyalty_upsell',
-            item_id: 'nfc_success_cta_v2',
+            content_type: UPSELL_CONTENT_TYPE,
+            item_id: CTA_ITEM_ID,
+            transaction_id: sessionId,
+            nfc_sku: result.data.sku || undefined,
+          });
+          analytics.event('nfc_loyalty_cta_click', {
+            content_type: UPSELL_CONTENT_TYPE,
+            item_id: CTA_ITEM_ID,
+            transaction_id: sessionId,
+            nfc_channel: 'success_cta',
+            nfc_sku: result.data.sku || undefined,
+          });
+        });
+      }
+
+      var skipLink = document.querySelector('.loyalty-upsell-skip');
+      if (skipLink) {
+        skipLink.addEventListener('click', function () {
+          analytics.event('nfc_success_skip', {
+            content_type: UPSELL_CONTENT_TYPE,
+            item_id: CTA_ITEM_ID,
+            transaction_id: sessionId,
           });
         });
       }
