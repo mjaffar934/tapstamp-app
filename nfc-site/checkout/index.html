@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:wght@400;650;700&display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/assets/styles.css?v=11">
+  <link rel="stylesheet" href="/assets/styles.css?v=14">
 </head>
 <body>
   <div class="topbar">Pre-programmed · Free UK delivery · Free London drop-off</div>
@@ -66,6 +66,15 @@
         </label>
       </fieldset>
 
+      <fieldset class="delivery-fieldset loyalty-optin">
+        <legend>Optional</legend>
+        <label class="radio-row">
+          <input type="checkbox" id="start_loyalty" name="start_loyalty" value="1">
+          <span>Also start stamp loyalty — £0 today</span>
+        </label>
+        <p class="hint">Creates your free TapStamp owner account after this payment. Loyalty stamp ships separately from this reviews/Instagram order.</p>
+      </fieldset>
+
       <button class="btn btn-block" type="submit" id="submit-btn" style="margin-top:1.2rem">Continue to secure payment</button>
       <p class="hint" style="margin-top:0.75rem">You’ll enter email, address and card on Stripe Checkout.</p>
     </form>
@@ -89,10 +98,10 @@
     </div>
   </footer>
 
-  <script src="/assets/config.js?v=11"></script>
+  <script src="/assets/config.js?v=14"></script>
   <script src="/assets/analytics.js?v=11"></script>
   <script src="/assets/cart.js?v=11"></script>
   <script src="/assets/site.js?v=11"></script>
-  <script src="/assets/checkout.js?v=11"></script>
+  <script src="/assets/checkout.js?v=14"></script>
 </body>
 </html>

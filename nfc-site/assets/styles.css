@@ -304,6 +304,13 @@ button, input { font: inherit; }
   font-size: 0.85rem;
 }
 .radio-row em { color: var(--muted); font-style: normal; font-size: 0.85em; }
+.loyalty-optin .hint { margin-top: 0.35rem; margin-left: 1.85rem; }
+.loyalty-optin input[type="checkbox"] {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--gold);
+  flex-shrink: 0;
+}
 .faq {
   display: grid;
   gap: 0.65rem;

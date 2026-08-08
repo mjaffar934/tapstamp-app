@@ -15,6 +15,15 @@
     document.getElementById('error-msg').textContent = msg;
   }
 
+  function buildLoyaltyUrl(data) {
+    var orderBase = (cfg.LOYALTY_ORDER_URL || 'https://tapstamp.co/order').replace(/\/$/, '');
+    var qs = new URLSearchParams({ from: 'nfc', plan: 'pro' });
+    if (data.email) qs.set('email', data.email);
+    if (data.businessName) qs.set('business_name', data.businessName);
+    if (data.sku) qs.set('nfc_sku', String(data.sku).slice(0, 80));
+    return orderBase + '?' + qs.toString();
+  }
+
   if (!sessionId) {
     showError('Missing payment session. If you were charged, email support@tapstamp.co.');
     return;
@@ -28,6 +37,38 @@
         return;
       }
       if (cart) cart.clear();
+
+      var loyaltyUrl = buildLoyaltyUrl(result.data);
+
+      try {
+        if (!sessionStorage.getItem(trackedKey)) {
+          sessionStorage.setItem(trackedKey, '1');
+          var value = typeof result.data.amountTotal === 'number'
+            ? result.data.amountTotal / 100
+            : undefined;
+          analytics.event('purchase', {
+            transaction_id: sessionId,
+            currency: 'GBP',
+            value: value,
+            items: [{ item_name: result.data.productName || 'NFC order' }],
+            start_loyalty: result.data.startLoyalty ? 1 : 0,
+          });
+        }
+      } catch (_) { /* ignore */ }
+
+      // Checkbox opt-in: after hardware payment, continue into /order with prefills
+      if (result.data.startLoyalty) {
+        analytics.event('select_content', {
+          content_type: 'loyalty_upsell',
+          item_id: 'nfc_checkout_checkbox_redirect',
+        });
+        if (loading) {
+          loading.innerHTML = '<p style="color:var(--muted)">Payment confirmed — continuing to stamp loyalty…</p>';
+        }
+        location.href = loyaltyUrl;
+        return;
+      }
+
       loading.classList.add('hidden');
       ok.classList.remove('hidden');
       document.getElementById('success-email').textContent = result.data.email || 'your inbox';
@@ -48,12 +89,7 @@
 
       var loyaltyCta = document.getElementById('loyalty-upsell-cta');
       if (loyaltyCta) {
-        var orderBase = (cfg.LOYALTY_ORDER_URL || 'https://tapstamp.co/order').replace(/\/$/, '');
-        var qs = new URLSearchParams({ from: 'nfc', plan: 'pro' });
-        if (result.data.email) qs.set('email', result.data.email);
-        if (result.data.businessName) qs.set('business_name', result.data.businessName);
-        if (result.data.sku) qs.set('nfc_sku', String(result.data.sku).slice(0, 80));
-        loyaltyCta.href = orderBase + '?' + qs.toString();
+        loyaltyCta.href = loyaltyUrl;
         loyaltyCta.addEventListener('click', function () {
           analytics.event('select_content', {
             content_type: 'loyalty_upsell',
@@ -61,21 +97,6 @@
           });
         });
       }
-
-      try {
-        if (!sessionStorage.getItem(trackedKey)) {
-          sessionStorage.setItem(trackedKey, '1');
-          var value = typeof result.data.amountTotal === 'number'
-            ? result.data.amountTotal / 100
-            : undefined;
-          analytics.event('purchase', {
-            transaction_id: sessionId,
-            currency: 'GBP',
-            value: value,
-            items: [{ item_name: result.data.productName || 'NFC order' }],
-          });
-        }
-      } catch (_) { /* ignore */ }
     })
     .catch(function () {
       showError('Could not reach the server. Refresh, or email support@tapstamp.co with your receipt.');

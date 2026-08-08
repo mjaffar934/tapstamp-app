@@ -143,11 +143,16 @@
     var businessAddress = String((document.getElementById('shipping_address_line1') || {}).value || '').trim();
     var instagramHandle = String((document.getElementById('instagram_handle') || {}).value || '').trim();
 
+    var startLoyaltyEl = document.getElementById('start_loyalty');
+    var startLoyalty = Boolean(startLoyaltyEl && startLoyaltyEl.checked);
+
     var body = {
       site: 'nfc',
       items: lines.map(function (l) { return { sku: l.sku, quantity: l.quantity }; }),
       delivery_method: delivery,
     };
+    // Opt-in only — never adds loyalty as a Stripe line item or changes hardware price
+    if (startLoyalty) body.start_loyalty = true;
 
     if (cart.hasFamily('google')) {
       if (googleUrl) {
@@ -195,6 +200,7 @@
           quantity: l.quantity,
         };
       }),
+      start_loyalty: startLoyalty ? 1 : 0,
     });
 
     var btn = document.getElementById('submit-btn');
