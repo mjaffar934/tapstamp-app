@@ -25,6 +25,10 @@ export interface OrderBody {
   from?: string;
   /** Optional NFC hardware SKU(s) from shop deep link — Stripe metadata only */
   nfc_sku?: string;
+  /** Day-0/2/7 nurture click attribution (M3) — Stripe metadata only */
+  nfc_email_day?: string;
+  /** success_cta | email_day_N | order_direct — Stripe metadata only */
+  nfc_channel?: string;
 }
 
 export interface OrderResult {
@@ -55,6 +59,10 @@ export async function prepareOrder(body: OrderBody): Promise<OrderResult> {
   const fromApp = fromRaw === 'app';
   const signupSource = fromRaw === 'app' || fromRaw === 'nfc' ? fromRaw : undefined;
   const nfcSku = typeof body.nfc_sku === 'string' ? body.nfc_sku.trim().slice(0, 80) : undefined;
+  const emailDayRaw = typeof body.nfc_email_day === 'string' ? body.nfc_email_day.trim() : '';
+  const nfcEmailDay = /^[027]$/.test(emailDayRaw) ? emailDayRaw : undefined;
+  const nfcChannelRaw = typeof body.nfc_channel === 'string' ? body.nfc_channel.trim().slice(0, 40) : '';
+  const nfcChannel = nfcChannelRaw || undefined;
 
   if (!email || !password) {
     return { ok: false, status: 400, error: 'Email and password are required' };
@@ -104,6 +112,8 @@ export async function prepareOrder(body: OrderBody): Promise<OrderResult> {
           fromApp,
           signupSource,
           nfcSku,
+          nfcEmailDay,
+          nfcChannel,
         });
 
         await supabase.from('businesses').update({
@@ -249,6 +259,8 @@ export async function prepareOrder(body: OrderBody): Promise<OrderResult> {
       fromApp,
       signupSource,
       nfcSku,
+      nfcEmailDay,
+      nfcChannel,
     });
 
     await supabase.from('businesses').update({

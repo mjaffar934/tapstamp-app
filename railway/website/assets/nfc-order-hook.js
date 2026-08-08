@@ -11,10 +11,6 @@
   var email = params.get('email');
   var businessName = params.get('business_name');
   var nfcSku = params.get('nfc_sku');
-  var emailDayRaw = params.get('email_day') || params.get('nfc_email_day') || '';
-  var emailDay = /^[027]$/.test(String(emailDayRaw)) ? String(emailDayRaw) : '';
-  var nfcChannel = (params.get('nfc_channel') || '').slice(0, 40);
-  if (!nfcChannel) nfcChannel = emailDay ? ('email_day_' + emailDay) : 'order_direct';
 
   var emailInput = document.getElementById('email');
   if (email && emailInput && !emailInput.value) emailInput.value = email;
@@ -52,8 +48,6 @@
           var body = JSON.parse(init.body);
           body.from = 'nfc';
           if (nfcSku) body.nfc_sku = String(nfcSku).slice(0, 80);
-          if (emailDay) body.nfc_email_day = emailDay;
-          if (nfcChannel) body.nfc_channel = nfcChannel;
           init = Object.assign({}, init, { body: JSON.stringify(body) });
         }
       }

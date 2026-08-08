@@ -56,6 +56,8 @@ Deno.serve(async (req) => {
       shipping_phone: body.shipping_phone,
       from: body.from,
       nfc_sku: body.nfc_sku,
+      nfc_email_day: body.nfc_email_day,
+      nfc_channel: body.nfc_channel,
     });
 
     if (!result.ok) {
