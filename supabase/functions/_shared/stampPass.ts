@@ -16,6 +16,8 @@ export interface StampResult {
   milestoneReward?: string | null;
   /** Mid-level redeem kept stamp progress (did not reset to 0). */
   continued?: boolean;
+  /** false when a Wallet update was attempted and failed — trust DB stamp count. */
+  walletSynced?: boolean;
 }
 
 export interface StampOptions {
@@ -194,7 +196,7 @@ export async function applyStampToPass(
     status: isFullCard ? 'redeemed' : 'active',
     pending_milestone_reward: pendingReward,
   };
-  await notifyPass(serial, cafe, Number(updated.stamp_count), String(updated.status));
+  const walletSynced = await notifyPass(serial, cafe, Number(updated.stamp_count), String(updated.status));
 
   return {
     ok: true,
@@ -203,6 +205,7 @@ export async function applyStampToPass(
     isRedeemed: isFullCard,
     rewardJustUnlocked: Boolean(milestoneReward),
     milestoneReward,
+    walletSynced,
   };
 }
 
@@ -247,11 +250,12 @@ export async function applyRedeemToPass(
 
     await supabase.from('redemptions').insert({ pass_id: pass.id, cafe_id: cafeId });
 
+    let walletSynced = true;
     if (!options.skipNotify) {
-      await notifyPass(serial, cafe, 0, 'active');
+      walletSynced = await notifyPass(serial, cafe, 0, 'active');
     }
 
-    return { ok: true, stampCount: 0, status: 'active', isRedeemed: false };
+    return { ok: true, stampCount: 0, status: 'active', isRedeemed: false, walletSynced };
   }
 
   // Mid milestone: claim reward, keep stamp progress, unlock next taps.
@@ -265,8 +269,9 @@ export async function applyRedeemToPass(
 
   await supabase.from('redemptions').insert({ pass_id: pass.id, cafe_id: cafeId });
 
+  let walletSynced = true;
   if (!options.skipNotify) {
-    await notifyPass(serial, cafe, keepCount, 'active');
+    walletSynced = await notifyPass(serial, cafe, keepCount, 'active');
   }
 
   return {
@@ -276,6 +281,7 @@ export async function applyRedeemToPass(
     isRedeemed: false,
     milestoneReward: pending,
     continued: true,
+    walletSynced,
   };
 }
 
@@ -336,7 +342,7 @@ export async function applyRedeemRestartAndStamp(
     redeem_ack_pending: false,
   }).eq('serial_number', serial);
 
-  await notifyPass(serial, cafe, newCount, 'active');
+  const walletSynced = await notifyPass(serial, cafe, newCount, 'active');
 
   return {
     ok: true,
@@ -344,15 +350,17 @@ export async function applyRedeemRestartAndStamp(
     status: 'active',
     isRedeemed: false,
     rewardJustUnlocked: false,
+    walletSynced,
   };
 }
 
-async function notifyPass(
+/** Notify Apple + Google; persist outcome on the pass. Returns false only when a channel failed. */
+export async function notifyPass(
   serial: string,
   cafe: Record<string, unknown>,
   stampCount: number,
   status: string,
-): Promise<void> {
+): Promise<boolean> {
   const { data: freshPass } = await supabase
     .from('passes')
     .select('push_token, customer_name, lifetime_stamps, cafe_id, pending_milestone_reward, member_code, serial_number')
@@ -372,16 +380,55 @@ async function notifyPass(
     ? await ensureMemberCode(freshPass as Record<string, unknown>, cafeId)
     : null;
 
-  await pushPassUpdate(freshPass?.push_token as string | null | undefined, serial);
-  await updateGoogleWalletObject({
-    cafe,
-    serialNumber: serial,
-    stampCount,
-    status,
-    customerName: (freshPass?.customer_name as string | null) ?? null,
-    memberCode,
-    lifetimeStamps: Number(freshPass?.lifetime_stamps) || stampCount,
-    tiers: tiers ?? [],
-    pendingMilestoneReward: (freshPass?.pending_milestone_reward as string | null) ?? null,
-  }).catch((err) => console.error('Google Wallet sync:', err));
+  let apple: 'ok' | 'fail' | 'skipped' | 'gone' = 'skipped';
+  let google: 'ok' | 'fail' | 'skipped' = 'skipped';
+
+  try {
+    apple = await pushPassUpdate(freshPass?.push_token as string | null | undefined, serial);
+  } catch (err) {
+    console.error('Apple Wallet push error:', err);
+    apple = 'fail';
+  }
+
+  try {
+    google = await updateGoogleWalletObject({
+      cafe,
+      serialNumber: serial,
+      stampCount,
+      status,
+      customerName: (freshPass?.customer_name as string | null) ?? null,
+      memberCode,
+      lifetimeStamps: Number(freshPass?.lifetime_stamps) || stampCount,
+      tiers: tiers ?? [],
+      pendingMilestoneReward: (freshPass?.pending_milestone_reward as string | null) ?? null,
+    });
+  } catch (err) {
+    console.error('Google Wallet sync:', err);
+    google = 'fail';
+  }
+
+  const anyOk = apple === 'ok' || google === 'ok';
+  // Prefer success on any channel; "skipped" on both means nothing registered yet (HTML stamp is source of truth).
+  const walletSynced = anyOk || (apple === 'skipped' && google === 'skipped');
+
+  const errors: string[] = [];
+  if (apple === 'fail') errors.push('apple_push_failed');
+  if (apple === 'gone') errors.push('apple_token_gone');
+  if (google === 'fail') errors.push('google_update_failed');
+
+  const { error: persistError } = await supabase.from('passes').update({
+    last_wallet_sync_at: new Date().toISOString(),
+    last_wallet_sync_ok: walletSynced,
+    last_wallet_sync_error: walletSynced ? null : errors.join(',') || 'wallet_sync_failed',
+  }).eq('serial_number', serial);
+
+  if (persistError) {
+    console.error('Failed to persist wallet sync status:', persistError.message);
+  }
+
+  if (!walletSynced) {
+    console.error('Wallet sync failed for', serial, { apple, google });
+  }
+
+  return walletSynced;
 }

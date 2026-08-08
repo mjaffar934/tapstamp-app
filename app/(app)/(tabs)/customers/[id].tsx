@@ -41,11 +41,15 @@ export default function CustomerDetailScreen() {
     }
 
     await refetch();
+    const walletNote =
+      result.walletSynced === false
+        ? ' Wallet card may not have updated — trust the stamp count shown here.'
+        : '';
     alert(
       action === 'stamp' ? 'Stamp added' : 'Reward redeemed',
       action === 'stamp'
-        ? `Pass is now at ${result.stampCount ?? pass.stamp_count} stamps.`
-        : 'Pass has been reset for a new cycle.',
+        ? `Pass is now at ${result.stampCount ?? pass.stamp_count} stamps.${walletNote}`
+        : `Pass has been reset for a new cycle.${walletNote}`,
     );
   };
 
@@ -73,6 +77,7 @@ export default function CustomerDetailScreen() {
 
   const name = displayName(pass.customer_name, pass.customer_email);
   const remaining = Math.max(0, stampGoal - pass.stamp_count);
+  const walletSyncFailed = pass.last_wallet_sync_ok === false;
 
   return (
     <Screen>
@@ -85,7 +90,21 @@ export default function CustomerDetailScreen() {
         </View>
         <Text variant="h1">{name}</Text>
         {pass.customer_email ? <Text muted>{pass.customer_email}</Text> : null}
+        {pass.member_code ? (
+          <Text variant="caption" muted>
+            Member code {pass.member_code}
+          </Text>
+        ) : null}
       </View>
+
+      {walletSyncFailed ? (
+        <Card style={styles.walletWarn}>
+          <Text variant="h3">Wallet may be out of date</Text>
+          <Text variant="bodySmall" muted>
+            The stamp count below is correct. If the customer&apos;s Wallet card looks wrong, trust this number (or their tap screen) at the counter.
+          </Text>
+        </Card>
+      ) : null}
 
       <View style={styles.stats}>
         <Card style={styles.stat}>
@@ -197,6 +216,11 @@ const styles = StyleSheet.create({
   card: {
     gap: spacing.md,
     marginBottom: spacing.lg,
+  },
+  walletWarn: {
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+    borderColor: colors.border,
   },
   stamps: {
     flexDirection: 'row',

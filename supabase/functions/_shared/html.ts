@@ -239,16 +239,20 @@ function markWalletAddedScript(cafeId: string) {
   return `<script>(function(){try{localStorage.setItem("tapstamp_wallet_added_${safeId}","1")}catch(e){}})();</script>`;
 }
 
-function walletSetupGuardScript(cafeId: string, serial: string) {
-  const safeId = escapeHtml(cafeId);
-  const safeSerial = escapeHtml(serial);
-  return `<script>(function(){try{if(localStorage.getItem("tapstamp_wallet_added_${safeId}")){var u=new URL(location.href);u.searchParams.delete("setup");u.searchParams.set("p","${safeSerial}");location.replace(u.pathname+u.search)}}catch(e){}})();</script>`;
+/** Honest copy when Wallet push may have failed — stamp in DB is still correct. */
+function walletUpdateNote(walletSynced: boolean | null | undefined = true): string {
+  if (walletSynced === false) {
+    return `<p class="muted" style="font-size:0.75rem;margin-top:0.75rem">Your stamp is saved. If your Wallet card hasn&apos;t updated yet, show this screen (or your member code) at the counter — staff can see your real stamp count.</p>`;
+  }
+  return `<p class="muted" style="font-size:0.75rem;margin-top:0.75rem">Your Wallet pass updates automatically.</p>`;
 }
 
 function walletReturnScript(thanksUrl: string, cafeId: string) {
   const safe = escapeHtml(thanksUrl);
   const safeId = escapeHtml(cafeId);
-  return `<script>(function(){var t="${safe}",id="${safeId}",w=false;function go(){try{localStorage.setItem("tapstamp_wallet_added_"+id,"1");sessionStorage.removeItem("tapstamp_wallet_pending")}catch(e){}location.href=t}document.querySelectorAll('a[href*="/pass/"],a[href*="/google-wallet/"],a.wallet-google,a.wallet-apple').forEach(function(a){a.addEventListener("click",function(){w=true;try{localStorage.setItem("tapstamp_wallet_added_"+id,"1");sessionStorage.setItem("tapstamp_wallet_pending","1")}catch(e){}})});document.addEventListener("visibilitychange",function(){if(document.visibilityState!=="visible"||!w)return;try{if(sessionStorage.getItem("tapstamp_wallet_pending"))go()}catch(e){go()}});window.addEventListener("pageshow",function(e){if(!w)return;try{if(sessionStorage.getItem("tapstamp_wallet_pending"))go()}catch(err){go()}})})();</script>`;
+  // Delay redirect so Add Pass / Google save UI can finish. Instant redirect on
+  // visibilitychange cancelled adds (especially when another pass is already in Wallet).
+  return `<script>(function(){var t="${safe}",id="${safeId}",w=false,done=false;function go(){if(done)return;done=true;try{sessionStorage.removeItem("tapstamp_wallet_pending")}catch(e){}setTimeout(function(){location.href=t},1800)}document.querySelectorAll('a[href*="/pass/"],a[href*="/google-wallet/"],a.wallet-google,a.wallet-apple').forEach(function(a){a.addEventListener("click",function(){w=true;try{sessionStorage.setItem("tapstamp_wallet_pending","1")}catch(e){}})});document.addEventListener("visibilitychange",function(){if(document.visibilityState!=="visible"||!w)return;try{if(sessionStorage.getItem("tapstamp_wallet_pending"))go()}catch(e){go()}});window.addEventListener("pageshow",function(){if(!w)return;try{if(sessionStorage.getItem("tapstamp_wallet_pending"))go()}catch(err){go()}})})();</script>`;
 }
 
 function persistScript(cafeId: string) {
@@ -302,19 +306,20 @@ export function alreadyStampedPage(
   stampCount: number,
   serial?: string,
   pendingReward?: string | null,
+  walletSynced?: boolean | null,
 ) {
   const extra = serial ? passPersistScripts(cafe.id, serial) : '';
   const reward = pendingReward?.trim();
   if (reward) {
     return shell(
       cafe,
-      `<div class="card">${getLogo(cafe)}<p class="eyebrow">Reward unlocked</p><h1>Your next visit&apos;s on us</h1><p>You&apos;ve earned a reward of <strong>${rewardText(reward)}</strong>. Show your Wallet pass at the counter to claim it.</p><div class="reward-pill">${rewardText(reward)}</div>${getStamps(cafe, stampCount)}<p class="muted" style="font-size:0.75rem;margin-top:0.75rem">Your Wallet pass updates automatically.</p>${lostWalletCta(serial)}</div>`,
+      `<div class="card">${getLogo(cafe)}<p class="eyebrow">Reward unlocked</p><h1>Your next visit&apos;s on us</h1><p>You&apos;ve earned a reward of <strong>${rewardText(reward)}</strong>. Show your Wallet pass at the counter to claim it.</p><div class="reward-pill">${rewardText(reward)}</div>${getStamps(cafe, stampCount)}${walletUpdateNote(walletSynced)}${lostWalletCta(serial)}</div>`,
       extra,
     );
   }
   return shell(
     cafe,
-    `<div class="card">${getLogo(cafe)}<p class="eyebrow">You&apos;re stamped</p><h1>See you soon</h1><p>You&apos;re all set for this visit — come back next time for your next stamp.</p>${getStamps(cafe, stampCount)}${progressRewardLine(cafe, stampCount)}<p class="muted" style="font-size:0.75rem;margin-top:0.75rem">Your Wallet pass updates automatically.</p>${lostWalletCta(serial)}</div>`,
+    `<div class="card">${getLogo(cafe)}<p class="eyebrow">You&apos;re stamped</p><h1>See you soon</h1><p>You&apos;re all set for this visit — come back next time for your next stamp.</p>${getStamps(cafe, stampCount)}${progressRewardLine(cafe, stampCount)}${walletUpdateNote(walletSynced)}${lostWalletCta(serial)}</div>`,
     extra,
   );
 }
@@ -347,7 +352,7 @@ export function addToWalletPage(
   return shell(
     cafe,
     `<div class="card">${getLogo(cafe)}<h1>${escapeHtml(cafe.name)}</h1><p class="tagline">${escapeHtml(tagline)}</p>${warn}${getStamps(cafe, count)}${progressRewardLine(cafe, count)}${walletButtons(applePassUrl, googlePassUrl, { preferGoogle })}${walletDoneLink(thanksUrl)}</div>`,
-    walletSetupGuardScript(cafeId, serial) + walletBootstrapScript(cafeId, serial) + walletReturnScript(thanksUrl, cafeId),
+    walletBootstrapScript(cafeId, serial) + walletReturnScript(thanksUrl, cafeId),
   );
 }
 
@@ -422,7 +427,14 @@ export function thanksJoinedPage(cafe: CafeBrand, count: number, serial?: string
   );
 }
 
-export function stampedPage(cafe: CafeBrand, count: number, _rewardJustUnlocked = false, serial?: string, rewardName?: string | null) {
+export function stampedPage(
+  cafe: CafeBrand,
+  count: number,
+  _rewardJustUnlocked = false,
+  serial?: string,
+  rewardName?: string | null,
+  walletSynced?: boolean | null,
+) {
   const extra = serial ? passPersistScripts(cafe.id, serial) : '';
   const reward = rewardName?.trim()
     || (_rewardJustUnlocked
@@ -435,11 +447,11 @@ export function stampedPage(cafe: CafeBrand, count: number, _rewardJustUnlocked 
     });
     return shell(
       cafe,
-      `<div class="card">${getLogo(cafe)}<p class="eyebrow">Reward unlocked</p><h1>Your next visit&apos;s on us</h1><p>You&apos;ve earned a reward of <strong>${rewardText(String(reward))}</strong>.</p><div class="reward-pill">Redeem now</div><p class="muted" style="margin-top:-0.35rem;margin-bottom:0.75rem">${rewardText(String(reward))}</p><p class="muted reward-line"><strong>${segment.filled}</strong> of ${segment.total}</p>${getStamps(cafe, segment.filled, segment.total)}<p class="muted" style="font-size:0.75rem;margin-top:0.75rem">Show your Wallet pass at the counter to claim it.</p>${lostWalletCta(serial)}</div>`,
+      `<div class="card">${getLogo(cafe)}<p class="eyebrow">Reward unlocked</p><h1>Your next visit&apos;s on us</h1><p>You&apos;ve earned a reward of <strong>${rewardText(String(reward))}</strong>.</p><div class="reward-pill">Redeem now</div><p class="muted" style="margin-top:-0.35rem;margin-bottom:0.75rem">${rewardText(String(reward))}</p><p class="muted reward-line"><strong>${segment.filled}</strong> of ${segment.total}</p>${getStamps(cafe, segment.filled, segment.total)}<p class="muted" style="font-size:0.75rem;margin-top:0.75rem">Show your Wallet pass at the counter to claim it.</p>${walletUpdateNote(walletSynced)}${lostWalletCta(serial)}</div>`,
       extra,
     );
   }
-  return shell(cafe, `<div class="card">${getLogo(cafe)}<p class="eyebrow">Stamp added</p><h1>${escapeHtml(cafe.stamp_message || 'Thanks for visiting!')}</h1><p>${escapeHtml(cafe.name)}</p>${getStamps(cafe, count)}${progressRewardLine(cafe, count)}<p class="muted" style="font-size:0.75rem">Your Wallet pass updates automatically.</p>${lostWalletCta(serial)}</div>`, extra);
+  return shell(cafe, `<div class="card">${getLogo(cafe)}<p class="eyebrow">Stamp added</p><h1>${escapeHtml(cafe.stamp_message || 'Thanks for visiting!')}</h1><p>${escapeHtml(cafe.name)}</p>${getStamps(cafe, count)}${progressRewardLine(cafe, count)}${walletUpdateNote(walletSynced)}${lostWalletCta(serial)}</div>`, extra);
 }
 
 /** Mid-milestone or final reward ready — names the specific reward. */
@@ -462,7 +474,7 @@ export function redeemReadyPage(
   );
   const keepLine = keepGoing
     ? `<p class="muted" style="font-size:0.8rem;margin-top:0.75rem">Keep collecting stamps after you claim — your card continues.</p>`
-    : `<p class="muted" style="font-size:0.75rem;margin-top:0.75rem">Your Wallet pass updates automatically. Tap again on your next visit to start collecting stamps.</p>`;
+    : `<p class="muted" style="font-size:0.75rem;margin-top:0.75rem">Tap again on your next visit to start collecting stamps.</p>${walletUpdateNote(true)}`;
   const extra = serial ? passPersistScripts(cafe.id, serial) : '';
   return shell(
     cafe,
@@ -481,11 +493,16 @@ function milestoneStillCollecting(cafe: CafeBrand, rewardName: string): boolean 
     formatRewardDisplay(rewardName).toLowerCase();
 }
 
-export function rewardRestartPage(cafe: CafeBrand, count: number, serial?: string) {
+export function rewardRestartPage(
+  cafe: CafeBrand,
+  count: number,
+  serial?: string,
+  walletSynced?: boolean | null,
+) {
   const extra = serial ? passPersistScripts(cafe.id, serial) : '';
   return shell(
     cafe,
-    `<div class="card">${getLogo(cafe)}<p class="eyebrow">Well done</p><h1>You're collecting again</h1><p>If you haven&apos;t already, make sure to claim your <strong>${rewardText(cafe.reward)}</strong> at the counter.</p>${getStamps(cafe, count)}${progressRewardLine(cafe, count)}<p class="muted" style="font-size:0.75rem">Your Wallet pass updates automatically.</p>${lostWalletCta(serial)}</div>`,
+    `<div class="card">${getLogo(cafe)}<p class="eyebrow">Well done</p><h1>You're collecting again</h1><p>If you haven&apos;t already, make sure to claim your <strong>${rewardText(cafe.reward)}</strong> at the counter.</p>${getStamps(cafe, count)}${progressRewardLine(cafe, count)}${walletUpdateNote(walletSynced)}${lostWalletCta(serial)}</div>`,
     extra,
   );
 }

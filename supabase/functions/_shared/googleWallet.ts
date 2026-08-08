@@ -55,16 +55,34 @@ function objectId(issuerId: string, serialNumber: string): string {
   return `${issuerId}.tapstamp_pass_${serialNumber.replace(/-/g, '_')}`;
 }
 
-/** Google REST expects camelCase reviewStatus values. */
-function reviewStatus(): 'underReview' | 'approved' {
-  return (Deno.env.get('GOOGLE_WALLET_REVIEW_STATUS') || '').toUpperCase() === 'APPROVED'
-    ? 'approved'
-    : 'underReview';
+/** Drop undefined/null so Google JWT/REST never sees empty optional fields. */
+function stripEmpty<T extends Record<string, unknown>>(obj: T): T {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value === undefined || value === null) continue;
+    if (typeof value === 'object' && !Array.isArray(value)) {
+      const nested = stripEmpty(value as Record<string, unknown>);
+      if (Object.keys(nested).length > 0) out[key] = nested;
+      continue;
+    }
+    out[key] = value;
+  }
+  return out as T;
 }
 
-/** True only after Google grants publishing access AND secret is set. */
+/**
+ * Google sets `APPROVED` itself after review. Issuers must send `UNDER_REVIEW`
+ * on insert/update/JWT — sending `APPROVED` fails with:
+ * Invalid review status "APPROVED". Use "UNDER_REVIEW" instead.
+ * Prefer the current enum string (legacy camelCase underReview is deprecated).
+ */
+function reviewStatus(): 'UNDER_REVIEW' {
+  return 'UNDER_REVIEW';
+}
+
+/** Publishing access is controlled in Google’s console — not by this field. */
 export function isGoogleWalletPublic(): boolean {
-  return reviewStatus() === 'approved';
+  return (Deno.env.get('GOOGLE_WALLET_REVIEW_STATUS') || '').toUpperCase() === 'APPROVED';
 }
 
 function walletConfig():
@@ -102,6 +120,7 @@ export function googleWalletDiag(): Record<string, unknown> {
     configured: Boolean(config),
     public: isGoogleWalletPublic(),
     reviewStatus: reviewStatus(),
+    reviewStatusNote: 'Issuers must always send UNDER_REVIEW; Google flips to APPROVED',
     origins: config?.origins ?? [],
     issuerIdSet: Boolean(config?.issuerId),
     serviceAccountSet: Boolean(config?.serviceAccount),
@@ -129,8 +148,8 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
     complete: isComplete || pending,
     redeemed: isRedeemed || pending,
   });
-  // Centered strip for Google hero (Apple strip keeps a left gutter for the count).
-  const stripUrl = `${functionsUrl(`/wallet-strip/${serialNumber}`)}?layout=google&v=3`;
+  // Cache-bust hero strip so Google refetches dots after each stamp (not a stale image).
+  const stripUrl = `${functionsUrl(`/wallet-strip/${serialNumber}`)}?layout=google&n=${stampCount}&st=${encodeURIComponent(status)}&v=7`;
   const rewardCopy = buildRewardFieldCopy({
     stampCount,
     stampGoal,
@@ -145,10 +164,10 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
     ? String(customerName).trim().split(/\s+/)[0]
     : null;
 
-  const loyaltyClass = {
+  const loyaltyClass = stripEmpty({
     id: classId(config.issuerId, cafeId),
     issuerName: cafeName,
-    reviewStatus: reviewStatus(),
+    reviewStatus: 'UNDER_REVIEW',
     programName: cafeName,
     programLogo: logoUrl
       ? { sourceUri: { uri: logoUrl }, contentDescription: { defaultValue: { language: 'en', value: cafeName } } }
@@ -157,7 +176,7 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
     localizedAccountNameLabel: {
       defaultValue: { language: 'en', value: memberLabel ? 'MEMBER' : 'LOYALTY' },
     },
-  };
+  });
 
   const stampBalance = (() => {
     if (isRedeemed || isComplete || pending) {
@@ -175,7 +194,7 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
   // Same 4-digit cafe member code shown in the owner/staff app.
   const code = (memberCode?.trim() || '').replace(/\D/g, '').slice(0, 4);
 
-  const loyaltyObject: Record<string, unknown> = {
+  const loyaltyObject = stripEmpty({
     id: objectId(config.issuerId, serialNumber),
     classId: classId(config.issuerId, cafeId),
     state: isRedeemed ? 'COMPLETED' : 'ACTIVE',
@@ -189,37 +208,35 @@ function buildLoyaltyPayload(input: GoogleWalletPassInput) {
       label: redeemReady ? 'REDEEM NOW' : (hasLevels ? 'NEXT REWARD' : rewardCopy.label),
       balance: { string: rewardCopy.value },
     },
+    // QR of the pass serial (same as Apple Wallet) so staff can scan either wallet.
+    // alternateText shows the 4-digit member code under the QR.
     barcode: {
-      type: 'TEXT_ONLY',
-      value: code || serialNumber,
+      type: 'QR_CODE',
+      value: serialNumber,
       alternateText: code || undefined,
     },
     heroImage: {
       sourceUri: { uri: stripUrl },
       contentDescription: { defaultValue: { language: 'en', value: `${stampBalance} stamps` } },
     },
-  };
-
-  if (showName && customerName?.trim()) {
-    loyaltyObject.textModulesData = [
-      { header: 'MEMBER', body: String(customerName).trim(), id: 'member' },
-    ];
-  }
-
-  loyaltyObject.linksModuleData = {
-    uris: [
-      {
-        uri: 'https://tapstamp.co/support',
-        description: 'Customer support',
-        id: 'support',
-      },
-      {
-        uri: 'mailto:support@tapstamp.com',
-        description: 'Email TapStamp',
-        id: 'email',
-      },
-    ],
-  };
+    textModulesData: showName && customerName?.trim()
+      ? [{ header: 'MEMBER', body: String(customerName).trim(), id: 'member' }]
+      : undefined,
+    linksModuleData: {
+      uris: [
+        {
+          uri: 'https://tapstamp.co/support',
+          description: 'Customer support',
+          id: 'support',
+        },
+        {
+          uri: 'mailto:support@tapstamp.co',
+          description: 'Email TapStamp',
+          id: 'email',
+        },
+      ],
+    },
+  });
 
   return { loyaltyClass, loyaltyObject, config };
 }
@@ -256,13 +273,15 @@ async function getAccessToken(): Promise<string | null> {
 }
 
 /** Ensures the loyalty class exists in Google (needed for save + publishing access). */
-async function ensureLoyaltyClass(loyaltyClass: Record<string, unknown>): Promise<void> {
+async function ensureLoyaltyClass(loyaltyClass: Record<string, unknown>): Promise<boolean> {
   const token = await getAccessToken();
   if (!token) {
     console.warn('Google Wallet: skip class ensure — no access token');
-    return;
+    return false;
   }
 
+  // Always UNDER_REVIEW on write — never APPROVED (Google-only).
+  const body = { ...loyaltyClass, reviewStatus: 'UNDER_REVIEW' };
   const id = String(loyaltyClass.id);
   const getRes = await fetch(
     `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass/${id}`,
@@ -279,13 +298,30 @@ async function ensureLoyaltyClass(loyaltyClass: Record<string, unknown>): Promis
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(loyaltyClass),
+        body: JSON.stringify(body),
       },
     );
     if (!updateRes.ok) {
-      console.error('Google Wallet class update:', updateRes.status, await updateRes.text());
+      const errText = await updateRes.text();
+      console.error('Google Wallet class update:', updateRes.status, errText);
+      // Fallback PATCH just the review status if full PUT fails.
+      const patchRes = await fetch(
+        `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass/${id}`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ reviewStatus: 'UNDER_REVIEW' }),
+        },
+      );
+      if (!patchRes.ok) {
+        console.error('Google Wallet class patch:', patchRes.status, await patchRes.text());
+        return false;
+      }
     }
-    return;
+    return true;
   }
 
   if (getRes.status !== 404) {
@@ -300,42 +336,57 @@ async function ensureLoyaltyClass(loyaltyClass: Record<string, unknown>): Promis
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(loyaltyClass),
+      body: JSON.stringify(body),
     },
   );
 
   if (!insertRes.ok && insertRes.status !== 409) {
     console.error('Google Wallet class insert:', insertRes.status, await insertRes.text());
+    return false;
   }
+  return true;
 }
 
 /** Builds the Google save URL; creates/updates the loyalty class first. */
 export async function buildGoogleWalletSaveUrl(input: GoogleWalletPassInput): Promise<string> {
   const { loyaltyClass, loyaltyObject, config } = buildLoyaltyPayload(input);
-  await ensureLoyaltyClass(loyaltyClass as Record<string, unknown>);
+  const classReady = await ensureLoyaltyClass(loyaltyClass as Record<string, unknown>);
 
   const now = Math.floor(Date.now() / 1000);
+  // If the class already exists via REST, only send the object in the JWT.
+  // Embedding a class that still has reviewStatus APPROVED (from an old write) breaks save.
+  const payload: Record<string, unknown> = {
+    loyaltyObjects: [loyaltyObject],
+  };
+  if (!classReady) {
+    payload.loyaltyClasses = [{ ...loyaltyClass, reviewStatus: 'UNDER_REVIEW' }];
+  }
+
   const jwt = signJwtRs256({
     iss: config.serviceAccount,
     aud: 'google',
     typ: 'savetowallet',
     iat: now,
     origins: config.origins,
-    payload: {
-      loyaltyClasses: [loyaltyClass],
-      loyaltyObjects: [loyaltyObject],
-    },
+    payload,
   }, config.privateKey);
 
   return `https://pay.google.com/gp/v/save/${jwt}`;
 }
 
+export type GoogleWalletUpdateResult = 'ok' | 'fail' | 'skipped';
+
 /** Updates an existing Google Wallet loyalty object after a stamp or redeem. */
-export async function updateGoogleWalletObject(input: GoogleWalletPassInput): Promise<void> {
-  if (!isGoogleWalletConfigured()) return;
+export async function updateGoogleWalletObject(
+  input: GoogleWalletPassInput,
+): Promise<GoogleWalletUpdateResult> {
+  if (!isGoogleWalletConfigured()) return 'skipped';
 
   const token = await getAccessToken();
-  if (!token) return;
+  if (!token) {
+    console.error('Google Wallet sync skipped: no access token');
+    return 'fail';
+  }
 
   const { loyaltyObject, loyaltyClass, config } = buildLoyaltyPayload(input);
   await ensureLoyaltyClass(loyaltyClass as Record<string, unknown>);
@@ -355,10 +406,13 @@ export async function updateGoogleWalletObject(input: GoogleWalletPassInput): Pr
 
   if (res.status === 404) {
     // Object not added to wallet yet — save link will create it on first add.
-    return;
+    return 'skipped';
   }
 
   if (!res.ok) {
     console.error('Google Wallet update error:', res.status, await res.text());
+    return 'fail';
   }
+
+  return 'ok';
 }

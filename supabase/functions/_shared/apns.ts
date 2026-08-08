@@ -137,14 +137,16 @@ async function pushViaRailway(pushToken: string): Promise<boolean> {
   }
 }
 
+export type ApplePushResult = 'ok' | 'fail' | 'skipped' | 'gone';
+
 /** Sends a silent PassKit update push so Wallet re-fetches the pass. */
 export async function pushPassUpdate(
   pushToken: string | null | undefined,
   serialNumber?: string | null,
-): Promise<void> {
+): Promise<ApplePushResult> {
   if (!pushToken) {
     console.warn('Wallet push skipped: no push_token on pass (device not registered with PassKit)');
-    return;
+    return 'skipped';
   }
 
   const [railway, direct] = await Promise.allSettled([
@@ -166,9 +168,11 @@ export async function pushPassUpdate(
     } catch (err) {
       console.error('Failed to clear stale push_token:', err);
     }
+    return 'gone';
   }
 
-  if (!railwayOk && !directOk) {
-    console.error('All APNs push paths failed for token', pushToken.slice(0, 12));
-  }
+  if (railwayOk || directOk) return 'ok';
+
+  console.error('All APNs push paths failed for token', pushToken.slice(0, 12));
+  return 'fail';
 }

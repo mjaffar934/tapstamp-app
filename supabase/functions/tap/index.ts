@@ -293,15 +293,24 @@ Deno.serve(async (req) => {
           const pending = pass.pending_milestone_reward
             ? String(pass.pending_milestone_reward)
             : null;
+          const walletSynced = pass.last_wallet_sync_ok as boolean | null | undefined;
           return html(
-            stampedPage(brand, count, Boolean(pending) || pass.status === 'redeemed', pass.serial_number, pending),
+            stampedPage(
+              brand,
+              count,
+              Boolean(pending) || pass.status === 'redeemed',
+              pass.serial_number,
+              pending,
+              walletSynced,
+            ),
             cookie,
           );
         }
 
         if (restartedView) {
           const count = Number(url.searchParams.get('n') ?? pass.stamp_count);
-          return html(rewardRestartPage(brand, count, pass.serial_number), cookie);
+          const walletSynced = pass.last_wallet_sync_ok as boolean | null | undefined;
+          return html(rewardRestartPage(brand, count, pass.serial_number, walletSynced), cookie);
         }
 
         if (rewardView) {
@@ -326,7 +335,7 @@ Deno.serve(async (req) => {
           if (pending || pass.status === 'redeemed') {
             return html(redeemReadyPage(brand, pass.serial_number, pending ?? undefined, Number(pass.stamp_count)), cookie);
           }
-          return html(alreadyStampedPage(brand, Number(pass.stamp_count), pass.serial_number), cookie);
+          return html(alreadyStampedPage(brand, Number(pass.stamp_count), pass.serial_number, null, pass.last_wallet_sync_ok as boolean | null | undefined), cookie);
         }
 
         if (thanks) {
@@ -354,9 +363,10 @@ Deno.serve(async (req) => {
         }
 
         // Add to Wallet: first join, lost-wallet re-add, or restore.
-        // If they already added the card, skip setup and show welcome (cooldown handled later).
+        // Only skip setup when the pass is actually registered with a device.
         if (setup) {
-          if (pass.wallet_added_at && !lostWallet) {
+          const registered = !!(pass.push_token || pass.device_id);
+          if (pass.wallet_added_at && registered && !lostWallet) {
             return html(welcomePage(brand, Number(pass.stamp_count), pass.serial_number), cookie);
           }
           return walletSetupPage(
@@ -439,7 +449,8 @@ Deno.serve(async (req) => {
         }
 
         if (setup) {
-          if (pass.wallet_added_at && !lostWallet) {
+          const registered = !!(pass.push_token || pass.device_id);
+          if (pass.wallet_added_at && registered && !lostWallet) {
             return html(
               welcomePage(brand, Number(pass.stamp_count), existingSerial),
               passCookie(String(cafe.id), existingSerial),
@@ -537,24 +548,51 @@ async function handleSaveCustomerPost(
       .limit(1)
       .maybeSingle();
     if (existingByEmail?.serial_number && existingByEmail.serial_number !== serial) {
-      await supabase.from('passes').update({
-        ...(customerName ? { customer_name: customerName } : {}),
-        ...(birthday ? { birthday } : {}),
-        customer_email: customerEmail,
-      }).eq('serial_number', existingByEmail.serial_number);
+      await updatePassCustomerDetails(existingByEmail.serial_number, {
+        customerName,
+        customerEmail,
+        birthday,
+      });
       return redirectToWalletSetup(tapUrl, existingByEmail.serial_number, String(cafe.id));
     }
   }
 
-  const updates: Record<string, string | null> = {};
-  if (customerName) updates.customer_name = customerName;
-  if (customerEmail) updates.customer_email = customerEmail;
-  if (birthday) updates.birthday = birthday;
-  if (Object.keys(updates).length > 0) {
-    await supabase.from('passes').update(updates).eq('serial_number', serial);
-  }
+  await updatePassCustomerDetails(serial, { customerName, customerEmail, birthday });
 
   return redirectToWalletSetup(tapUrl, serial, String(cafe.id));
+}
+
+/** Save name/email even if birthday column is missing or rejects the value. */
+async function updatePassCustomerDetails(
+  serial: string,
+  fields: {
+    customerName?: string | null;
+    customerEmail?: string | null;
+    birthday?: string | null;
+  },
+): Promise<void> {
+  const core: Record<string, string> = {};
+  if (fields.customerName?.trim()) core.customer_name = fields.customerName.trim();
+  if (fields.customerEmail?.trim()) core.customer_email = fields.customerEmail.trim().toLowerCase();
+
+  const birthday = fields.birthday?.trim() || '';
+  if (Object.keys(core).length === 0 && !birthday) return;
+
+  if (birthday) {
+    const { error } = await supabase
+      .from('passes')
+      .update({ ...core, birthday })
+      .eq('serial_number', serial);
+    if (!error) return;
+    console.error('Pass customer update with birthday failed:', error.message);
+  }
+
+  if (Object.keys(core).length === 0) return;
+
+  const { error } = await supabase.from('passes').update(core).eq('serial_number', serial);
+  if (error) {
+    console.error('Pass customer update failed:', error.message);
+  }
 }
 
 async function handleRestorePostForm(
@@ -673,7 +711,10 @@ async function viewPassStatus(
 
   const stampedToday = await hasStampedToday(String(pass.id));
   if (customerStampLimitsActive(cafe) && stampedToday) {
-    return html(alreadyStampedPage(brand, count, serial), cookie);
+    return html(
+      alreadyStampedPage(brand, count, serial, null, pass.last_wallet_sync_ok as boolean | null | undefined),
+      cookie,
+    );
   }
 
   return html(welcomePage(brand, count, serial), cookie);
@@ -825,13 +866,12 @@ async function createNewPass(
       .eq('cafe_id', cafeId)
       .maybeSingle();
     if (existing) {
-      const deletedFromWallet = !existing.wallet_added_at
-        && !existing.push_token
-        && !existing.device_id;
+      // No device registration → treat as not in Wallet (deleted, cancelled add, or never added).
+      const notRegistered = !existing.push_token && !existing.device_id;
       const now = new Date().toISOString();
 
-      // Deleted Wallet pass → new serial so Apple treats Add as a fresh card (not the stale one).
-      if (deletedFromWallet) {
+      // Mint a new serial so Apple/Google treat Add as a fresh card (not an update of a stale one).
+      if (notRegistered) {
         const newSerial = crypto.randomUUID();
         const newAuth = crypto.randomUUID().replace(/-/g, '');
         const { error: reissueError } = await supabase.from('passes').update({

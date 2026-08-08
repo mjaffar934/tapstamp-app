@@ -68,7 +68,7 @@ export async function callBaristaAction(
   action: 'stamp' | 'redeem',
   staffCode?: string,
   verifiedSpend?: number,
-): Promise<{ error?: string; success?: boolean; stampCount?: number; isRedeemed?: boolean; continued?: boolean; minimumSpend?: number }> {
+): Promise<{ error?: string; success?: boolean; stampCount?: number; isRedeemed?: boolean; continued?: boolean; minimumSpend?: number; walletSynced?: boolean }> {
   if (!supabaseApiBase) return { error: 'Supabase not configured' };
 
   const body: Record<string, unknown> = { serial_number: serialNumber, action };
@@ -95,6 +95,7 @@ export async function callBaristaAction(
     stampCount?: number;
     continued?: boolean;
     minimumSpend?: number;
+    walletSynced?: boolean;
   }>(res, 'Action failed');
   if (!res.ok) return { error: data.error ?? 'Action failed', ...data };
   return data;

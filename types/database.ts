@@ -100,6 +100,9 @@ export interface Pass {
   customer_email: string | null;
   last_stamp_at: string | null;
   created_at: string;
+  last_wallet_sync_at?: string | null;
+  last_wallet_sync_ok?: boolean | null;
+  last_wallet_sync_error?: string | null;
 }
 
 export interface Stamp {

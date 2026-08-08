@@ -12,6 +12,10 @@ export interface PassDetail {
   last_stamp_at: string | null;
   created_at: string;
   cafe_id: string;
+  member_code?: string | null;
+  last_wallet_sync_at?: string | null;
+  last_wallet_sync_ok?: boolean | null;
+  last_wallet_sync_error?: string | null;
 }
 
 export interface PassStamp {
