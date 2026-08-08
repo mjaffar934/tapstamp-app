@@ -9,8 +9,8 @@
   var err = document.getElementById('error');
   var trackedKey = 'nfc_purchase_' + (sessionId || '');
   var viewKey = 'nfc_success_view_' + (sessionId || '');
-  /** Canonical Offer A / E1 success CTA id for M2 (MJ-14 §4.1 / MJ-29 restore). */
-  var CTA_ITEM_ID = 'nfc_success_cta_v2';
+  /** Canonical E1 success CTA id for M2 (shipped after copy pack; Offer A planning name was v2). */
+  var CTA_ITEM_ID = 'nfc_success_cta_v3';
   var UPSELL_CONTENT_TYPE = 'loyalty_upsell';
 
   function showError(msg) {
