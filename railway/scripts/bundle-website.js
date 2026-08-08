@@ -1,14 +1,15 @@
-/** Copy website/ into railway/website when deploying from railway-only root. */
+/** Copy website/ + nfc-site/ into railway/ when deploying from railway-only root. */
 const fs = require('fs');
 const path = require('path');
 
-const src = path.join(__dirname, '..', '..', 'website');
-const dest = path.join(__dirname, '..', 'website');
-
-if (!fs.existsSync(src)) {
-  process.exit(0);
+function bundle(name) {
+  const src = path.join(__dirname, '..', '..', name);
+  const dest = path.join(__dirname, '..', name);
+  if (!fs.existsSync(src)) return;
+  fs.rmSync(dest, { recursive: true, force: true });
+  fs.cpSync(src, dest, { recursive: true });
+  console.log(`Bundled ${name} for Railway`);
 }
 
-fs.rmSync(dest, { recursive: true, force: true });
-fs.cpSync(src, dest, { recursive: true });
-console.log('Bundled website for Railway');
+bundle('website');
+bundle('nfc-site');

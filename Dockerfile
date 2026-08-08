@@ -6,6 +6,7 @@ RUN npm install --prefix railway --omit=dev
 
 COPY railway ./railway
 COPY website ./website
+COPY nfc-site ./nfc-site
 
 ENV NODE_ENV=production
 
