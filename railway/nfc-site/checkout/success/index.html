@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#111214">
+  <title>Order confirmed — TapStamp NFC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:wght@400;650;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/styles.css?v=12">
+</head>
+<body>
+  <div class="success">
+    <div id="loading">
+      <p style="color:var(--muted)">Confirming payment…</p>
+    </div>
+    <div id="error" class="hidden">
+      <h1>Could not confirm</h1>
+      <p class="alert" id="error-msg"></p>
+      <p style="margin-top:1rem"><a data-link="/checkout" style="color:var(--gold)">Back to checkout</a></p>
+    </div>
+    <div id="success" class="hidden">
+      <div class="check">✓</div>
+      <h1>Order confirmed</h1>
+      <p style="color:var(--muted)">Receipt to <strong id="success-email" style="color:var(--text)"></strong></p>
+      <p style="margin:0.75rem 0" id="success-product"></p>
+      <p id="success-ship" style="color:#3DDC97;font-weight:650"></p>
+
+      <aside class="loyalty-upsell" id="loyalty-upsell" aria-labelledby="loyalty-upsell-title">
+        <p class="loyalty-upsell-eyebrow">Optional next step</p>
+        <h2 id="loyalty-upsell-title">Add stamp loyalty</h2>
+        <p class="loyalty-upsell-copy">Your review / Instagram NFC is a one-time purchase. TapStamp loyalty is separate — customers collect stamps in Apple Wallet or Google Wallet (Google Wallet is still limited while Google finishes review).</p>
+        <p class="loyalty-upsell-copy loyalty-upsell-copy-tight"><strong>£0 today.</strong> Free software until 50 unique customers in a month. Free loyalty stamp included.</p>
+        <p class="cta-row loyalty-upsell-actions">
+          <a class="btn" id="loyalty-upsell-cta" href="https://tapstamp.co/order?from=nfc&amp;plan=pro">Start loyalty →</a>
+          <a class="btn btn-ghost" data-link="/">Back to shop</a>
+        </p>
+      </aside>
+    </div>
+  </div>
+
+  <script src="/assets/config.js?v=12"></script>
+  <script src="/assets/analytics.js?v=11"></script>
+  <script src="/assets/cart.js?v=11"></script>
+  <script src="/assets/site.js?v=11"></script>
+  <script src="/assets/success.js?v=12"></script>
+</body>
+</html>

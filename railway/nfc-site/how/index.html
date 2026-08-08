@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#111214">
+  <meta name="description" content="How TapStamp NFC works — we program it, you put it on the counter.">
+  <title>How it works — TapStamp NFC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:wght@400;650;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/styles.css?v=11">
+</head>
+<body>
+  <div class="topbar">Pre-programmed · Free UK delivery · Free London drop-off</div>
+  <header class="header">
+    <div class="header-inner">
+      <a class="brand" data-link="/"><img src="/assets/logo.svg" alt="" width="26" height="26">TapStamp</a>
+      <nav class="nav">
+        <a data-link="/products">Products</a>
+        <a data-link="/how">How it works</a>
+        <a data-link="/support">Support</a>
+        <a class="cart" data-link="/checkout">Cart<span data-cart-count class="is-empty"></span></a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap how-page">
+    <h1>How it works</h1>
+    <p class="lead">Pre-setup for you. No app for the customer. No headache for you.</p>
+
+    <div class="steps">
+      <div class="step">
+        <strong>1. Order</strong>
+        <p>Pick Google Reviews NFC, Instagram NFC, or a deal. Add your link, @, or business name + address.</p>
+      </div>
+      <div class="step">
+        <strong>2. We program it</strong>
+        <p>Your URL is written to the NFC before it ships — nothing to configure when it arrives.</p>
+      </div>
+      <div class="step">
+        <strong>3. They tap</strong>
+        <p>Phone on stand or disc → review page or Instagram opens.</p>
+      </div>
+    </div>
+
+    <div class="video">
+      <video id="how-video" controls playsinline muted loop preload="metadata" aria-label="NFC tap demo"></video>
+    </div>
+
+    <p style="margin-top:1.5rem">
+      <a class="btn" data-link="/products">Shop products</a>
+      <a class="btn btn-ghost" data-link="/support" style="margin-left:0.5rem">Support &amp; FAQ</a>
+    </p>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-row">
+      <span>support@tapstamp.co</span>
+      <a data-link="/support">Support</a>
+    </div>
+  </footer>
+
+  <script src="/assets/config.js?v=11"></script>
+  <script src="/assets/analytics.js?v=11"></script>
+  <script src="/assets/cart.js?v=11"></script>
+  <script src="/assets/site.js?v=11"></script>
+  <script>
+    (function () {
+      var cart = window.NfcCart;
+      var video = document.getElementById('how-video');
+      if (!cart || !video) return;
+      video.src = cart.asset('/assets/how-it-works.mp4');
+    })();
+  </script>
+</body>
+</html>

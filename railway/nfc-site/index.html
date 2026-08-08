@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0B0B0C">
+  <meta name="description" content="Google Reviews & Instagram NFC — pre-programmed for you. No setup. Free UK delivery · free London drop-off.">
+  <title>TapStamp NFC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:wght@400;650;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/styles.css?v=11">
+</head>
+<body>
+  <div class="topbar">Pre-programmed · Free UK delivery · Free London drop-off</div>
+  <header class="header">
+    <div class="header-inner">
+      <a class="brand" data-link="/"><img src="/assets/logo.svg" alt="" width="26" height="26">TapStamp</a>
+      <nav class="nav">
+        <a data-link="/products">Products</a>
+        <a data-link="/how">How it works</a>
+        <a data-link="/support">Support</a>
+        <a class="cart" data-link="/checkout">Cart<span data-cart-count class="is-empty"></span></a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="stage">
+      <div class="stage-copy">
+        <h1>More reviews.<br>More follows.</h1>
+        <p class="sub">Customers tap the stand. Their phone opens your Google review page or Instagram. We program it before shipping — <strong>no setup on your end</strong>.</p>
+        <p class="cta-row">
+          <a class="btn" data-link="/products">See products</a>
+          <a class="btn btn-ghost" data-link="/how">How it works</a>
+        </p>
+        <ul class="trust-row" aria-label="Why buy">
+          <li>Pre-programmed</li>
+          <li>Free UK delivery</li>
+          <li>Free London drop-off</li>
+          <li>Apple Pay</li>
+        </ul>
+      </div>
+      <div class="stage-media has-video" id="stage-media">
+        <img id="hero-photo" class="stage-photo hidden" src="/assets/products/google-stand.png?v=11" alt="Google Reviews NFC stand" width="1400" height="1400">
+        <video id="hero-video" autoplay muted loop playsinline preload="auto" aria-label="NFC tap demo"></video>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-row">
+      <span>support@tapstamp.co</span>
+      <a data-link="/support">Support &amp; FAQ</a>
+      <a data-link="/support#contact">Contact</a>
+      <a href="https://tapstamp.co/order?from=nfc&amp;plan=pro">Loyalty stamps (separate)</a>
+    </div>
+  </footer>
+
+  <script src="/assets/config.js?v=11"></script>
+  <script src="/assets/analytics.js?v=11"></script>
+  <script src="/assets/cart.js?v=11"></script>
+  <script src="/assets/site.js?v=11"></script>
+  <script>
+    (function () {
+      var cart = window.NfcCart;
+      var video = document.getElementById('hero-video');
+      var photo = document.getElementById('hero-photo');
+      var media = document.getElementById('stage-media');
+      if (!cart || !video) return;
+      var src = cart.asset('/assets/how-it-works.mp4');
+      video.src = src;
+      video.play().catch(function () {});
+      video.addEventListener('error', function () {
+        video.classList.add('hidden');
+        if (photo) photo.classList.remove('hidden');
+        if (media) media.classList.remove('has-video');
+      });
+    })();
+  </script>
+</body>
+</html>

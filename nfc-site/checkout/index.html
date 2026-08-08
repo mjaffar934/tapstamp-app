@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#111214">
+  <title>Checkout — TapStamp NFC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:wght@400;650;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/styles.css?v=11">
+</head>
+<body>
+  <div class="topbar">Pre-programmed · Free UK delivery · Free London drop-off</div>
+  <header class="header">
+    <div class="header-inner">
+      <a class="brand" data-link="/"><img src="/assets/logo.svg" alt="" width="26" height="26">TapStamp</a>
+      <nav class="nav">
+        <a data-link="/products">Products</a>
+        <a data-link="/how">How it works</a>
+        <a data-link="/support">Support</a>
+        <a class="cart" data-link="/checkout">Cart<span data-cart-count class="is-empty"></span></a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap checkout">
+    <form class="panel" id="checkout-form">
+      <h1>Checkout</h1>
+      <p class="lede">What should we program? Stripe collects email, shipping and payment next (Apple Pay supported).</p>
+      <div id="alert-error" class="alert hidden"></div>
+      <div id="alert-canceled" class="alert alert-info hidden">Payment canceled — cart kept.</div>
+
+      <div id="google-fields" class="hidden">
+        <label for="google_url">Google review / Maps URL</label>
+        <input id="google_url" type="url" placeholder="https://g.page/r/…">
+        <p class="hint">Have a link? Paste it. Otherwise use business name + address below.</p>
+
+        <p class="or-divider" id="google-or">or</p>
+
+        <div id="google-lookup-fields">
+          <label for="business_name">Business name</label>
+          <input id="business_name" autocomplete="organization" placeholder="Your shop name">
+
+          <label for="shipping_address_line1">Business address</label>
+          <input id="shipping_address_line1" autocomplete="street-address" placeholder="Street, city, postcode">
+        </div>
+      </div>
+
+      <div id="instagram-fields" class="hidden">
+        <label for="instagram_handle">Instagram @</label>
+        <input id="instagram_handle" placeholder="@yourshop" autocomplete="username">
+        <p class="hint">Handle or profile URL — programmed before shipping.</p>
+      </div>
+
+      <fieldset class="delivery-fieldset">
+        <legend>Delivery</legend>
+        <label class="radio-row">
+          <input type="radio" name="delivery_method" value="uk_post" checked>
+          <span>Free UK delivery <em>(next-day free on 2+ items)</em></span>
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="delivery_method" value="london_dropoff">
+          <span>Free London drop-off</span>
+        </label>
+      </fieldset>
+
+      <button class="btn btn-block" type="submit" id="submit-btn" style="margin-top:1.2rem">Continue to secure payment</button>
+      <p class="hint" style="margin-top:0.75rem">You’ll enter email, address and card on Stripe Checkout.</p>
+    </form>
+
+    <aside class="panel">
+      <h2>Order</h2>
+      <div id="cart-lines"></div>
+      <div class="sum"><span>List</span><span id="sum-was">£0.00</span></div>
+      <div class="sum"><span>You save</span><span id="sum-save">£0.00</span></div>
+      <div class="sum total"><span>Due today</span><span id="sum-now">£0.00</span></div>
+      <div id="delivery-win" class="ship-ok hidden">Free next-day UK delivery unlocked</div>
+      <div id="delivery-nudge" class="ship-nudge hidden">Add one more item for free next-day</div>
+      <div id="deal-note" class="ship-ok hidden"></div>
+    </aside>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-row">
+      <span>support@tapstamp.co</span>
+      <a data-link="/support">Support</a>
+    </div>
+  </footer>
+
+  <script src="/assets/config.js?v=11"></script>
+  <script src="/assets/analytics.js?v=11"></script>
+  <script src="/assets/cart.js?v=11"></script>
+  <script src="/assets/site.js?v=11"></script>
+  <script src="/assets/checkout.js?v=11"></script>
+</body>
+</html>

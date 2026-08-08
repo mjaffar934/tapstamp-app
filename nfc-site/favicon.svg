@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" role="img" aria-label="TapStamp">
+  <!-- App-style mark: gold stamp seal with T -->
+  <rect width="120" height="120" rx="28" fill="#141210"/>
+  <circle cx="60" cy="60" r="38" fill="url(#ts-gold)"/>
+  <circle cx="60" cy="60" r="30" fill="none" stroke="#141210" stroke-width="3.5" opacity="0.35"/>
+  <circle cx="60" cy="60" r="24" fill="none" stroke="#141210" stroke-width="1.5" opacity="0.25"/>
+  <!-- Capital T -->
+  <path fill="#141210" d="M42 44h36v9.5H66.5V78h-13V53.5H42V44z"/>
+  <defs>
+    <linearGradient id="ts-gold" x1="28" y1="22" x2="92" y2="98" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D4B87A"/>
+      <stop offset="1" stop-color="#9A7B45"/>
+    </linearGradient>
+  </defs>
+</svg>

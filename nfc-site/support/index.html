@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0B0B0C">
+  <meta name="description" content="TapStamp NFC support — FAQ, contact, and help with Google Reviews & Instagram NFC orders.">
+  <title>Support — TapStamp NFC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:wght@400;650;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/styles.css?v=11">
+</head>
+<body>
+  <div class="topbar">Pre-programmed · Free UK delivery · Free London drop-off</div>
+  <header class="header">
+    <div class="header-inner">
+      <a class="brand" data-link="/"><img src="/assets/logo.svg" alt="" width="26" height="26">TapStamp</a>
+      <nav class="nav">
+        <a data-link="/products">Products</a>
+        <a data-link="/how">How it works</a>
+        <a data-link="/support">Support</a>
+        <a class="cart" data-link="/checkout">Cart<span data-cart-count class="is-empty"></span></a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap support-page">
+    <div class="page-hero">
+      <h1>Support</h1>
+      <p>FAQ below — or send a message. We usually reply within one business day.</p>
+    </div>
+
+    <section class="faq-block">
+      <h2 class="section-label">FAQ</h2>
+      <div class="faq">
+        <details open>
+          <summary>Do I need to set anything up?</summary>
+          <p>No. Tell us your Google review link or Instagram @ at checkout (or just your business name and address for Google). We program the NFC before it ships — ready to use when it arrives.</p>
+        </details>
+        <details>
+          <summary>I don’t have a Google review link</summary>
+          <p>No problem. Enter your business name and address at checkout and we’ll find the correct Google review / Maps link and program it for you.</p>
+        </details>
+        <details>
+          <summary>What is free London drop-off?</summary>
+          <p>Choose <strong>Free London drop-off</strong> at checkout if you’re in Greater London. We’ll arrange hand delivery instead of posting. Elsewhere in the UK, delivery is free by post (next-day free when you buy two or more).</p>
+        </details>
+        <details>
+          <summary>Apple Pay / Google Pay?</summary>
+          <p>Yes — checkout runs on Stripe. Apple Pay, Google Pay, Link, and cards are available where your device supports them.</p>
+        </details>
+        <details>
+          <summary>Can you change the link after I order?</summary>
+          <p>Usually yes if it hasn’t shipped. Email <a href="mailto:support@tapstamp.co">support@tapstamp.co</a> with your order email and the new URL or @.</p>
+        </details>
+        <details>
+          <summary>Stand vs professional NFC?</summary>
+          <p><strong>Stands</strong> sit on the till (£18.99). <strong>Professional NFC</strong> is the domed epoxy disc you stick on a counter, window, or packaging (£14.99). Same programming either way.</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="contact-block" id="contact">
+      <h2 class="section-label">Contact</h2>
+      <form class="panel contact-form" id="contact-form">
+        <div id="contact-ok" class="alert alert-info hidden">Thanks — we’ll get back to you soon.</div>
+        <div id="contact-err" class="alert hidden"></div>
+
+        <label for="c_name">Your name</label>
+        <input id="c_name" name="name" required autocomplete="name">
+
+        <label for="c_email">Email</label>
+        <input id="c_email" name="email" type="email" required autocomplete="email">
+
+        <label for="c_business">Business (optional)</label>
+        <input id="c_business" name="business" autocomplete="organization">
+
+        <label for="c_topic">Topic</label>
+        <select id="c_topic" name="topic">
+          <option value="order">Order / delivery</option>
+          <option value="programming">NFC programming / link change</option>
+          <option value="london">London drop-off</option>
+          <option value="other">Something else</option>
+        </select>
+
+        <label for="c_message">Message</label>
+        <textarea id="c_message" name="message" rows="5" required placeholder="How can we help?"></textarea>
+
+        <button class="btn btn-block" type="submit" id="contact-btn" style="margin-top:1rem">Send message</button>
+        <p class="hint">Or email <a href="mailto:support@tapstamp.co">support@tapstamp.co</a> directly.</p>
+      </form>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-row">
+      <span>support@tapstamp.co</span>
+      <a data-link="/products">Products</a>
+    </div>
+  </footer>
+
+  <script src="/assets/config.js?v=11"></script>
+  <script src="/assets/analytics.js?v=11"></script>
+  <script src="/assets/cart.js?v=11"></script>
+  <script src="/assets/site.js?v=11"></script>
+  <script src="/assets/support.js?v=11"></script>
+</body>
+</html>
