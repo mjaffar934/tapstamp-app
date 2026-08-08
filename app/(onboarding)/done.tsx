@@ -48,7 +48,7 @@ export default function DoneScreen() {
         <Text variant="caption" muted style={styles.eyebrow}>You&apos;re live</Text>
         <Text variant="hero" style={styles.title}>Your programme is ready</Text>
         <Text muted style={styles.subtitle}>
-          Share your staff code with the team. Customers tap your TapStamp to collect stamps.
+          Share your staff code with the team. Customers tap your TapStamp — their stamps update in Wallet automatically. On a counter phone: Staff mode → enter the code → pick a customer → Add stamp.
         </Text>
         <Button title="Open dashboard" onPress={() => void openDashboard()} style={styles.cta} />
         <Button

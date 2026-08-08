@@ -11,7 +11,7 @@ import { router } from 'expo-router';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { subscribeToDeepLinks } from '@/lib/authLinking';
-import { ownerSignup, provisionCafe } from '@/lib/api';
+import { provisionCafe } from '@/lib/api';
 import { bootstrapDevAccount } from '@/lib/devBootstrap';
 import { clearStaffSession } from '@/lib/staffSession';
 import { registerOwnerPushToken } from '@/lib/ownerPush';
@@ -24,10 +24,9 @@ interface AuthContextValue {
   isLoading: boolean;
   businessLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string, businessName: string, ownerName?: string) => Promise<{ error: string | null }>;
   signInDev: (email: string, password: string, bootstrapSecret: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
-  refreshBusiness: () => Promise<void>;
+  refreshBusiness: () => Promise<Business | null>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -68,12 +67,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const refreshBusiness = useCallback(async () => {
+  const refreshBusiness = useCallback(async (): Promise<Business | null> => {
     if (!session?.user?.id) {
       setBusiness(null);
-      return;
+      return null;
     }
-    await fetchBusiness(session.user.id);
+    return fetchBusiness(session.user.id);
   }, [fetchBusiness, session?.user?.id]);
 
   useEffect(() => {
@@ -148,41 +147,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null };
   }, [ensureCafeLinked, fetchBusiness]);
 
-  const signUp = useCallback(async (email: string, password: string, businessName: string, ownerName?: string) => {
-    await clearStaffSession();
-    const normalizedEmail = email.trim().toLowerCase();
-    const trimmedName = businessName.trim() || 'My Business';
-
-    const signup = await ownerSignup({
-      email: normalizedEmail,
-      password,
-      business_name: trimmedName,
-      owner_name: ownerName?.trim() || undefined,
-    });
-    if (signup.error) {
-      return { error: signup.error };
-    }
-
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: normalizedEmail,
-      password,
-    });
-    if (error) {
-      return { error: error.message };
-    }
-
-    if (data.user?.id) {
-      setBusinessLoading(true);
-      try {
-        await fetchBusiness(data.user.id);
-      } finally {
-        setBusinessLoading(false);
-      }
-    }
-
-    return { error: null };
-  }, [fetchBusiness]);
-
   const signInDev = useCallback(async (email: string, password: string, bootstrapSecret: string) => {
     await clearStaffSession();
 
@@ -226,12 +190,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLoading,
       businessLoading,
       signIn,
-      signUp,
       signInDev,
       signOut,
       refreshBusiness,
     }),
-    [session, business, isLoading, businessLoading, signIn, signUp, signInDev, signOut, refreshBusiness],
+    [session, business, isLoading, businessLoading, signIn, signInDev, signOut, refreshBusiness],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

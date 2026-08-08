@@ -65,7 +65,7 @@ function shell(content: string): string {
         sub.style.display = 'flex';
         sub.querySelector('span:last-child').textContent = p ? '£' + p + '/mo' : 'Free';
       }
-      if (trial) trial.textContent = '14-day free trial starts when you go live — not at signup.';
+      if (trial) trial.textContent = 'Starter is free up to 50 unique customers each month. Pro starts at £25/mo with a card on file after that.';
     }
     updateSummary();
   </script>
@@ -76,7 +76,9 @@ function shell(content: string): string {
 function planOptions(selected: PlanId): string {
   return (['starter', 'pro', 'multi'] as PlanId[]).map((id) => {
     const p = PLANS[id];
-    const monthly = p.monthlyGbp == null ? 'Free after trial' : `£${p.monthlyGbp}/mo after trial`;
+    const monthly = p.monthlyGbp == null
+      ? 'Free up to 50 customers/month'
+      : `£${p.monthlyGbp}/mo after 50 unique customers/month`;
     return `
       <label class="plan">
         <input type="radio" name="plan" value="${id}" ${id === selected ? 'checked' : ''}>
@@ -98,7 +100,7 @@ export function orderFormPage(
     <a href="${websiteUrl}" class="back">&larr; Back to TapStamp</a>
     <p class="eyebrow">Digital loyalty &middot; No app needed for customers</p>
     <h1>Order your TapStamp</h1>
-    <p class="lead">Create your owner account. Your loyalty stamp is <strong>included free</strong>. Software billing starts after your 14-day trial at go-live.</p>
+    <p class="lead">Create your owner account. Your loyalty stamp is <strong>included free</strong>. Software stays £0 on Starter until 50 unique customers in a calendar month.</p>
 
     <div class="card">
       <form method="POST"${action ? ` action="${action}"` : ''}>
@@ -106,9 +108,9 @@ export function orderFormPage(
         <div class="plans">${planOptions(selectedPlan)}</div>
 
         <div class="price-box">
-          <div class="price-row" id="sub-line" style="display:flex"><span>Software (after trial)</span><span>${plan.monthlyGbp == null ? 'Free' : `£${plan.monthlyGbp}/mo`}</span></div>
+          <div class="price-row" id="sub-line" style="display:flex"><span>Software</span><span>${plan.monthlyGbp == null ? 'Free up to 50/mo' : `£${plan.monthlyGbp}/mo`}</span></div>
           <div class="price-total price-row"><span>Due today</span><span>£0</span></div>
-          <p class="note" id="trial-line" style="margin-top:0.75rem;margin-bottom:0">14-day free trial starts when you go live — not at signup.</p>
+          <p class="note" id="trial-line" style="margin-top:0.75rem;margin-bottom:0">Starter is free up to 50 unique customers each month. Pro starts at £25/mo with a card on file after that.</p>
         </div>
 
         <p class="step-label" style="margin-top:1rem">Your account</p>
@@ -144,10 +146,10 @@ export function orderSuccessPage(
   plan: PlanId,
 ): string {
   const p = PLANS[plan];
-  const afterTrial =
+  const afterCap =
     p.monthlyGbp == null
-      ? 'Your Starter plan stays free forever — up to 50 unique customers per calendar month after your trial (resets on the 1st).'
-      : `After your trial, your ${p.name} plan is £${p.monthlyGbp}/month.`;
+      ? 'Starter stays free forever for up to 50 unique customers per calendar month (resets on the 1st).'
+      : `After 50 unique customers/month on Starter, ${p.name} is £${p.monthlyGbp}/month with a card on file.`;
 
   return shell(`
     <div class="success-icon">✓</div>
@@ -160,13 +162,13 @@ export function orderSuccessPage(
 
       <p style="margin-top:1.25rem"><strong>What happens next</strong></p>
       <ol class="steps">
-        <li>Your handcrafted stamp ships within 48 hours</li>
-        <li>We'll email you when the owner app is ready to download</li>
-        <li>Sign in with the email and password above</li>
-        <li>When your stamp arrives, customise your card and tap it on the counter to go live</li>
-        <li>Your 14-day free trial starts at go-live — ${afterTrial}</li>
+        <li>Your stamp ships within 48 hours</li>
+        <li>Download the TapStamp owner app and sign in with the email above</li>
+        <li>When the stamp arrives, hold it to your phone to link it (one tap)</li>
+        <li>Set up your loyalty card colours and rewards — about two minutes</li>
+        <li>${afterCap}</li>
       </ol>
-      <p class="note" style="margin-top:1.25rem">Questions? <a href="mailto:support@tapstamp.com">support@tapstamp.com</a></p>
+      <p class="note" style="margin-top:1.25rem">Questions? <a href="mailto:support@tapstamp.co">support@tapstamp.co</a></p>
     </div>
     <p class="note" style="margin-top:1.5rem"><a href="${websiteUrl}">Return to tapstamp.co</a></p>
   `);

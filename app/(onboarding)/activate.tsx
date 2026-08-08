@@ -13,12 +13,13 @@ import { Input } from '@/components/ui/Input';
 import { OwnerFlowSteps } from '@/components/auth/OwnerFlowSteps';
 import { colors, radius, spacing } from '@/constants/theme';
 
-type ActivateState = 'idle' | 'listening' | 'activating' | 'done';
+type ActivateState = 'listening' | 'activating' | 'done';
 
 export default function ActivateScreen() {
-  const { signOut, refreshBusiness, business } = useAuth();
-  const [state, setState] = useState<ActivateState>('idle');
+  const { signOut, refreshBusiness } = useAuth();
+  const [state, setState] = useState<ActivateState>('listening');
   const [manualCode, setManualCode] = useState('');
+  const [showManual, setShowManual] = useState(false);
   const activatingRef = useRef(false);
   const alert = useTapStampAlert();
 
@@ -33,14 +34,14 @@ export default function ActivateScreen() {
     if (result.error) {
       activatingRef.current = false;
       setState('listening');
-      alert('Could not activate', result.error);
+      alert('Could not link stamp', result.error);
       return;
     }
 
-    await refreshBusiness();
+    const biz = await refreshBusiness();
     setState('done');
 
-    const destination = business?.onboarding_status === 'complete'
+    const destination = biz?.onboarding_status === 'complete'
       ? '/(app)/(tabs)/home'
       : '/(onboarding)/welcome';
     router.replace(destination);
@@ -72,26 +73,20 @@ export default function ActivateScreen() {
 
       <View style={styles.hero}>
         <OwnerFlowSteps current="activate" />
-        <Text variant="caption" style={styles.eyebrow}>Step 2 · Activate</Text>
-        <Text variant="hero" style={styles.title}>Link your TapStamp</Text>
+        <Text variant="caption" style={styles.eyebrow}>Step 2 · Link your stamp</Text>
+        <Text variant="hero" style={styles.title}>Hold TapStamp to this phone</Text>
         <Text muted style={styles.subtitle}>
-          Hold your TapStamp to the top of your phone. This links your account to your stamp — each stamp can only be linked once.
+          Place the physical stamp flat against the top of your phone. One tap links it to your account — you only do this once.
         </Text>
       </View>
 
-      <Pressable
-        style={[styles.phoneZone, state !== 'idle' && styles.phoneZoneActive]}
-        onPress={() => state === 'idle' && setState('listening')}
-        disabled={busy}
-      >
+      <View style={[styles.phoneZone, styles.phoneZoneActive]}>
         <View style={[styles.nfcZone, state === 'done' && styles.nfcZoneLinked]}>
           <Ionicons
             name={
               state === 'done' || state === 'activating'
                 ? 'checkmark-circle'
-                : state === 'listening'
-                  ? 'radio-outline'
-                  : 'phone-portrait-outline'
+                : 'radio-outline'
             }
             size={36}
             color={state === 'done' || state === 'activating' ? colors.success : colors.accentDark}
@@ -101,50 +96,52 @@ export default function ActivateScreen() {
         <Text variant="h3" style={styles.tapTitle}>
           {state === 'activating'
             ? 'Linking…'
-            : state === 'listening'
-              ? 'Ready — hold stamp here'
-              : 'Tap to start'}
+            : state === 'done'
+              ? 'Linked'
+              : 'Ready — hold stamp here'}
         </Text>
         <Text variant="bodySmall" muted style={styles.tapHint}>
           {state === 'activating'
             ? 'Connecting your stamp to your account.'
-            : state === 'listening'
-              ? 'Hold your TapStamp flat against the top of your phone.'
-              : 'Tap here, then hold your stamp to the top of your phone.'}
+            : state === 'done'
+              ? 'Stamp linked. Continuing setup…'
+              : 'Keep the stamp still for a second until you hear a tap or see Linked.'}
         </Text>
-      </Pressable>
-
-      <View style={styles.manual}>
-        <Text variant="caption" muted style={styles.manualLabel}>STAMP CODE (OPTIONAL)</Text>
-        <Input
-          value={manualCode}
-          onChangeText={(t) => setManualCode(t.toUpperCase())}
-          placeholder="Enter code from stamp"
-          autoCapitalize="characters"
-          editable={!busy}
-        />
-        <Button
-          title="Activate with code"
-          variant="outline"
-          onPress={() => void runActivation(manualCode)}
-          disabled={busy || !manualCode.trim()}
-        />
       </View>
 
-      <Button
-        title={
-          state === 'activating'
-            ? 'Linking…'
-            : state === 'listening'
-              ? 'Waiting for stamp…'
-              : 'Activate with TapStamp'
-        }
-        onPress={() => {
-          if (state === 'idle') setState('listening');
-        }}
-        loading={busy}
-        disabled={busy}
-      />
+      {!showManual ? (
+        <Pressable
+          onPress={() => setShowManual(true)}
+          disabled={busy}
+          style={styles.manualToggle}
+          hitSlop={8}
+        >
+          <Text variant="bodySmall" color={colors.accentDark}>
+            Can&apos;t tap? Enter stamp code instead
+          </Text>
+        </Pressable>
+      ) : (
+        <View style={styles.manual}>
+          <Text variant="caption" muted style={styles.manualLabel}>STAMP CODE</Text>
+          <Text variant="bodySmall" muted style={styles.manualHint}>
+            Use the short code printed on your TapStamp or packing slip.
+          </Text>
+          <Input
+            value={manualCode}
+            onChangeText={(t) => setManualCode(t.toUpperCase())}
+            placeholder="Enter stamp code"
+            autoCapitalize="characters"
+            editable={!busy}
+            autoFocus
+          />
+          <Button
+            title="Link with code"
+            onPress={() => void runActivation(manualCode)}
+            disabled={busy || !manualCode.trim()}
+            loading={busy && !!manualCode.trim()}
+          />
+        </View>
+      )}
     </Screen>
   );
 }
@@ -204,11 +201,19 @@ const styles = StyleSheet.create({
   },
   tapTitle: { textAlign: 'center' },
   tapHint: { textAlign: 'center', maxWidth: 300, marginTop: spacing.sm, lineHeight: 22 },
+  manualToggle: {
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+  },
   manual: {
     gap: spacing.sm,
     marginBottom: spacing.md,
   },
   manualLabel: {
     letterSpacing: 0.8,
+  },
+  manualHint: {
+    lineHeight: 20,
+    marginBottom: spacing.xs,
   },
 });

@@ -83,8 +83,8 @@ export default function StaffSetupScreen() {
       <BackHeader />
       <OnboardingStepHeader
         step={5}
-        title="Staff mode"
-        subtitle="Share this code with your team so they can stamp and redeem at the counter."
+        title="Give staff a code"
+        subtitle="One code lets your team stamp and redeem on a shared phone — no owner login on the counter."
       />
 
       <Card style={styles.codeCard}>
@@ -100,12 +100,12 @@ export default function StaffSetupScreen() {
               <Text variant="caption" color={colors.error}>{error}</Text>
             ) : (
               <Text variant="bodySmall" muted style={styles.codeHint}>
-                Staff enter this on the Staff screen on a shared device at the counter.
+                On the counter phone: open TapStamp → Staff mode → enter this code.
               </Text>
             )}
             {displayCode ? (
               <Button
-                title={copied ? 'Copied' : 'Copy code'}
+                title={copied ? 'Copied — send to your team' : 'Copy code'}
                 variant="outline"
                 onPress={copyCode}
               />
@@ -118,15 +118,15 @@ export default function StaffSetupScreen() {
         <View style={styles.featureRow}>
           <Ionicons name="radio-outline" size={22} color={colors.textSecondary} />
           <View style={styles.featureText}>
-            <Text variant="bodySmall" style={styles.featureTitle}>Customer taps your stamp</Text>
-            <Text variant="caption" muted>Stamps are collected automatically when customers tap on their phone.</Text>
+            <Text variant="bodySmall" style={styles.featureTitle}>Customers tap your TapStamp</Text>
+            <Text variant="caption" muted>Most stamps happen automatically on their phone — no staff action.</Text>
           </View>
         </View>
         <View style={styles.featureRow}>
           <Ionicons name="people-outline" size={22} color={colors.textSecondary} />
           <View style={styles.featureText}>
-            <Text variant="bodySmall" style={styles.featureTitle}>Manual stamp & redeem</Text>
-            <Text variant="caption" muted>Staff can search by name when needed at the counter.</Text>
+            <Text variant="bodySmall" style={styles.featureTitle}>Staff stamp or redeem by hand</Text>
+            <Text variant="caption" muted>Open Staff mode, pick the customer, tap Add stamp or Redeem.</Text>
           </View>
         </View>
       </Card>

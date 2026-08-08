@@ -44,7 +44,7 @@ export default function StaffLoginScreen() {
           <Text variant="caption" muted style={styles.eyebrow}>TapStamp</Text>
           <Text variant="hero" style={styles.heroTitle}>Staff mode</Text>
           <Text muted style={styles.heroSub}>
-            Enter the staff code from Settings. Stamp and redeem when customers tap your TapStamp.
+            Enter the staff code your owner shared (from setup or Settings). No email login needed on the counter phone.
           </Text>
           <View style={styles.accentLine} />
         </View>

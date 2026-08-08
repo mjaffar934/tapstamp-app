@@ -168,7 +168,7 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
       return;
     }
     setSelected(pass);
-    setSelectedExpanded(false);
+    setSelectedExpanded(true);
     setSpendAmount('');
   };
 
@@ -182,14 +182,14 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
       {staffMode ? <BackHeader onBack={handleStaffSignOut} title="Staff" /> : null}
 
       <ScreenHeader
-        title="Staff mode"
-        subtitle={`${businessLabel} — stamp or redeem at the counter`}
+        title="Stamp & redeem"
+        subtitle={businessLabel}
       />
 
       {!staffMode && !cafeLoading && !cafe ? (
         <Card style={styles.notice}>
           <Text variant="bodySmall" muted>
-            No programme linked to {ownerEmail}. Complete setup or check your account email.
+            No programme linked to {ownerEmail}. Finish stamp setup first, then come back here.
           </Text>
         </Card>
       ) : null}
@@ -199,15 +199,15 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
           <Ionicons name="radio-outline" size={24} color={colors.accentDark} />
         </View>
         <View style={styles.nfcText}>
-          <Text variant="bodySmall" style={styles.nfcTitle}>Customer taps your TapStamp</Text>
+          <Text variant="bodySmall" style={styles.nfcTitle}>Usual way: customer taps the stamp</Text>
           <Text variant="caption" muted>
-            Most stamps happen automatically when customers tap your stamp on their phone. Use this screen to stamp or redeem manually.
+            Their Wallet card updates on its own. Use this screen only to add a stamp or redeem a reward by hand.
           </Text>
         </View>
       </Card>
 
       <Button
-        title="Scan wallet pass"
+        title="Scan customer Wallet pass"
         variant="outline"
         icon={<Ionicons name="qr-code-outline" size={18} color={colors.accentDark} />}
         onPress={openScanner}
@@ -222,7 +222,7 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
               Minimum spend: {formatPounds(Number(data.minimumSpend))}
             </Text>
             <Text variant="caption" muted>
-              Verify at the till before stamping
+              Type the till amount before you stamp
             </Text>
           </View>
         </Card>
@@ -250,13 +250,18 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
           </View>
 
           {selected ? (
-            <Pressable onPress={() => setSelectedExpanded((v) => !v)}>
-              <Card style={styles.selectedCard}>
+            <Card style={styles.selectedCard}>
+              <Pressable onPress={() => setSelectedExpanded((v) => !v)}>
                 <View style={styles.selectedHeader}>
                   <View style={styles.selectedInfo}>
-                    <Text variant="caption" muted>SELECTED</Text>
+                    <Text variant="caption" muted>SELECTED CUSTOMER</Text>
                     <Text variant="bodySmall" style={styles.passName}>
                       {displayName(selected)}
+                    </Text>
+                    <Text variant="caption" muted>
+                      {selected.member_code ? `#${selected.member_code} · ` : ''}
+                      {selected.stamp_count} / {data?.stampGoal ?? 10} stamps
+                      {needsRedeem(selected) ? ' · Ready to redeem' : ''}
                     </Text>
                   </View>
                   <Ionicons
@@ -265,41 +270,70 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
                     color={colors.textMuted}
                   />
                 </View>
-                {selectedExpanded ? (
-                  <View style={styles.selectedDetails}>
-                    <Text variant="caption" muted>
-                      {selected.member_code ? `#${selected.member_code} · ` : ''}
-                      {selected.stamp_count} / {data?.stampGoal ?? 10} stamps
-                      {needsRedeem(selected) ? ' · Ready to redeem' : ''}
-                    </Text>
+              </Pressable>
+
+              {selectedExpanded ? (
+                <View style={styles.selectedDetails}>
+                  {minSpend > 0 && !needsRedeem(selected) ? (
+                    <View style={styles.spendInline}>
+                      <Text variant="caption" muted>TILL AMOUNT (£)</Text>
+                      <Text variant="bodySmall" muted style={styles.spendHint}>
+                        Minimum {formatPounds(minSpend)} to add a stamp.
+                      </Text>
+                      <Input
+                        value={spendAmount}
+                        onChangeText={setSpendAmount}
+                        keyboardType="decimal-pad"
+                        placeholder={minSpend.toFixed(2)}
+                      />
+                    </View>
+                  ) : null}
+
+                  <View style={styles.actions}>
                     <Button
-                      title="Clear selection"
-                      variant="ghost"
-                      onPress={() => {
-                        setSelected(null);
-                        setSelectedExpanded(false);
-                      }}
+                      title="Add stamp"
+                      style={styles.actionBtn}
+                      onPress={() => handleAction('stamp')}
+                      loading={acting}
+                      disabled={acting || needsRedeem(selected)}
+                    />
+                    <Button
+                      title={redeemLabel(selected)}
+                      variant="outline"
+                      style={styles.actionBtn}
+                      onPress={() => handleAction('redeem')}
+                      loading={acting}
+                      disabled={acting || !needsRedeem(selected)}
                     />
                   </View>
-                ) : null}
-              </Card>
-            </Pressable>
+                  <Button
+                    title="Clear selection"
+                    variant="ghost"
+                    onPress={() => {
+                      setSelected(null);
+                      setSelectedExpanded(false);
+                      setSpendAmount('');
+                    }}
+                  />
+                </View>
+              ) : null}
+            </Card>
           ) : null}
 
           <Card style={styles.passList} padded={false}>
-            <Text variant="h3" style={styles.listTitle}>Recent customers</Text>
+            <Text variant="h3" style={styles.listTitle}>Find a customer</Text>
             <Input
               value={query}
               onChangeText={setQuery}
-              placeholder="Search by name or 4-digit code…"
+              placeholder="Name or 4-digit member code…"
               style={styles.searchInput}
             />
             {filteredPasses.length === 0 ? (
               <View style={styles.emptyList}>
                 <Text variant="bodySmall" muted>
                   {query
-                    ? 'No customers match your search.'
-                    : 'No customers yet. They appear after their first tap.'}
+                    ? 'No customers match. Check the code on their Wallet pass.'
+                    : 'No recent customers yet. Ask them to tap your TapStamp once — then they show up here for manual stamp or redeem.'}
                 </Text>
               </View>
             ) : (
@@ -332,39 +366,11 @@ export default function BaristaMode({ staffMode = false }: BaristaModeProps) {
             )}
           </Card>
 
-          {selected && minSpend > 0 ? (
-            <Card style={styles.spendCard}>
-              <Text variant="caption" muted>VERIFY PURCHASE</Text>
-              <Text variant="bodySmall" muted style={styles.spendHint}>
-                Enter the amount rung up at the till (minimum {formatPounds(minSpend)}).
-              </Text>
-              <Input
-                label="Amount spent (£)"
-                value={spendAmount}
-                onChangeText={setSpendAmount}
-                keyboardType="decimal-pad"
-                placeholder={minSpend.toFixed(2)}
-              />
-            </Card>
+          {!selected ? (
+            <Text variant="caption" muted style={styles.pickHint}>
+              Tip: pick a customer above, then Add stamp or Redeem appears right away.
+            </Text>
           ) : null}
-
-          <View style={styles.actions}>
-            <Button
-              title="Add stamp"
-              style={styles.actionBtn}
-              onPress={() => handleAction('stamp')}
-              loading={acting}
-              disabled={acting || !selected || Boolean(selected && needsRedeem(selected))}
-            />
-            <Button
-              title={selected ? redeemLabel(selected) : 'Redeem reward'}
-              variant="outline"
-              style={styles.actionBtn}
-              onPress={() => handleAction('redeem')}
-              loading={acting}
-              disabled={acting || !selected || Boolean(selected && !needsRedeem(selected))}
-            />
-          </View>
 
           {staffMode ? (
             <Button title="Exit staff mode" variant="ghost" onPress={handleStaffSignOut} />
@@ -406,7 +412,6 @@ const styles = StyleSheet.create({
   },
   minSpendText: { flex: 1, gap: 2 },
   minSpendTitle: { fontWeight: '600', color: colors.accentDark },
-  spendCard: { gap: spacing.sm, marginBottom: spacing.md },
   spendHint: { marginBottom: spacing.xs },
   centered: { padding: spacing.xl, alignItems: 'center' },
   stats: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
@@ -423,7 +428,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   selectedInfo: { flex: 1, gap: 2 },
-  selectedDetails: { gap: spacing.xs },
+  selectedDetails: { gap: spacing.sm, marginTop: spacing.sm },
+  spendInline: { gap: spacing.xs },
   passList: { marginBottom: spacing.md },
   listTitle: { padding: spacing.md, paddingBottom: spacing.sm },
   searchInput: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
@@ -440,6 +446,11 @@ const styles = StyleSheet.create({
   passRowSelected: { backgroundColor: colors.surfaceElevated },
   passInfo: { flex: 1, gap: 2 },
   passName: { fontWeight: '600' },
-  actions: { gap: spacing.sm, marginBottom: spacing.md },
+  pickHint: {
+    textAlign: 'center',
+    marginBottom: spacing.md,
+    lineHeight: 18,
+  },
+  actions: { gap: spacing.sm },
   actionBtn: { minHeight: 52 },
 });
