@@ -16,16 +16,17 @@ Do **not** claim: universal Google Wallet one-tap, Reviews NFC auto-stamping, or
 
 ## Technical hooks
 
-1. NFC checkout success shows **Add stamp loyalty** CTA → `/order?from=nfc&plan=pro` (+ email / business_name / nfc_sku when known)
+1. NFC checkout success shows **Start loyalty — £0 today →** as the primary next step → `/order?from=nfc&plan=pro` (+ email / business_name / nfc_sku when known)
 2. Order page banner when `from=nfc`; prefills email and business name
 3. Loyalty Stripe Checkout metadata: `signup_source=nfc`, optional `nfc_sku`
 4. Soft shop footer link to the same order URL
 
-## CTA copy (shipped)
+## CTA copy (shipped — Offer A on NFC success)
 
-- Eyebrow: Optional next step
-- Headline: Add stamp loyalty
-- Button: Start loyalty →
+- Eyebrow: Next step (recommended)
+- Headline: Bring them back with Wallet stamps
+- Primary: Start loyalty — £0 today → (`item_id=nfc_success_cta_v2`)
+- Secondary: Skip for now (quiet text link to shop home)
 - Be clear the NFC purchase and loyalty signup are **separate**
 - Mention Google Wallet only as limited until Google publishing is approved
 

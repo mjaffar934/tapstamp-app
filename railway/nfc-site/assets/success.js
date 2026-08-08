@@ -57,7 +57,7 @@
         loyaltyCta.addEventListener('click', function () {
           analytics.event('select_content', {
             content_type: 'loyalty_upsell',
-            item_id: 'nfc_success_cta',
+            item_id: 'nfc_success_cta_v2',
           });
         });
       }
