@@ -44,7 +44,7 @@
   if (fromNfc) {
     analytics.event('nfc_loyalty_order_view', {
       content_type: 'loyalty_upsell',
-      item_id: 'nfc_success_cta_v2',
+      item_id: 'nfc_success_cta_v3',
       nfc_channel: nfcChannel || undefined,
       email_day: emailDay || undefined,
       nfc_sku: nfcSku ? String(nfcSku).slice(0, 80) : undefined,

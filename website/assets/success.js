@@ -31,7 +31,7 @@
     } catch (_) { /* ignore */ }
     analytics.event('nfc_loyalty_signup_complete', {
       content_type: 'loyalty_upsell',
-      item_id: 'nfc_success_cta_v2',
+      item_id: 'nfc_success_cta_v3',
       signup_source: 'nfc',
       nfc_channel: nfcChannel || undefined,
       email_day: emailDay || undefined,
