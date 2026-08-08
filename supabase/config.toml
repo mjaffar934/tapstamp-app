@@ -656,3 +656,8 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/dev-seed/deno.json"
 entrypoint = "./functions/dev-seed/index.ts"
+
+[functions.nfc-loyalty-nurture]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/nfc-loyalty-nurture/index.ts"

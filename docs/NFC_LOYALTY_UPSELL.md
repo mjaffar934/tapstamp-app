@@ -82,15 +82,17 @@ Do **not** claim: universal Google Wallet one-tap, Reviews NFC auto-stamping, or
 |--------|------------|---------------|
 | **M1** Card→loyalty | NFC paid with later `signup_source=nfc` / NFC paid | Stripe CSV: `scripts/nfc-funnel-weekly.mjs` (join on email within 7d). GA cross-check: `nfc_loyalty_signup_complete` / `purchase`. Target ≥25% in 7d. |
 | **M2** Success CTA CTR | CTA clicks / success views | GA4: `nfc_loyalty_cta_click` where `item_id=nfc_success_cta_v3` ÷ `nfc_success_view`. Target ≥40% on success panel. |
-| **M3** Email→signup | Day-0/2/7 link → completed `/order` | Events wired now; emails pending E3. Deep link below. GA: completes with `email_day` ÷ `nfc_email_click`. Stripe: `nfc_email_day` metadata. |
+| **M3** Email→signup | Day-0/2/7 link → completed `/order` | Events + E3 nurture (`stripe-webhook` Day 0, `nfc-loyalty-nurture` Day 2/7). Kill switch: `NFC_LOYALTY_NURTURE_ENABLED=false`. Deep link below. GA: completes with `email_day` ÷ `nfc_email_click`. Stripe: `nfc_email_day` metadata. |
 
-### Email deep links (for Content / E3)
+### Email deep links (E3 / MJ-26)
 
 ```
 https://tapstamp.co/order?from=nfc&plan=pro&email_day=0&email={encodeURIComponent(email)}&business_name={…}&nfc_sku={…}&nfc_channel=email_day_0
 ```
 
 Use `email_day=2` / `email_day=7` on later sends. Keep `from=nfc` so Stripe `signup_source` stays `nfc` for M1.
+
+**Ops:** set Supabase secrets `RESEND_API_KEY`, `EMAIL_FROM`, `NFC_NURTURE_CRON_SECRET`. Nurture defaults on (kill with `NFC_LOYALTY_NURTURE_ENABLED=false`). Cron `POST /functions/v1/nfc-loyalty-nurture` hourly with the cron secret. Apply migration `029_hardware_nurture_emails.sql`.
 
 ### Weekly export
 

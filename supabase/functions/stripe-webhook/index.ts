@@ -59,11 +59,46 @@ Deno.serve(async (req) => {
 
   try {
     const payload = await req.text();
-    const event = constructStripeEvent(payload, signature);
+    const event = await constructStripeEvent(payload, signature);
 
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
+
+        if (session.metadata?.purpose === 'hardware_shop') {
+          if (session.payment_status === 'paid') {
+            const { notifyAdminsHardwareOrder } = await import('../_shared/ownerPush.ts');
+            const { HARDWARE_PRODUCTS, parseHardwareSku } = await import(
+              '../_shared/hardwareShop.ts'
+            );
+            const { onHardwareShopPaid, processDueNurtureEmails } = await import(
+              '../_shared/nfcLoyaltyNurture.ts'
+            );
+            const sku = parseHardwareSku(session.metadata?.sku);
+            const productName = sku ? HARDWARE_PRODUCTS[sku].name : session.metadata?.sku;
+            const buyerEmail = session.metadata?.email ?? session.customer_email;
+            await notifyAdminsHardwareOrder({
+              productName,
+              email: buyerEmail,
+              businessName: session.metadata?.business_name,
+              programUrl: session.metadata?.program_url,
+              sku: session.metadata?.sku,
+            });
+            await onHardwareShopPaid({
+              sessionId: session.id,
+              email: buyerEmail,
+              businessName: session.metadata?.business_name,
+              nfcSku: session.metadata?.sku,
+            });
+            // Opportunistic Day 2/7 drain if cron is not yet scheduled.
+            await processDueNurtureEmails(20).catch((err) => {
+              console.warn('nurture drain skipped', (err as Error).message);
+            });
+            console.log('Hardware shop paid', session.metadata?.sku, session.id);
+          }
+          break;
+        }
+
         const businessId = session.metadata?.business_id;
         if (!businessId) break;
 

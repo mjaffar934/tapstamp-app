@@ -1,35 +1,41 @@
-# Support email — `support@tapstamp.com`
+# Support email — `support@tapstamp.co`
 
 Public contact used on the site, owner app, and Wallet passes.
 
-## Get access to the inbox
+Domain: **`tapstamp.co`** (Namecheap). Inbox is a **forwarder** to your Gmail.
 
-You need to **own `tapstamp.com`** (DNS) and create the mailbox or a forwarder.
+## Transactional product email (Offer A nurture)
 
-### Option A — Cloudflare Email Routing (free, recommended)
+Hardware → loyalty Day 0 / 2 / 7 sequence (Edge Function + DB queue):
 
-1. Add `tapstamp.com` to Cloudflare (or move DNS there).
-2. Email → Email Routing → enable routing.
-3. Add destination address = your personal Gmail (e.g. the one you use day-to-day) and verify it.
-4. Create rule: `support@tapstamp.com` → forward to that Gmail.
-5. Keep MX records on Cloudflare as instructed.
+| Secret | Purpose |
+|--------|---------|
+| `RESEND_API_KEY` (or `EMAIL_API_KEY`) | Send via [Resend](https://resend.com) |
+| `EMAIL_FROM` | Verified sender, e.g. `TapStamp <noreply@tapstamp.co>` |
+| `EMAIL_REPLY_TO` | Optional; defaults to `support@tapstamp.co` |
+| `NFC_LOYALTY_NURTURE_ENABLED` | Kill switch — defaults **on**; set `false`/`0`/`off` to pause |
+| `NFC_NURTURE_CRON_SECRET` | Bearer token for `POST …/nfc-loyalty-nurture` |
 
-You read and reply from Gmail; customers still see `support@tapstamp.com` if you set “Send mail as” (optional, needs SMTP).
+Trigger: Stripe webhook `purpose=hardware_shop` + paid → Day 0 send; Day 2/7 via hourly cron `nfc-loyalty-nurture`. Suppresses pending rows when loyalty `order_status=paid` on the same email.
 
-### Option B — Google Workspace
+Copy finals: MJ-20 `offer-a-emails`. Migration: `029_hardware_nurture_emails.sql`.
 
-1. Buy Google Workspace for `tapstamp.com`.
-2. Create user `support@tapstamp.com`.
-3. Sign in at [mail.google.com](https://mail.google.com) with that account (or add it to your phone).
+Verify templates locally: `node scripts/nfc-loyalty-nurture-check.mjs`
 
-### Option C — Apple iCloud+ Custom Email
+## Set up / confirm forwarding
 
-If you use iCloud+ Custom Email Domain, add `tapstamp.com` and create `support@`.
+1. Namecheap → Domain List → **tapstamp.co** → Manage
+2. **Advanced DNS** → Mail Settings = **Email Forwarding**
+3. **Domain** tab → Redirect Email → Add Forwarder
+   - Alias: `support`
+   - Forward to: your Gmail
+4. Save with ✓
 
-## After DNS works
+Test: send mail **to** `support@tapstamp.co` from another address and confirm it arrives (check Spam).
 
-Test: send mail **to** `support@tapstamp.com` from another address and confirm it arrives.
+Forwarding is receive-only. Replies still send from your Gmail unless you add “Send mail as” later.
 
-Use this address in Google Wallet Console → Business profile → Customer support email.
+## Product links
 
-Site support page: https://tapstamp.co/support
+- Site: https://tapstamp.co/support
+- Google Wallet Console → Business profile → Customer support email: `support@tapstamp.co`

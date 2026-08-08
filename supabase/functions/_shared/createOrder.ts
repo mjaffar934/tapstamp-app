@@ -352,6 +352,21 @@ export async function markBusinessPaid(
 
   await supabase.from('businesses').update(patch).eq('id', businessId);
 
+  // Offer A nurture: stop Day 2/7 after completed loyalty checkout (any source).
+  if (patch.order_status === 'paid') {
+    try {
+      const { data: paidBiz } = await supabase
+        .from('businesses')
+        .select('email')
+        .eq('id', businessId)
+        .maybeSingle();
+      const { suppressHardwareNurtureForEmail } = await import('./nfcLoyaltyNurture.ts');
+      await suppressHardwareNurtureForEmail(paidBiz?.email);
+    } catch (err) {
+      console.error('nurture suppress after loyalty paid failed:', err);
+    }
+  }
+
   if (isSetup && customerId) {
     try {
       const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
@@ -391,6 +406,18 @@ export async function markBusinessPaidFree(businessId: string): Promise<void> {
   await supabase.from('businesses').update({
     order_status: 'paid',
   }).eq('id', businessId);
+
+  try {
+    const { data: paidBiz } = await supabase
+      .from('businesses')
+      .select('email')
+      .eq('id', businessId)
+      .maybeSingle();
+    const { suppressHardwareNurtureForEmail } = await import('./nfcLoyaltyNurture.ts');
+    await suppressHardwareNurtureForEmail(paidBiz?.email);
+  } catch (err) {
+    console.error('nurture suppress after free paid failed:', err);
+  }
 }
 
 export async function resumeCheckoutForOwner(
