@@ -21,6 +21,9 @@ export interface CheckoutParams {
   email: string;
   plan: PlanId;
   businessName: string;
+  fromApp?: boolean;
+  signupSource?: string;
+  nfcSku?: string;
 }
 
 export async function createHardwareCheckoutSession(
@@ -43,9 +46,11 @@ export async function createHardwareCheckoutSession(
         business_id: params.businessId,
         plan: params.plan,
         email: params.email,
+        ...(params.signupSource ? { signup_source: params.signupSource } : {}),
+        ...(params.nfcSku ? { nfc_sku: params.nfcSku.slice(0, 80) } : {}),
       },
-      success_url: `${WEBSITE}/order/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${WEBSITE}/order?plan=${params.plan}&canceled=1`,
+      success_url: `${WEBSITE}/order/success?session_id={CHECKOUT_SESSION_ID}${params.fromApp ? '&from=app' : (params.signupSource === 'nfc' ? '&from=nfc' : '')}`,
+      cancel_url: params.fromApp ? `tapstamp://sign-in?canceled=1&plan=${encodeURIComponent(params.plan)}` : `${WEBSITE}/order?plan=${params.plan}&canceled=1${params.signupSource === 'nfc' ? '&from=nfc' : ''}`,
     });
   }
 
@@ -64,9 +69,11 @@ export async function createHardwareCheckoutSession(
       business_id: params.businessId,
       plan: params.plan,
       email: params.email,
+      ...(params.signupSource ? { signup_source: params.signupSource } : {}),
+      ...(params.nfcSku ? { nfc_sku: params.nfcSku.slice(0, 80) } : {}),
     },
-    success_url: `${WEBSITE}/order/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${WEBSITE}/order?plan=${params.plan}&canceled=1`,
+    success_url: `${WEBSITE}/order/success?session_id={CHECKOUT_SESSION_ID}${params.fromApp ? '&from=app' : (params.signupSource === 'nfc' ? '&from=nfc' : '')}`,
+    cancel_url: params.fromApp ? `tapstamp://sign-in?canceled=1&plan=${encodeURIComponent(params.plan)}` : `${WEBSITE}/order?plan=${params.plan}&canceled=1${params.signupSource === 'nfc' ? '&from=nfc' : ''}`,
     allow_promotion_codes: true,
   });
 

@@ -21,6 +21,10 @@ export interface OrderBody {
   city?: string;
   postcode?: string;
   shipping_phone?: string;
+  /** Attribution: owner app (`app`) or NFC shop upsell (`nfc`) */
+  from?: string;
+  /** Optional NFC hardware SKU(s) from shop deep link — Stripe metadata only */
+  nfc_sku?: string;
 }
 
 export interface OrderResult {
@@ -47,6 +51,10 @@ export async function prepareOrder(body: OrderBody): Promise<OrderResult> {
   const businessName = body.business_name?.trim() || 'My Cafe';
   const ownerName = body.owner_name?.trim() || '';
   const plan = parsePlanId(body.plan);
+  const fromRaw = typeof body.from === 'string' ? body.from.trim().toLowerCase() : '';
+  const fromApp = fromRaw === 'app';
+  const signupSource = fromRaw === 'app' || fromRaw === 'nfc' ? fromRaw : undefined;
+  const nfcSku = typeof body.nfc_sku === 'string' ? body.nfc_sku.trim().slice(0, 80) : undefined;
 
   if (!email || !password) {
     return { ok: false, status: 400, error: 'Email and password are required' };
@@ -93,6 +101,9 @@ export async function prepareOrder(body: OrderBody): Promise<OrderResult> {
           email,
           plan: parsePlanId(existingBizByEmail.plan_selected ?? plan),
           businessName,
+          fromApp,
+          signupSource,
+          nfcSku,
         });
 
         await supabase.from('businesses').update({
@@ -235,6 +246,9 @@ export async function prepareOrder(body: OrderBody): Promise<OrderResult> {
       email,
       plan,
       businessName,
+      fromApp,
+      signupSource,
+      nfcSku,
     });
 
     await supabase.from('businesses').update({
