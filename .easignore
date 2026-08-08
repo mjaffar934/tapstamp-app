@@ -1,0 +1,13 @@
+# Keep the iOS build upload small and avoid nested package managers confusing npm ci
+railway/
+railway/website/
+docs/
+*.md
+.git/
+.cursor/
+agent-transcripts/
+
+# Never bake local secrets into EAS production IPAs
+.env
+.env.*
+!.env.example

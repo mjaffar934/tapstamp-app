@@ -3,34 +3,47 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#FAF8F5">
-  <title>Order confirmed — TapStamp</title>
+  <meta name="theme-color" content="#F7F6F3">
+  <title>Confirmed — TapStamp</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/assets/styles.css">
+  <link rel="stylesheet" href="/assets/styles.css?v=25">
 </head>
-<body>
+<body class="order-page">
   <div class="narrow">
     <div id="loading" class="loading-block">
       <div class="spinner"></div>
-      <p class="eyebrow">Confirming signup…</p>
+      <p class="eyebrow">Confirming…</p>
       <p class="lead" style="margin-bottom:0">One moment.</p>
     </div>
 
     <div id="error-content" class="hidden">
       <p class="eyebrow">Something went wrong</p>
-      <h1>Could not confirm order</h1>
+      <h1 class="order-title">Could not confirm</h1>
       <p class="alert" id="error-msg"></p>
-      <p class="lead">If you were charged, sign in to the TapStamp owner app with your order email and password.</p>
-      <a href="/order?plan=starter" class="btn btn-block" style="margin-top:1rem">Back to order</a>
+      <p class="lead">Open the TapStamp owner app and continue from Plan / billing.</p>
+      <a id="open-app-error" href="tapstamp://settings/billing" class="btn btn-block" style="margin-top:1rem">Open owner app</a>
+      <p class="note" style="margin-top:1rem"><a href="mailto:support@tapstamp.co">support@tapstamp.co</a></p>
     </div>
 
-    <div id="success-content" class="hidden">
+    <div id="billing-success" class="hidden">
+      <div class="success-icon">✓</div>
+      <p class="eyebrow">Billing</p>
+      <h1 class="order-title">Card saved</h1>
+      <p class="lead">You're ready to go. Return to the TapStamp owner app to keep managing your programme.</p>
+      <div class="card">
+        <p id="billing-plan-line" class="note" style="margin-top:0"></p>
+        <p style="margin-top:1.25rem"><a id="open-app-billing" class="btn btn-block" href="tapstamp://settings/billing">Back to owner app</a></p>
+        <p class="note" style="margin-top:0.75rem">This window can close after the app opens.</p>
+      </div>
+    </div>
+
+    <div id="order-success" class="hidden">
       <div class="success-icon">✓</div>
       <p class="eyebrow">Order placed</p>
-      <h1>You're all set</h1>
+      <h1 class="order-title">You're all set</h1>
       <p class="lead">Your owner account is ready for <strong id="success-email"></strong>. Your <span id="success-plan"></span> loyalty stamp is on its way.</p>
       <div class="card">
         <p><strong>Save your login</strong></p>
@@ -41,16 +54,16 @@
           <li>We'll email you when the owner app is ready to download</li>
           <li>Sign in with the email and password above</li>
           <li>When your stamp arrives, customise your card and tap it on the counter to go live</li>
-          <li>Your 14-day free trial starts at go-live — <span id="after-trial"></span></li>
+          <li>£0 today — free for your first 50 unique customers each month — <span id="after-trial"></span></li>
         </ol>
-        <p style="margin-top:1.25rem"><a id="open-app-link" class="btn btn-block" href="#">Open owner app</a></p>
+        <p style="margin-top:1.25rem"><a id="open-app-order" class="btn btn-block" href="#">Open owner app</a></p>
         <p class="note" style="margin-top:0.75rem">While your stamp is in the post, the app shows delivery tracking and tips to get ready.</p>
-        <p class="note" style="margin-top:1.25rem">Questions? <a href="mailto:support@tapstamp.com">support@tapstamp.com</a></p>
+        <p class="note" style="margin-top:1.25rem">Questions? <a href="mailto:support@tapstamp.co">support@tapstamp.co</a></p>
       </div>
       <p class="note" style="margin-top:1.5rem"><a href="/">Return to tapstamp.co</a></p>
     </div>
   </div>
-  <script src="/assets/config.js"></script>
-  <script src="/assets/success.js"></script>
+  <script src="/assets/config.js?v=25"></script>
+  <script src="/assets/success.js?v=25"></script>
 </body>
 </html>

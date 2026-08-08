@@ -3,66 +3,42 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#141210">
+  <meta name="theme-color" content="#F7F6F3">
   <title>Order TapStamp</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/assets/styles.css?v=4">
+  <link rel="stylesheet" href="/assets/styles.css?v=28">
 </head>
 <body class="order-page">
   <div class="narrow">
-    <a href="/" class="back">← Back to TapStamp</a>
+    <a href="/" class="back">← TapStamp</a>
     <p class="eyebrow">Order</p>
-    <h1 class="order-title">Start your programme</h1>
-    <p class="order-lead">Create your owner account. Your loyalty stamp is <strong>included free</strong>. Software billing starts after your 14-day trial at go-live.</p>
+    <h1 class="order-title">Start free</h1>
+    <p class="order-lead">Create your owner account. <strong>Loyalty stamp included free</strong>. Save a card now — <strong>£0 due today</strong>. Software stays free for your first <strong>50 unique customers each month</strong>, then <strong>£25/mo</strong>.</p>
+
+    <div id="nfc-upsell-banner" class="alert alert-info hidden">You bought an NFC reviews/Instagram card — that order is separate. This form starts <strong>stamp loyalty</strong> (Wallet stamps for your customers). Card on file, £0 today.</div>
 
     <div id="alert-error" class="alert hidden"></div>
     <div id="alert-canceled" class="alert alert-info hidden">Card setup not completed — your account is saved. Try again below or sign in to the owner app.</div>
 
     <div class="card order-card">
       <form id="order-form">
-        <p class="step-label">Software plan</p>
-        <div class="plans plans-premium">
-          <label class="plan plan-premium">
-            <input type="radio" name="plan" value="starter">
-            <div class="plan-premium-top">
-              <span class="plan-title">Starter</span>
-              <span class="plan-software-price">Free</span>
-            </div>
-            <p class="plan-premium-sub">after trial · 50 customers/month · free stamp</p>
-          </label>
-          <label class="plan plan-premium">
-            <input type="radio" name="plan" value="pro">
-            <div class="plan-premium-top">
-              <span class="plan-title">Pro</span>
-              <span class="plan-software-price">£25<span class="plan-software-period">/mo</span></span>
-            </div>
-            <p class="plan-premium-sub">after trial · unlimited customers · free stamp</p>
-          </label>
-          <label class="plan plan-premium">
-            <input type="radio" name="plan" value="multi">
-            <div class="plan-premium-top">
-              <span class="plan-title">Multi-site</span>
-              <span class="plan-software-price">£59<span class="plan-software-period">/mo</span></span>
-            </div>
-            <p class="plan-premium-sub">after trial · up to 5 locations · free stamp</p>
-          </label>
-        </div>
+        <input type="hidden" name="plan" id="plan" value="pro">
 
         <div class="price-box price-box-premium">
-          <div class="price-row price-row-muted" id="sub-line"><span>Software (after trial)</span><span id="sub-amount">Free</span></div>
-          <div class="price-total price-row"><span>Due today</span><span id="due-today">£0</span></div>
-          <p class="note note-tight" id="trial-line">14-day software trial starts when you go live — not at signup.</p>
-          <p class="note note-tight hidden" id="card-line">Pro and Multi-site require a card on file — you are not charged until after your trial.</p>
+          <div class="price-row price-row-muted"><span>Software</span><span>Free until 50 unique/mo</span></div>
+          <div class="price-row price-row-muted"><span>Then</span><span>£25/mo</span></div>
+          <div class="price-total price-row"><span>Due today</span><span>£0</span></div>
+          <p class="note note-tight"><strong>£0 today.</strong> We save your card now. First charge only when you hit 50 unique customers in a calendar month — then £25/mo.</p>
         </div>
 
         <p class="step-label">Your account</p>
         <label for="owner_name">Your name</label>
         <input id="owner_name" name="owner_name" required placeholder="Alex Morgan" autocomplete="name">
         <label for="business_name">Business name</label>
-        <input id="business_name" name="business_name" required placeholder="Corner">
+        <input id="business_name" name="business_name" required placeholder="Corner" autocomplete="organization">
         <label for="email">Email</label>
         <input id="email" name="email" type="email" required placeholder="owner@cafe.com" autocomplete="email">
         <label for="password">Password (owner app)</label>
@@ -70,21 +46,21 @@
 
         <p class="step-label">Shipping</p>
         <label for="shipping_address_line1">Address</label>
-        <input id="shipping_address_line1" name="shipping_address_line1" required placeholder="123 High Street">
+        <input id="shipping_address_line1" name="shipping_address_line1" required placeholder="123 High Street" autocomplete="address-line1">
         <label for="city">City</label>
-        <input id="city" name="city" required placeholder="London">
+        <input id="city" name="city" required placeholder="London" autocomplete="address-level2">
         <label for="postcode">Postcode</label>
-        <input id="postcode" name="postcode" required placeholder="SW1A 1AA">
+        <input id="postcode" name="postcode" required placeholder="SW1A 1AA" autocomplete="postal-code">
         <label for="shipping_phone">Phone (optional)</label>
-        <input id="shipping_phone" name="shipping_phone" type="tel" placeholder="07…">
+        <input id="shipping_phone" name="shipping_phone" type="tel" placeholder="07…" autocomplete="tel">
 
-        <button class="btn btn-block" type="submit" id="submit-btn">Create account →</button>
+        <button class="btn btn-block" type="submit" id="submit-btn">Continue to card setup →</button>
       </form>
       <p class="note">Customers tap your stamp and add their card to Apple Wallet or Google Wallet — no app download.</p>
     </div>
   </div>
-  <script src="/assets/config.js?v=4"></script>
-  <script src="/assets/order.js?v=4"></script>
-<script src="/assets/nfc-order-hook.js?v=1"></script>
+  <script src="/assets/config.js?v=28"></script>
+  <script src="/assets/order.js?v=28"></script>
+  <script src="/assets/nfc-order-hook.js?v=1"></script>
 </body>
 </html>

@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   View,
   StyleSheet,
+  Linking,
 } from 'react-native';
 import { Link, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,9 +13,8 @@ import { Text } from '@/components/ui/Text';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { BrandLogo } from '@/components/BrandLogo';
-import { OwnerFlowSteps } from '@/components/auth/OwnerFlowSteps';
 import { useAuth } from '@/contexts/AuthContext';
-import { SUPPORT_EMAIL } from '@/constants/config';
+import { SUPPORT_EMAIL, orderSignupUrl } from '@/constants/config';
 import {
   DEV_BOOTSTRAP_SECRET,
   DEV_EMAIL,
@@ -41,24 +38,22 @@ function parseEmailFromUrl(url: string): string | null {
 }
 
 export default function GateScreen() {
-  const { signIn, signUp, signInDev } = useAuth();
-  const params = useLocalSearchParams<{ email?: string; reason?: string; mode?: string }>();
-  const [mode, setMode] = useState<'signin' | 'signup'>(params.mode === 'signup' ? 'signup' : 'signin');
+  const { signIn, signInDev } = useAuth();
+  const params = useLocalSearchParams<{ email?: string; reason?: string }>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [businessName, setBusinessName] = useState('');
-  const [ownerName, setOwnerName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const noAccount = params.reason === 'no_account';
+  const orderUrl = orderSignupUrl('pro');
 
   useEffect(() => {
     if (typeof params.email === 'string' && params.email.includes('@')) {
       setEmail(params.email.trim().toLowerCase());
       return;
     }
-    if (__DEV__ && hasDevCredentials() && DEV_EMAIL && mode === 'signin') {
+    if (__DEV__ && hasDevCredentials() && DEV_EMAIL) {
       setEmail(DEV_EMAIL);
     }
     ExpoLinking.getInitialURL().then((url) => {
@@ -66,12 +61,11 @@ export default function GateScreen() {
       const fromUrl = parseEmailFromUrl(url);
       if (fromUrl) setEmail(fromUrl);
     });
-  }, [params.email, mode]);
+  }, [params.email]);
 
   useEffect(() => {
     if (noAccount) {
-      setError('No account found for this email. Create one below.');
-      setMode('signup');
+      setError('No owner account for this email. Create one on the website, then sign in here.');
     }
   }, [noAccount]);
 
@@ -81,28 +75,24 @@ export default function GateScreen() {
       setError('Enter your email and password');
       return;
     }
-    if (mode === 'signup' && password.length < 8) {
-      setError('Password must be at least 8 characters');
-      return;
-    }
 
     setLoading(true);
     try {
-      const result = mode === 'signup'
-        ? await signUp(email.trim(), password, businessName.trim() || 'My Business', ownerName.trim())
-        : await signIn(email.trim(), password);
-
+      const result = await signIn(email.trim(), password);
       if (result.error) {
         setError(result.error);
         return;
       }
-
       router.replace('/');
     } catch {
       setError('Something went wrong. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const openOrder = () => {
+    if (orderUrl) void Linking.openURL(orderUrl);
   };
 
   const handleDevSignIn = async () => {
@@ -126,146 +116,99 @@ export default function GateScreen() {
   };
 
   return (
-    <Screen scroll safe padded={false}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.hero}>
-            <BrandLogo size={56} />
-            <Text variant="caption" muted style={styles.eyebrow}>TapStamp</Text>
-            <Text variant="hero" style={styles.heroTitle}>
-              {mode === 'signup' ? 'Create your account' : 'Sign in'}
+    <Screen
+      scroll
+      safe
+      padded={false}
+      contentContainerStyle={styles.scroll}
+    >
+      <View style={styles.hero}>
+        <BrandLogo size={56} />
+        <Text variant="caption" muted style={styles.eyebrow}>TapStamp</Text>
+        <Text variant="hero" style={styles.heroTitle}>Sign in</Text>
+        <Text muted style={styles.heroSub}>
+          Manage stamps, customers, and your team.
+        </Text>
+        <View style={styles.accentLine} />
+      </View>
+
+      <View style={styles.formGroup}>
+        <Input
+          label="Email"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          autoComplete="email"
+          placeholder="Enter your email"
+        />
+        <Input
+          label="Password"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoComplete="password"
+          placeholder="Your password"
+          onSubmitEditing={handleSubmit}
+        />
+        {error ? (
+          <View style={styles.errorBox}>
+            <Ionicons name="alert-circle-outline" size={16} color={colors.error} />
+            <Text variant="caption" color={colors.error} style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+        <Button title="Sign in" onPress={handleSubmit} loading={loading} />
+        <Link href="/(auth)/forgot-password" asChild>
+          <Pressable style={styles.forgot}>
+            <Text variant="bodySmall" color={colors.textSecondary}>
+              Forgot password?
             </Text>
-            <Text muted style={styles.heroSub}>
-              {mode === 'signup'
-                ? 'Digital loyalty for any business — activate with your TapStamp, then set up your card.'
-                : 'Manage stamps, customers, and your team.'}
-            </Text>
-            <View style={styles.accentLine} />
-            {mode === 'signup' ? <OwnerFlowSteps current="account" compact /> : null}
-          </View>
-
-          <View style={styles.modeRow}>
-            <Pressable
-              style={[styles.modeTab, mode === 'signin' && styles.modeTabActive]}
-              onPress={() => { setMode('signin'); setError(null); }}
-            >
-              <Text variant="bodySmall" style={mode === 'signin' ? styles.modeTabTextActive : undefined}>
-                Sign in
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.modeTab, mode === 'signup' && styles.modeTabActive]}
-              onPress={() => { setMode('signup'); setError(null); }}
-            >
-              <Text variant="bodySmall" style={mode === 'signup' ? styles.modeTabTextActive : undefined}>
-                Create account
-              </Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.formGroup}>
-            {mode === 'signup' ? (
-              <>
-                <Input
-                  label="Your name"
-                  value={ownerName}
-                  onChangeText={setOwnerName}
-                  autoCapitalize="words"
-                  placeholder="Your name"
-                />
-                <Input
-                  label="Business name"
-                  value={businessName}
-                  onChangeText={setBusinessName}
-                  autoCapitalize="words"
-                  placeholder="Your business name"
-                />
-              </>
-            ) : null}
-            <Input
-              label="Email"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-              placeholder="Enter your email"
-            />
-            <Input
-              label="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoComplete={mode === 'signup' ? 'new-password' : 'password'}
-              placeholder={mode === 'signup' ? 'Min 8 characters' : 'Your password'}
-              onSubmitEditing={handleSubmit}
-            />
-            {error ? (
-              <View style={styles.errorBox}>
-                <Ionicons name="alert-circle-outline" size={16} color={colors.error} />
-                <Text variant="caption" color={colors.error} style={styles.errorText}>{error}</Text>
-              </View>
-            ) : null}
-            <Button
-              title={mode === 'signup' ? 'Continue' : 'Sign in'}
-              onPress={handleSubmit}
-              loading={loading}
-            />
-            {mode === 'signin' ? (
-              <Link href="/(auth)/forgot-password" asChild>
-                <Pressable style={styles.forgot}>
-                  <Text variant="bodySmall" color={colors.textSecondary}>
-                    Forgot password?
-                  </Text>
-                </Pressable>
-              </Link>
-            ) : null}
-          </View>
-
-          <Pressable
-            onPress={() => router.push('/(auth)/staff')}
-            style={styles.staffCard}
-          >
-            <View style={styles.staffIcon}>
-              <Ionicons name="radio-outline" size={20} color={colors.accentDark} />
-            </View>
-            <View style={styles.staffText}>
-              <Text variant="bodySmall" style={styles.staffTitle}>Staff mode</Text>
-              <Text variant="caption" muted>Stamp and redeem at the counter</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </Pressable>
+        </Link>
+      </View>
 
-          {mode === 'signup' ? (
-            <Text variant="caption" muted style={styles.help}>
-              Next: hold your TapStamp to your phone to activate. {SUPPORT_EMAIL}
-            </Text>
-          ) : null}
+      {noAccount && orderUrl ? (
+        <Button title="Create account on website" onPress={openOrder} variant="outline" />
+      ) : null}
 
-          {__DEV__ && hasDevBootstrap() && hasDevCredentials() ? (
-            <Button
-              title="Dev sign in"
-              variant="outline"
-              onPress={handleDevSignIn}
-              loading={loading}
-              style={styles.devBtn}
-            />
-          ) : null}
-        </ScrollView>
-      </KeyboardAvoidingView>
+      <Pressable onPress={() => router.push('/(auth)/staff')} style={styles.staffCard}>
+        <View style={styles.staffIcon}>
+          <Ionicons name="radio-outline" size={20} color={colors.accentDark} />
+        </View>
+        <View style={styles.staffText}>
+          <Text variant="bodySmall" style={styles.staffTitle}>Staff mode</Text>
+          <Text variant="caption" muted>Stamp and redeem at the counter</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+      </Pressable>
+
+      {orderUrl ? (
+        <Pressable onPress={openOrder} style={styles.orderOnline}>
+          <Text variant="bodySmall" color={colors.accentDark}>
+            New shop? Order online — £0 today
+          </Text>
+          <Ionicons name="open-outline" size={16} color={colors.accentDark} />
+        </Pressable>
+      ) : (
+        <Text variant="caption" muted style={styles.help}>
+          Need an account? Email {SUPPORT_EMAIL}
+        </Text>
+      )}
+
+      {__DEV__ && hasDevBootstrap() && hasDevCredentials() ? (
+        <Button
+          title="Dev sign in"
+          variant="outline"
+          onPress={handleDevSignIn}
+          loading={loading}
+          style={styles.devBtn}
+        />
+      ) : null}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
   scroll: {
     flexGrow: 1,
     paddingHorizontal: spacing.lg,
@@ -300,25 +243,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     marginTop: spacing.sm,
     marginBottom: spacing.xs,
-  },
-  modeRow: {
-    flexDirection: 'row',
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.md,
-    padding: 4,
-  },
-  modeTab: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    borderRadius: radius.sm,
-  },
-  modeTabActive: {
-    backgroundColor: colors.surface,
-    ...shadows.sm,
-  },
-  modeTabTextActive: {
-    fontWeight: '600',
   },
   formGroup: {
     gap: spacing.md,
@@ -366,6 +290,14 @@ const styles = StyleSheet.create({
   help: {
     lineHeight: 20,
     textAlign: 'center',
+  },
+  orderOnline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
   devBtn: {
     marginTop: spacing.xs,

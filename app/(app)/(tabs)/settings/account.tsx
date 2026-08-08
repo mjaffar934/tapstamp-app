@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, TextInput, Alert } from 'react-native';
 import { router } from 'expo-router';
+import { backToSettings } from '@/lib/navigation';
 import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { BackHeader } from '@/components/ui/BackHeader';
@@ -12,6 +13,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTapStampAlert } from '@/contexts/AlertContext';
 import { useOwnerCafe } from '@/hooks/useOwnerCafe';
 import { supabase } from '@/lib/supabase';
+import { deleteAccount } from '@/lib/api';
+import { clearStaffSession } from '@/lib/staffSession';
 import { PLANS } from '@/constants/plans';
 import { parsePlanId } from '@/constants/plans';
 import { colors, spacing } from '@/constants/theme';
@@ -21,7 +24,9 @@ export default function AccountScreen() {
   const { cafe } = useOwnerCafe();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState('');
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const alert = useTapStampAlert();
 
   const planId = parsePlanId(cafe?.plan ?? business?.plan_selected ?? undefined);
@@ -51,9 +56,39 @@ export default function AccountScreen() {
     alert('Password updated', 'Your new password is now active.');
   };
 
+  const runDelete = async () => {
+    setDeleting(true);
+    const result = await deleteAccount();
+    if (result.error) {
+      setDeleting(false);
+      alert('Could not delete account', result.error);
+      return;
+    }
+    await clearStaffSession();
+    await supabase.auth.signOut();
+    setDeleting(false);
+    router.replace('/(auth)/gate');
+  };
+
+  const handleDeleteAccount = () => {
+    if (deleteConfirm.trim().toUpperCase() !== 'DELETE') {
+      alert('Type DELETE', 'Type DELETE in the box to confirm permanent deletion.');
+      return;
+    }
+
+    Alert.alert(
+      'Delete account permanently?',
+      'This removes your TapStamp account, business, customers, and wallet passes. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete forever', style: 'destructive', onPress: () => { void runDelete(); } },
+      ],
+    );
+  };
+
   return (
     <Screen>
-      <BackHeader onBack={() => router.replace('/(app)/(tabs)/settings')} />
+      <BackHeader onBack={backToSettings} />
       <ScreenHeader compact title="Account" subtitle="Email, password, and plan details" />
       <Card style={styles.card}>
         <Text variant="caption" muted>EMAIL</Text>
@@ -97,6 +132,29 @@ export default function AccountScreen() {
         />
         <Button title="Update password" onPress={handleChangePassword} loading={loading} />
       </Card>
+
+      <Card style={styles.card}>
+        <Text variant="h3">Delete account</Text>
+        <Text variant="caption" muted style={styles.deleteCopy}>
+          Permanently deletes your owner account, business data, customers, and wallet passes.
+          Type DELETE to confirm.
+        </Text>
+        <TextInput
+          value={deleteConfirm}
+          onChangeText={setDeleteConfirm}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          placeholder="DELETE"
+          placeholderTextColor={colors.textMuted}
+          style={styles.deleteInput}
+        />
+        <Button
+          title="Delete account"
+          variant="destructive"
+          onPress={handleDeleteAccount}
+          loading={deleting}
+        />
+      </Card>
     </Screen>
   );
 }
@@ -104,4 +162,14 @@ export default function AccountScreen() {
 const styles = StyleSheet.create({
   card: { marginBottom: spacing.md, gap: spacing.sm },
   hint: { marginTop: spacing.xs },
+  deleteCopy: { lineHeight: 18 },
+  deleteInput: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    color: colors.text,
+    backgroundColor: colors.surfaceMuted,
+  },
 });

@@ -1,0 +1,48 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "development",
+      "node": "22.14.0",
+      "ios": {
+        "simulator": true
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview",
+      "node": "22.14.0",
+      "ios": {
+        "simulator": false
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "channel": "production",
+      "node": "22.14.0",
+      "ios": {
+        "resourceClass": "m-medium"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://biootanbxmqfserzgnxe.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpb290YW5ieG1xZnNlcnpnbnhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMjM2MDEsImV4cCI6MjA5NTc5OTYwMX0.dI-zrdU3ZgGVDOTXK-25yIeRp0PTC7mum1SORWPockw",
+        "EXPO_PUBLIC_ORDER_WEBSITE_URL": "https://tapstamp.co",
+        "EXPO_PUBLIC_FUNCTIONS_URL": "https://tapstamp.co",
+        "EXPO_PUBLIC_TAP_BASE_URL": "https://tapstamp.co",
+        "EXPO_PUBLIC_SUPPORT_EMAIL": "support@tapstamp.co"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6793987872"
+      }
+    }
+  }
+}

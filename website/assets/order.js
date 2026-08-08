@@ -1,12 +1,10 @@
 (function () {
   var cfg = window.TAPSTAMP;
   var params = new URLSearchParams(location.search);
-  var plan = params.get('plan') || 'starter';
-  if (!['starter', 'pro', 'multi'].includes(plan)) plan = 'starter';
-
-  document.querySelectorAll('input[name=plan]').forEach(function (input) {
-    input.checked = input.value === plan;
-  });
+  var fromParam = (params.get('from') || '').toLowerCase();
+  var fromApp = fromParam === 'app';
+  var fromNfc = fromParam === 'nfc';
+  var signupFrom = fromApp ? 'app' : (fromNfc ? 'nfc' : '');
 
   var error = params.get('error');
   if (error) {
@@ -20,46 +18,19 @@
     info.classList.remove('hidden');
   }
 
-  document.querySelectorAll('.plan').forEach(function (el) {
-    el.addEventListener('click', function () {
-      var input = el.querySelector('input');
-      if (input) {
-        input.checked = true;
-        plan = input.value;
-        updateSummary();
-      }
-    });
-  });
+  var nfcBanner = document.getElementById('nfc-upsell-banner');
+  if (nfcBanner && fromNfc) nfcBanner.classList.remove('hidden');
 
-  function isPaidPlan(planId) {
-    return planId === 'pro' || planId === 'multi';
+  var prefillEmail = params.get('email');
+  var prefillBiz = params.get('business_name');
+  if (prefillEmail) {
+    var emailInput = document.getElementById('email');
+    if (emailInput && !emailInput.value) emailInput.value = prefillEmail;
   }
-
-  function updateSummary() {
-    var selected = document.querySelector('input[name=plan]:checked');
-    if (!selected) return;
-    var p = cfg.PLANS[selected.value];
-    var sub = document.getElementById('sub-line');
-    var subAmount = document.getElementById('sub-amount');
-    var dueToday = document.getElementById('due-today');
-    var cardLine = document.getElementById('card-line');
-    var btn = document.getElementById('submit-btn');
-
-    if (subAmount) {
-      subAmount.textContent = p.monthly == null ? 'Free' : '£' + p.monthly + '/mo';
-    }
-    if (dueToday) dueToday.textContent = '£0';
-    if (sub) sub.style.display = 'flex';
-    if (cardLine) {
-      cardLine.classList.toggle('hidden', !isPaidPlan(selected.value));
-    }
-    if (btn) {
-      btn.textContent = isPaidPlan(selected.value)
-        ? 'Continue to card setup →'
-        : 'Create account →';
-    }
+  if (prefillBiz) {
+    var bizInput = document.getElementById('business_name');
+    if (bizInput && !bizInput.value) bizInput.value = prefillBiz;
   }
-  updateSummary();
 
   document.getElementById('order-form').addEventListener('submit', async function (e) {
     e.preventDefault();
@@ -67,9 +38,8 @@
     var errEl = document.getElementById('alert-error');
     errEl.classList.add('hidden');
 
-    var selected = document.querySelector('input[name=plan]:checked');
     var body = {
-      plan: selected ? selected.value : plan,
+      plan: 'pro',
       owner_name: document.getElementById('owner_name').value.trim(),
       business_name: document.getElementById('business_name').value.trim(),
       email: document.getElementById('email').value.trim(),
@@ -79,6 +49,9 @@
       postcode: document.getElementById('postcode').value.trim(),
       shipping_phone: document.getElementById('shipping_phone').value.trim(),
     };
+    if (signupFrom) body.from = signupFrom;
+    var nfcSku = params.get('nfc_sku');
+    if (fromNfc && nfcSku) body.nfc_sku = nfcSku.slice(0, 80);
 
     if (body.password.length < 8) {
       errEl.textContent = 'Password must be at least 8 characters';
@@ -86,9 +59,8 @@
       return;
     }
 
-    var paid = isPaidPlan(body.plan);
     btn.disabled = true;
-    btn.textContent = paid ? 'Starting card setup…' : 'Creating account…';
+    btn.textContent = 'Starting card setup…';
 
     try {
       var res = await fetch(cfg.CHECKOUT_API, {
@@ -98,7 +70,9 @@
       });
       var data = await res.json();
       if (data.accountReady && data.email) {
-        location.href = '/order/success?signup=1&email=' + encodeURIComponent(data.email) + '&plan=' + encodeURIComponent(data.plan || body.plan);
+        var successQs = 'signup=1&email=' + encodeURIComponent(data.email) + '&plan=pro';
+        if (signupFrom) successQs += '&from=' + encodeURIComponent(signupFrom);
+        location.href = '/order/success?' + successQs;
         return;
       }
       if (data.checkoutUrl) {
@@ -112,7 +86,7 @@
       errEl.classList.remove('hidden');
     } finally {
       btn.disabled = false;
-      updateSummary();
+      btn.textContent = 'Continue to card setup →';
     }
   });
 })();

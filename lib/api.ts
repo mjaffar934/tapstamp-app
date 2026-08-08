@@ -299,11 +299,31 @@ export async function adminGenerateChips(
   const res = await fetch(supabaseFn('/admin-generate-chips'), {
     method: 'POST',
     headers: await authHeaders(),
-    body: JSON.stringify({ secret, count }),
+    body: JSON.stringify({ secret, count, action: 'generate' }),
   });
 
   const data = await res.json();
   if (!res.ok) return { error: data.error ?? 'Could not generate codes' };
+  return { stamps: data.stamps };
+}
+
+/** Unlinked chips (cafe_id null) already in DB — for bulk NFC programming. */
+export async function adminListUnlinkedChips(
+  limit = 200,
+): Promise<{ error?: string; stamps?: GeneratedStamp[] }> {
+  if (!supabaseApiBase) return { error: 'Supabase not configured' };
+
+  const secret = process.env.EXPO_PUBLIC_ADMIN_SECRET ?? process.env.EXPO_PUBLIC_DEV_BOOTSTRAP_SECRET ?? '';
+  if (!secret) return { error: 'Admin secret not configured' };
+
+  const res = await fetch(supabaseFn('/admin-generate-chips'), {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: JSON.stringify({ secret, action: 'list_unlinked', limit }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) return { error: data.error ?? 'Could not load codes' };
   return { stamps: data.stamps };
 }
 
@@ -472,6 +492,53 @@ export async function openBillingPortal(setup = false): Promise<{ error?: string
   const data = await res.json();
   if (!res.ok) return { error: data.error ?? 'Could not open billing portal' };
   return { portalUrl: data.portalUrl };
+}
+
+/** Cancel Stripe subscription at period end (keeps access until then). */
+export async function cancelSubscription(): Promise<{
+  error?: string;
+  cancelAt?: number | null;
+}> {
+  if (!supabaseApiBase) return { error: 'Supabase not configured' };
+
+  const res = await fetch(supabaseFn('/billing-portal'), {
+    method: 'POST',
+    headers: {
+      ...(await authHeaders()),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ cancel: true }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) return { error: data.error ?? 'Could not cancel subscription' };
+  return { cancelAt: data.cancelAt ?? null };
+}
+
+/** Permanently delete the signed-in owner account and business data. */
+export async function deleteAccount(): Promise<{ error?: string }> {
+  if (!supabaseApiBase) return { error: 'Supabase not configured' };
+
+  const res = await fetch(supabaseFn('/delete-account'), {
+    method: 'POST',
+    headers: {
+      ...(await authHeaders()),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ confirm: 'DELETE' }),
+  });
+
+  let data: { error?: string; ok?: boolean } = {};
+  try {
+    data = await res.json();
+  } catch {
+    return { error: res.ok ? 'Invalid server response' : `Delete failed (${res.status})` };
+  }
+
+  if (!res.ok) {
+    return { error: data.error ?? `Delete failed (${res.status})` };
+  }
+  return {};
 }
 
 /** Saves cafe settings via edge function so Wallet passes sync after reward/name changes. */

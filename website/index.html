@@ -3,374 +3,143 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#141210">
-  <meta name="description" content="Wallet loyalty for small businesses. Customers collect stamps in Apple Wallet and Google Wallet — with lock-screen notifications when rewards unlock.">
-  <meta property="og:title" content="TapStamp — Wallet loyalty for small businesses">
-  <meta property="og:description" content="The loyalty card that lives in the wallet. Push notifications when stamps land and rewards unlock. Built for shops, salons, bakeries, and independents.">
+  <meta name="theme-color" content="#F7F6F3">
+  <meta name="description" content="TapStamp wallet loyalty for small businesses — free until 50 unique customers a month, then £25/mo. Apple Wallet &amp; Google Wallet.">
+  <meta property="og:title" content="TapStamp — Wallet loyalty">
+  <meta property="og:description" content="Free until 50 unique customers a month, then £25. Cards live in Apple Wallet.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://tapstamp.co/">
-  <meta property="og:image" content="https://tapstamp.co/og-image.svg">
-  <title>TapStamp — Wallet loyalty for small businesses</title>
+  <title>TapStamp — Wallet loyalty</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/assets/styles.css?v=4">
+  <link rel="stylesheet" href="/assets/styles.css?v=28">
 </head>
-<body class="landing">
+<body>
   <header class="site-header">
     <div class="inner">
       <a href="/" class="logo" aria-label="TapStamp home">
-        <img src="/assets/logo.svg" alt="" class="logo-img" width="32" height="32">
+        <img src="/assets/logo.svg?v=2" alt="" class="logo-img" width="28" height="28">
         <span class="logo-text">TapStamp</span>
       </a>
       <nav class="nav" aria-label="Primary">
-        <a href="#features" class="hide-mobile">Product</a>
-        <a href="#pricing" class="hide-mobile">Pricing</a>
-        <a href="#how" class="hide-mobile">Setup</a>
-        <a href="/order?plan=starter" class="btn btn-sm">Get started</a>
+        <a href="/loyalty" class="hide-mobile">Loyalty</a>
+        <a href="/pricing" class="hide-mobile">Pricing</a>
+        <a href="/order" class="btn btn-sm">Start free</a>
       </nav>
     </div>
   </header>
 
   <main>
-    <section class="hero">
-      <div class="container hero-intro">
-        <p class="eyebrow">Small business · Wallet-native</p>
-        <h1>The loyalty card your customers never lose.</h1>
-        <p class="lead">They tap once. Their pass sits in Apple Wallet or Google Wallet — and pings them when a stamp lands or a reward unlocks. You run the programme from one owner app.</p>
-        <div class="hero-actions">
-          <a href="/order?plan=starter" class="btn">Get started</a>
-          <a href="#devices" class="btn btn-ghost">See the wallet experience</a>
-        </div>
-      </div>
-
-      <div id="devices" class="devices-showcase container">
-        <!-- iPhone / Apple Wallet -->
-        <div class="device device-iphone" aria-hidden="true">
-          <div class="device-frame device-frame-ios">
-            <div class="ios-status">
-              <span>9:41</span>
-              <span class="ios-status-icons"></span>
-            </div>
-            <div class="wallet-notification">
-              <img src="/assets/logo.svg" alt="" class="wallet-notif-icon" width="20" height="20">
-              <div class="wallet-notif-body">
-                <p class="wallet-notif-title">TapStamp</p>
-                <p class="wallet-notif-text">Your reward is ready — open Wallet to claim it</p>
-              </div>
-              <span class="wallet-notif-time">now</span>
-            </div>
-            <div class="wallet-sheet">
-              <div class="wallet-sheet-handle"></div>
-              <p class="wallet-sheet-label">Wallet</p>
-              <div class="wallet-pass">
-                <div class="wallet-pass-head">
-                  <div class="wallet-pass-logo"></div>
-                  <div>
-                    <p class="wallet-pass-eyebrow">LOYALTY</p>
-                    <p class="wallet-pass-brand">Bloom &amp; Co.</p>
-                  </div>
-                </div>
-                <div class="wallet-pass-row">
-                  <div>
-                    <p class="wallet-pass-field-label">OF 10 STAMPS</p>
-                    <p class="wallet-pass-field-value">8</p>
-                  </div>
-                  <div>
-                    <p class="wallet-pass-field-label">REWARD</p>
-                    <p class="wallet-pass-field-value-sm">Free treatment</p>
-                  </div>
-                </div>
-                <div class="wallet-pass-dots wallet-pass-dots-lg">
-                  <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span>
-                  <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span>
-                  <span></span><span></span>
-                </div>
-              </div>
-            </div>
+    <section class="page-hero home-hero">
+      <div class="container home-hero-grid">
+        <div class="home-hero-copy">
+          <p class="brand-plain">TapStamp</p>
+          <h1>The loyalty card that lives in Apple Wallet.</h1>
+          <p class="lead">Customers tap once. Their pass sits in Wallet — and can ping them when a stamp lands or a reward unlocks. Free until 50 unique customers a month, then £25.</p>
+          <div class="actions">
+            <a href="/order" class="btn">Start free — stamp included</a>
+            <a href="#wallet" class="btn btn-ghost">See Apple Wallet</a>
           </div>
-          <p class="device-caption">Apple Wallet · lock-screen alerts</p>
-        </div>
-
-        <!-- Android / Google Wallet -->
-        <div class="device device-android" aria-hidden="true">
-          <div class="device-frame device-frame-android">
-            <div class="android-status">
-              <span>9:41</span>
-            </div>
-            <div class="gpay-header">
-              <span class="gpay-dot"></span>
-              <span>Google Wallet</span>
-            </div>
-            <div class="wallet-pass wallet-pass-android">
-              <div class="wallet-pass-head">
-                <div class="wallet-pass-logo wallet-pass-logo-light"></div>
-                <div>
-                  <p class="wallet-pass-eyebrow">LOYALTY</p>
-                  <p class="wallet-pass-brand">Bloom &amp; Co.</p>
-                </div>
-              </div>
-              <div class="wallet-pass-row">
-                <div>
-                  <p class="wallet-pass-field-label">OF 10 STAMPS</p>
-                  <p class="wallet-pass-field-value">8</p>
-                </div>
-                <div>
-                  <p class="wallet-pass-field-label">REWARD</p>
-                  <p class="wallet-pass-field-value-sm">Free treatment</p>
-                </div>
-              </div>
-              <div class="wallet-pass-dots wallet-pass-dots-lg">
-                <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span>
-                <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span>
-                <span></span><span></span>
-              </div>
-              <div class="wallet-pass-barcode">
-                <span></span><span></span><span></span><span></span><span></span>
-                <span></span><span></span><span></span><span></span><span></span>
-              </div>
-              <p class="wallet-pass-barcode-hint">Show at counter</p>
-            </div>
-            <div class="android-notification">
-              <img src="/assets/logo.svg" alt="" width="18" height="18">
-              <div>
-                <strong>Bloom &amp; Co.</strong>
-                <span>New stamp — you are now at 8 of 10</span>
-              </div>
-            </div>
+          <div class="free-callout">
+            <strong>Free until you grow. Then £25/mo.</strong>
+            <p>Software stays £0 for your first 50 unique stamped customers each month. Loyalty stamp included free. Card on file — £0 due today.</p>
           </div>
-          <p class="device-caption">Google Wallet · push updates</p>
+        </div>
+
+        <div id="wallet" class="home-hero-device" aria-hidden="true">
+          <div class="device device-iphone">
+            <div class="device-frame device-frame-ios">
+              <div class="ios-status">
+                <span>9:41</span>
+                <span class="ios-status-icons"></span>
+              </div>
+              <div class="wallet-notification">
+                <img src="/assets/logo.svg?v=2" alt="" class="wallet-notif-icon" width="20" height="20">
+                <div class="wallet-notif-body">
+                  <p class="wallet-notif-title">TapStamp</p>
+                  <p class="wallet-notif-text">Your reward is ready — open Wallet to claim it</p>
+                </div>
+                <span class="wallet-notif-time">now</span>
+              </div>
+              <div class="wallet-sheet">
+                <div class="wallet-sheet-handle"></div>
+                <p class="wallet-sheet-label">Wallet</p>
+                <div class="wallet-pass">
+                  <div class="wallet-pass-head">
+                    <div class="wallet-pass-logo"></div>
+                    <div>
+                      <p class="wallet-pass-eyebrow">LOYALTY</p>
+                      <p class="wallet-pass-brand">Bloom &amp; Co.</p>
+                    </div>
+                  </div>
+                  <div class="wallet-pass-row">
+                    <div>
+                      <p class="wallet-pass-field-label">OF 10 STAMPS</p>
+                      <p class="wallet-pass-field-value">8</p>
+                    </div>
+                    <div>
+                      <p class="wallet-pass-field-label">REWARD</p>
+                      <p class="wallet-pass-field-value-sm">Free treatment</p>
+                    </div>
+                  </div>
+                  <div class="wallet-pass-dots wallet-pass-dots-lg">
+                    <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span>
+                    <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span>
+                    <span></span><span></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="device-caption">Apple Wallet · lock-screen alerts</p>
+          </div>
         </div>
       </div>
     </section>
 
-    <section id="features" class="section-dark">
-      <div class="container">
-        <p class="eyebrow eyebrow-light">Built for independents</p>
-        <h2 class="section-title-light">Wallet loyalty, without the friction.</h2>
-        <div class="feature-grid feature-grid-4">
-          <article class="feature">
-            <h3>Lock-screen alerts</h3>
-            <p>Stamps and rewards ping customers when it matters — not buried in email.</p>
-          </article>
-          <article class="feature">
-            <h3>No app to download</h3>
-            <p>One tap adds your card to Apple Wallet or Google Wallet.</p>
-          </article>
-          <article class="feature">
-            <h3>Staff mode</h3>
-            <p>Stamp, redeem, and verify spend from the counter in seconds.</p>
-          </article>
-          <article class="feature">
-            <h3>Scheduled promos</h3>
-            <p>Double-stamp days on your tap link — with date, time, and calendar reminders.</p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section id="pricing" class="section-pricing">
-      <div class="container">
-        <div class="pricing-intro">
-          <p class="eyebrow eyebrow-light">Pricing</p>
-          <h2>Simple, honest pricing.</h2>
-          <p class="pricing-lead">Your loyalty stamp is <strong>included free</strong> on every plan. Software billing starts after your 14-day trial — when you go live, not when you sign up.</p>
-        </div>
-
-        <div class="pricing-grid">
-          <article class="plan-card">
-            <header class="plan-head">
-              <h3>Starter</h3>
-              <p class="plan-desc">For single-location independents getting started.</p>
-            </header>
-            <div class="plan-rates">
-              <div class="plan-rate-row">
-                <span class="plan-rate-label">Software</span>
-                <span class="plan-rate-value"><span class="plan-rate-amount">Free</span><span class="plan-rate-period">after trial</span></span>
-              </div>
-            </div>
-            <p class="plan-cap">Up to <strong>50 unique customers per month</strong> — resets on the 1st. Free loyalty stamp included.</p>
-            <ul class="plan-includes">
-              <li>Wallet passes + tap link</li>
-              <li>Staff stamp &amp; redeem</li>
-              <li>Custom branding</li>
-            </ul>
-            <a href="/order?plan=starter" class="btn btn-block btn-outline-light">Choose Starter</a>
-          </article>
-
-          <article class="plan-card plan-card-featured">
-            <header class="plan-head">
-              <p class="plan-label">Most popular</p>
-              <h3>Pro</h3>
-              <p class="plan-desc">Unlimited monthly customers and full programme tools.</p>
-            </header>
-            <div class="plan-rates">
-              <div class="plan-rate-row">
-                <span class="plan-rate-label">Software</span>
-                <span class="plan-rate-value"><span class="plan-rate-main"><span class="plan-rate-currency">£</span><span class="plan-rate-amount">25</span></span><span class="plan-rate-period">/mo after trial</span></span>
-              </div>
-            </div>
-            <p class="plan-cap"><strong>Unlimited</strong> unique customers per month. Free loyalty stamp included.</p>
-            <ul class="plan-includes">
-              <li>Everything in Starter</li>
-              <li>Campaigns, tiers &amp; analytics</li>
-              <li>Minimum spend rules</li>
-            </ul>
-            <a href="/order?plan=pro" class="btn btn-block">Choose Pro</a>
-          </article>
-
-          <article class="plan-card">
-            <header class="plan-head">
-              <h3>Multi-site</h3>
-              <p class="plan-desc">For operators running several locations.</p>
-            </header>
-            <div class="plan-rates">
-              <div class="plan-rate-row">
-                <span class="plan-rate-label">Software</span>
-                <span class="plan-rate-value"><span class="plan-rate-main"><span class="plan-rate-currency">£</span><span class="plan-rate-amount">59</span></span><span class="plan-rate-period">/mo after trial</span></span>
-              </div>
-            </div>
-            <p class="plan-cap">Up to <strong>5 locations</strong>, one dashboard. Free loyalty stamp included.</p>
-            <ul class="plan-includes">
-              <li>Everything in Pro</li>
-              <li>Per-site branding &amp; staff codes</li>
-              <li>Combined reporting</li>
-            </ul>
-            <a href="/order?plan=multi" class="btn btn-block btn-outline-light">Choose Multi-site</a>
-          </article>
-        </div>
-
-        <div class="pricing-checkout-note">
-          <p><strong>Nothing to pay today</strong> on Starter. Pro and Multi-site add a card at signup — billing starts after your trial at go-live.</p>
-          <p>Starter stays free after trial while you remain under 50 unique customers per calendar month.</p>
-        </div>
-      </div>
-    </section>
-
-    <section id="how">
+    <section class="section">
       <div class="container">
         <div class="section-head">
-          <h2>Live in an afternoon</h2>
-          <p class="section-lead">Set up your programme now. Your counter stamp ships separately — use your tap link or QR until it arrives.</p>
+          <h2>What loyalty is</h2>
+          <p>A digital punch card that lives where people already look — not another app, not a scrap of cardboard.</p>
         </div>
-        <ol class="timeline">
-          <li>
-            <span class="timeline-step">1</span>
-            <div>
-              <strong>Create your account</strong>
-              <p>Choose a plan and set your owner login. Checkout takes two minutes.</p>
-            </div>
-          </li>
-          <li>
-            <span class="timeline-step">2</span>
-            <div>
-              <strong>Brand your wallet card</strong>
-              <p>Logo, colours, stamp goal, reward, staff access — about two minutes in the owner app.</p>
-            </div>
-          </li>
-          <li>
-            <span class="timeline-step">3</span>
-            <div>
-              <strong>Share your tap link</strong>
-              <p>Print a QR, add it to receipts, or use your counter stamp when it arrives. Customers are live immediately.</p>
-            </div>
-          </li>
-          <li>
-            <span class="timeline-step">4</span>
-            <div>
-              <strong>They tap — you notify</strong>
-              <p>Wallet pass added in seconds. Stamps and rewards push to their lock screen. Your trial starts at go-live.</p>
-            </div>
-          </li>
-        </ol>
-      </div>
-    </section>
-
-    <section id="owner-app" class="section-muted">
-      <div class="container owner-block">
-        <div>
-          <p class="eyebrow">Owner app</p>
-          <h2>Already signed up?</h2>
-          <p class="section-lead section-lead-left">Download the TapStamp owner app and sign in with the email you used at checkout.</p>
-          <div class="app-links" id="app-links">
-            <a href="#" id="app-store-link" class="app-store-badge" hidden>
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
-              <span><small>Download on the</small><strong>App Store</strong></span>
-            </a>
-            <p class="app-links-fallback" id="app-links-fallback">Get the TapStamp owner app for iPhone when you order — we email the download link.</p>
-          </div>
+        <div class="feature-grid">
+          <article class="feature">
+            <h3>Free counter stamp</h3>
+            <p>We ship the NFC stamp with your order. Customers tap it; the wallet pass adds or stamps.</p>
+          </article>
+          <article class="feature">
+            <h3>No customer app</h3>
+            <p>They add a pass to Apple Wallet or Google Wallet once. Staff stamp from the owner app.</p>
+          </article>
+          <article class="feature">
+            <h3>Lock-screen rewards</h3>
+            <p>When a reward unlocks, their phone can notify them — better than a half-filled paper card.</p>
+          </article>
+          <article class="feature">
+            <h3>Simple pricing</h3>
+            <p>Free under 50 unique customers a month. Then £25/mo. That’s it.</p>
+          </article>
         </div>
-        <div class="owner-card">
-          <p class="owner-card-title">In the owner app</p>
-          <ul class="owner-list">
-            <li>Live wallet preview before you go live</li>
-            <li>Staff mode — stamp and redeem at the counter</li>
-            <li>Scheduled promos on your customer tap link</li>
-            <li>Dashboard with stamps, redemptions &amp; monthly usage</li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
-    <section id="faq" class="section-cream">
-      <div class="container container-narrow">
-        <h2>Questions</h2>
-        <div class="faq">
-          <details>
-            <summary>Do customers get notifications?</summary>
-            <p>Yes. When you add a stamp or unlock a reward, their phone can alert them — like major wallet loyalty programmes. They open Wallet and your card is already updated.</p>
-          </details>
-          <details>
-            <summary>Is Starter really free after the trial?</summary>
-            <p>Yes. After your 14-day trial at go-live, Starter costs nothing monthly as long as you stay under 50 unique customers per calendar month. Each person who stamps counts once — five visits from the same person still counts as one. The counter resets on the 1st every month.</p>
-          </details>
-          <details>
-            <summary>Do customers need to download an app?</summary>
-            <p>No. They tap your link or stamp and add a pass to Apple Wallet or Google Wallet.</p>
-          </details>
-          <details>
-            <summary>What if I outgrow Starter?</summary>
-            <p>Upgrade to Pro from the owner app — unlimited customers, campaigns, and deeper analytics.</p>
-          </details>
-          <details>
-            <summary>What counts as one customer on Starter?</summary>
-            <p>One person who receives at least one stamp in a calendar month. The same regular counts again in a new month — your 50 slots reset on the 1st. Five visits from one person in the same month still counts as one.</p>
-          </details>
-        </div>
-      </div>
-    </section>
-
-    <section class="cta-band">
-      <div class="container cta-inner">
-        <h2>Put loyalty where your customers already look — their wallet.</h2>
-        <a href="/order?plan=starter" class="btn btn-lg">Get started</a>
+        <p style="margin-top:2rem">
+          <a href="/pricing" class="btn btn-ghost">See pricing</a>
+        </p>
       </div>
     </section>
   </main>
 
   <footer class="site-footer">
     <div class="container footer-inner">
-      <img src="/assets/logo.svg" alt="" class="footer-logo" width="40" height="40">
       <p class="footer-brand">TapStamp</p>
-      <p class="footer-copy">Wallet loyalty for small businesses — shops, salons, bakeries, food &amp; drink, and more.</p>
-      <a href="mailto:support@tapstamp.com" class="footer-link">support@tapstamp.com</a>
-      ·
-      <a href="/support" class="footer-link">Support</a>
+      <p class="footer-copy">Free until 50 unique customers a month, then £25. Stamp included free.</p>
+      <div class="footer-links">
+        <a href="/loyalty" class="footer-link">Loyalty</a>
+        <a href="/pricing" class="footer-link">Pricing</a>
+        <a href="/support" class="footer-link">Support</a>
+        <a href="mailto:support@tapstamp.co" class="footer-link">support@tapstamp.co</a>
+      </div>
     </div>
   </footer>
-  <script src="/assets/config.js"></script>
-  <script>
-    (function () {
-      var url = window.TAPSTAMP && window.TAPSTAMP.APP_STORE_IOS;
-      var link = document.getElementById('app-store-link');
-      var fallback = document.getElementById('app-links-fallback');
-      if (url && link) {
-        link.href = url;
-        link.hidden = false;
-        if (fallback) fallback.hidden = true;
-      }
-    })();
-  </script>
 </body>
 </html>

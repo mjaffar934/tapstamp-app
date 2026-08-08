@@ -8,6 +8,12 @@
     "scheme": "tapstamp",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/69d0a4ec-8ba0-4e2f-a8a3-0b118763796e"
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -15,7 +21,13 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tapstamp.owner"
+      "bundleIdentifier": "com.tapstampp.owner",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Allow TapStamp to scan customer wallet QR codes in barista mode.",
+        "NSPhotoLibraryUsageDescription": "Allow TapStamp to upload your business logo for wallet passes."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +37,11 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.tapstamp.owner",
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -54,6 +70,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "69d0a4ec-8ba0-4e2f-a8a3-0b118763796e"
+      }
     }
   }
 }

@@ -539,6 +539,11 @@ verify_jwt = false
 import_map = "./functions/order-checkout/deno.json"
 entrypoint = "./functions/order-checkout/index.ts"
 
+[functions.hardware-checkout]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/hardware-checkout/index.ts"
+
 [functions.order-signup]
 enabled = true
 verify_jwt = false
@@ -550,6 +555,17 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/stripe-webhook/deno.json"
 entrypoint = "./functions/stripe-webhook/index.ts"
+
+[functions.stripe-fix-prices]
+enabled = true
+verify_jwt = false
+import_map = "./functions/stripe-fix-prices/deno.json"
+entrypoint = "./functions/stripe-fix-prices/index.ts"
+
+[functions.delete-account]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/delete-account/index.ts"
 
 [functions.billing-portal]
 enabled = true

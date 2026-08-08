@@ -1,6 +1,16 @@
 # Cloudflare Pages — static site, no build step
 # https://developers.cloudflare.com/pages/configuration/redirects/
 
-/order/success  /order/success/index.html  200
-/order          /order/index.html          200
-/support        /support/index.html        200
+/order/success     /order/success/index.html     200
+/order             /order/index.html             200
+/loyalty           /loyalty/index.html           200
+/pricing           /pricing/index.html           200
+/support           /support/index.html           200
+/privacy           /privacy/index.html           200
+/reviews           /reviews/index.html           200
+/reviews/*         /reviews/:splat               200
+/google            /reviews                      301
+/instagram         /reviews                      301
+/hardware          /reviews                      301
+/shop              /reviews                      301
+/shop/success      /reviews                      301
