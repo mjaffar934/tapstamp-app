@@ -25,14 +25,14 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     name: 'Pro',
     hardwareGbp: HARDWARE_PRICE_GBP,
     monthlyGbp: 25,
-    tagline: 'Unlimited customers — £25/mo after trial',
+    tagline: 'Unlimited customers — £25/mo after 50 unique/mo',
   },
   multi: {
     id: 'multi',
     name: 'Multi-site',
     hardwareGbp: HARDWARE_PRICE_GBP,
     monthlyGbp: 59,
-    tagline: 'Multiple locations — £59/mo after trial',
+    tagline: 'Multiple locations — £59/mo after 50 unique/mo',
   },
 };
 
